@@ -361,29 +361,42 @@ class CardRenderer:
         draw.text((35, top_h + 20), "TERMS AND CONDITIONS:", fill=pri_rgb, font=sec_title_font)
 
         disclaimer = school.disclaimer_text or (
-            "1. This card remains the property of the institution.\n"
-            "2. If found, please return to the administration or nearest police station.\n"
-            "3. Card is non-transferable and must be produced upon request.\n"
-            "4. Alteration or misuse of this card constitutes an offense."
+            "1. This card remains the property of the school.\n"
+            "2. If found, please return to the school administration or nearest police station."
         )
 
-        # Render disclaimer lines — bold, centred, each on its own line
-        lines = [ln.strip() for ln in disclaimer.split("\n") if ln.strip()]
-        y_cursor = top_h + 46
-        card_center_x = left_w // 2 + 35
-        for line in lines[:4]:
-            # Center each line
+        # ── Disclaimer Block: bold, centred, each line on its own row ────────────
+        # Only display the first 2 primary terms prominently on the card back
+        raw_lines = [ln.strip() for ln in disclaimer.split("\n") if ln.strip()]
+        display_lines = raw_lines[:2]   # Limit to 2 lines for clean block layout
+
+        block_font = get_font(16, bold=True)
+        block_line_h = 28                # Height per line
+        block_pad_v = 10                 # Top/bottom padding inside the shaded block
+        block_x1 = 35
+        block_x2 = left_w + 10
+        block_y1 = top_h + 46
+        block_h = block_pad_v * 2 + block_line_h * len(display_lines)
+        block_y2 = block_y1 + block_h
+
+        # Shaded background for the disclaimer block
+        draw.rounded_rectangle([block_x1, block_y1, block_x2, block_y2], radius=6,
+                                fill=(241, 245, 249), outline=(203, 213, 225), width=1)
+
+        for idx, line in enumerate(display_lines):
+            ly = block_y1 + block_pad_v + idx * block_line_h
+            # Centre-align each line within the block
             try:
-                bbox = body_bold_font.getbbox(line) if hasattr(body_bold_font, "getbbox") else (0, 0, len(line) * 9, 18)
+                bbox = block_font.getbbox(line) if hasattr(block_font, "getbbox") else (0, 0, len(line) * 9, 18)
                 line_w = bbox[2] - bbox[0]
             except Exception:
                 line_w = len(line) * 9
-            txt_x = max(35, card_center_x - line_w // 2)
-            draw.text((txt_x, y_cursor), line[:75], fill=(15, 23, 42), font=body_bold_font)
-            y_cursor += 26
+            center_x = block_x1 + (block_x2 - block_x1 - line_w) // 2
+            draw.text((max(block_x1 + 6, center_x), ly), line[:80], fill=(15, 23, 42), font=block_font)
+
+        y_cursor = block_y2 + 12
 
         # Hotline & email separator
-        y_cursor += 4
         draw.line([35, y_cursor, left_w + 10, y_cursor], fill=(226, 232, 240), width=2)
         y_cursor += 8
 
@@ -400,21 +413,31 @@ class CardRenderer:
             y_cursor += 24
 
         # ── Authority Verification Block: Official Stamp + Principal's Signature ────
-        auth_box_y = y_cursor + 4
-        auth_box_h = h - int(h * 0.12) - auth_box_y - 12
-        draw.rounded_rectangle([35, auth_box_y, left_w + 10, auth_box_y + auth_box_h], radius=8, fill=(248, 250, 252), outline=(226, 232, 240), width=1)
+        # Pin the block to a fixed margin ABOVE the bottom footer bar so it is always
+        # professionally placed regardless of how much content is above it.
+        bottom_h = int(h * 0.12)
+        footer_top = h - bottom_h        # y-coordinate where the bottom bar starts
+        sig_margin_above_footer = 20     # professional gap between last text and footer
 
-        # Official Stamp (Left side of auth block)
-        stamp_img = get_official_rubber_stamp(school, size=(160, 160), angle=-8)
+        # Total height needed: stamp ~160, sig area ~90 → use 170 as auth block height
+        auth_box_h = 170
+        auth_box_y2 = footer_top - sig_margin_above_footer
+        auth_box_y = auth_box_y2 - auth_box_h
+
+        draw.rounded_rectangle([35, auth_box_y, left_w + 10, auth_box_y2], radius=8,
+                                fill=(248, 250, 252), outline=(226, 232, 240), width=1)
+
+        # Official Stamp — vertically centred inside auth block, left zone
+        stamp_img = get_official_rubber_stamp(school, size=(155, 155), angle=-8)
         stamp_x = 42
         stamp_y = auth_box_y + (auth_box_h - stamp_img.height) // 2
         img.paste(stamp_img, (stamp_x, stamp_y), stamp_img)
 
-        # Principal / Authority Signature Block (Right side of auth block)
+        # Signature zone — right side of auth block, baseline sits ~45px above bottom of block
         sig_x = 240
         sig_w = left_w - sig_x - 10
-        sig_h = 50
-        sig_y = auth_box_y + 20
+        sig_h = 52
+        sig_y = auth_box_y + 18        # top of the signature image space
 
         sig_drawn = False
         if school.principal_signature_filename:
@@ -430,21 +453,21 @@ class CardRenderer:
                     except Exception:
                         sig_drawn = False
 
-        # Baseline under signature
-        line_y = sig_y + sig_h + 8
+        # Signature baseline — 20 px above the bottom of the auth block
+        line_y = auth_box_y2 - 70
         draw.line([sig_x, line_y, sig_x + sig_w, line_y], fill=(100, 116, 139), width=2)
 
-        # Principal / Authority Name & Title
+        # Principal / Authority Name & Title below the baseline
         title_font = get_font(13, bold=False)
         pname_font = get_font(14, bold=True)
         signatory_name = school.principal_name or "Principal / Authorized Signatory"
         signatory_title = getattr(school, "get_signatory_title", lambda: "Principal / Head of Institution")()
-        draw.text((sig_x + 5, line_y + 4), signatory_name, fill=pri_rgb, font=pname_font)
-        draw.text((sig_x + 5, line_y + 22), signatory_title, fill=(71, 85, 105), font=title_font)
+        draw.text((sig_x + 5, line_y + 5), signatory_name, fill=pri_rgb, font=pname_font)
+        draw.text((sig_x + 5, line_y + 23), signatory_title, fill=(71, 85, 105), font=title_font)
 
-        # "PLACE STAMP HERE" guide label inside auth block (right below signature)
+        # "[ School / Company Stamp ]" guide label
         stamp_guide_font = get_font(11, bold=False)
-        draw.text((sig_x + 5, line_y + 40), "[ School / Company Stamp ]", fill=(148, 163, 184), font=stamp_guide_font)
+        draw.text((sig_x + 5, line_y + 42), "[ School / Company Stamp ]", fill=(148, 163, 184), font=stamp_guide_font)
 
         # Right Column: High-Contrast, Laser-Sharp Optical QR Code & Security Frame
         qr_token = card_record.qr_token if card_record else "DEMO-TOKEN-2026"
@@ -507,8 +530,7 @@ class CardRenderer:
         sub_font = get_font(10, bold=False)
         draw.text((qr_x + 10, qr_y + qr_box_size + 42), "SMARTPHONE CAMERA / 2D SCANNER", fill=(148, 163, 184), font=sub_font)
 
-        # Bottom Bar
-        bottom_h = int(h * 0.12)
+        # Bottom Bar (bottom_h already computed above when anchoring auth block)
         draw.rectangle([0, h - bottom_h, w, h], fill=pri_rgb)
         draw.rectangle([0, h - bottom_h - 4, w, h - bottom_h], fill=sec_rgb)
 
