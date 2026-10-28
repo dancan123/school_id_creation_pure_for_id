@@ -104,10 +104,10 @@ def get_official_rubber_stamp(school, size=(190, 190), angle=-8):
     # Vector generated authentic circular double-ring rubber stamp
     w, h = size
     stamp = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(stamp)
+    sdraw = ImageDraw.Draw(stamp)
 
     pri_rgb = hex_to_rgb(school.primary_color)
-    # Stamp ink color: deep official purple-blue or primary color with semi-transparency
+    # Stamp ink color: deep official navy-blue derived from primary, semi-transparent
     ink_color = (max(20, min(180, pri_rgb[0])), max(20, min(140, pri_rgb[1])), max(80, min(220, pri_rgb[2])), 210)
 
     cx, cy = w // 2, h // 2
@@ -116,23 +116,29 @@ def get_official_rubber_stamp(school, size=(190, 190), angle=-8):
     r_center = r_inner - 22
 
     # Double concentric outer rings
-    draw.ellipse([cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer], outline=ink_color, width=3)
-    draw.ellipse([cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner], outline=ink_color, width=2)
-    draw.ellipse([cx - r_center, cy - r_center, cx + r_center, cy + r_center], outline=ink_color, width=1)
+    sdraw.ellipse([cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer], outline=ink_color, width=3)
+    sdraw.ellipse([cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner], outline=ink_color, width=2)
+    sdraw.ellipse([cx - r_center, cy - r_center, cx + r_center, cy + r_center], outline=ink_color, width=1)
 
-    # Stamp text
+    # Stamp text — always use int coords (PIL ignores float coords on some versions)
     clean_name = school.name.upper()
     if len(clean_name) > 22:
         clean_name = clean_name[:20] + ".."
 
     name_font = get_font(12, bold=True)
-    seal_font = get_font(14, bold=True)
+    seal_font = get_font(13, bold=True)
     meta_font = get_font(11, bold=True)
 
-    draw.text((cx - len(clean_name)*3.8, cy - 36), clean_name, fill=ink_color, font=name_font)
-    draw.text((cx - 58, cy - 10), "★ OFFICIAL SEAL ★", fill=ink_color, font=seal_font)
-    draw.text((cx - 44, cy + 12), f"VERIFIED {school.academic_year}", fill=ink_color, font=meta_font)
-    draw.text((cx - 32, cy + 28), (school.town or "KENYA").upper(), fill=ink_color, font=meta_font)
+    try:
+        # Use integer x-offset; avoid special Unicode chars that may not render
+        name_offset_x = int(cx - len(clean_name) * 3.8)
+        sdraw.text((name_offset_x, cy - 38), clean_name, fill=ink_color, font=name_font)
+        sdraw.text((cx - 54, cy - 12), "** OFFICIAL SEAL **", fill=ink_color, font=seal_font)
+        sdraw.text((cx - 42, cy + 10), f"VERIFIED {school.academic_year}", fill=ink_color, font=meta_font)
+        sdraw.text((cx - 30, cy + 26), (school.town or "KENYA").upper(), fill=ink_color, font=meta_font)
+    except Exception:
+        # Ultimate fallback: just draw the ring lines — better than a crash
+        pass
 
     return stamp.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
 
@@ -427,17 +433,32 @@ class CardRenderer:
         draw.rounded_rectangle([35, auth_box_y, left_w + 10, auth_box_y2], radius=8,
                                 fill=(248, 250, 252), outline=(226, 232, 240), width=1)
 
-        # Official Stamp — vertically centred inside auth block, left zone
-        stamp_img = get_official_rubber_stamp(school, size=(155, 155), angle=-8)
-        stamp_x = 42
-        stamp_y = auth_box_y + (auth_box_h - stamp_img.height) // 2
-        img.paste(stamp_img, (stamp_x, stamp_y), stamp_img)
+        # ── Official Stamp — left zone, vertically centred in auth block ────────
+        try:
+            stamp_img = get_official_rubber_stamp(school, size=(155, 155), angle=-8)
+            stamp_x = 42
+            stamp_y = auth_box_y + max(0, (auth_box_h - stamp_img.height) // 2)
+            img.paste(stamp_img, (stamp_x, stamp_y), stamp_img)
+        except Exception:
+            # Fallback: draw a simple ink-circle so there's always a stamp placeholder
+            fc_x = 42 + 77
+            fc_y = auth_box_y + auth_box_h // 2
+            fc_r = 72
+            draw.ellipse([fc_x - fc_r, fc_y - fc_r, fc_x + fc_r, fc_y + fc_r],
+                         outline=pri_rgb, width=3)
+            draw.ellipse([fc_x - fc_r + 8, fc_y - fc_r + 8,
+                          fc_x + fc_r - 8, fc_y + fc_r - 8], outline=pri_rgb, width=1)
+            fb_font = get_font(11, bold=True)
+            try:
+                draw.text((fc_x - 30, fc_y - 8), "OFFICIAL SEAL", fill=pri_rgb, font=fb_font)
+            except Exception:
+                pass
 
-        # Signature zone — right side of auth block, baseline sits ~45px above bottom of block
+        # ── Signature zone — right side of auth block ──────────────────────────
         sig_x = 240
-        sig_w = left_w - sig_x - 10
-        sig_h = 52
-        sig_y = auth_box_y + 18        # top of the signature image space
+        sig_w  = left_w - sig_x - 10
+        sig_h  = 52
+        sig_y  = auth_box_y + 18
 
         sig_drawn = False
         if school.principal_signature_filename:
@@ -447,27 +468,61 @@ class CardRenderer:
                     try:
                         sig_img = Image.open(sig_path).convert("RGBA")
                         sig_img.thumbnail((sig_w, sig_h), Image.Resampling.LANCZOS)
-                        img.paste(sig_img, (sig_x + (sig_w - sig_img.width) // 2, sig_y), sig_img)
+                        img.paste(sig_img,
+                                  (sig_x + (sig_w - sig_img.width) // 2, sig_y),
+                                  sig_img)
                         sig_drawn = True
                         break
                     except Exception:
                         sig_drawn = False
 
-        # Signature baseline — 20 px above the bottom of the auth block
+        # When no signature image is uploaded, draw a professional cursive placeholder
+        if not sig_drawn:
+            import math as _math
+            ph_y_mid = sig_y + sig_h // 2
+            ph_color = (100, 116, 139, 180)   # slate-grey, semi-transparent
+            # Create small RGBA overlay for the wavy placeholder line
+            sig_overlay = Image.new("RGBA", (sig_w, sig_h + 10), (0, 0, 0, 0))
+            ov_draw = ImageDraw.Draw(sig_overlay)
+            pts = []
+            for px in range(0, sig_w, 3):
+                py = int((sig_h // 2) + _math.sin(px / 12.0) * 7 +
+                         _math.sin(px / 5.0 + 1.2) * 3)
+                pts.append((px, py))
+            for i in range(len(pts) - 1):
+                ov_draw.line([pts[i], pts[i + 1]], fill=ph_color, width=2)
+            # Second smaller flourish
+            pts2 = []
+            for px in range(sig_w // 3, sig_w * 2 // 3, 3):
+                py = int((sig_h // 2) + 14 + _math.sin(px / 9.0) * 4)
+                pts2.append((px, py))
+            for i in range(len(pts2) - 1):
+                ov_draw.line([pts2[i], pts2[i + 1]], fill=ph_color, width=1)
+            img.paste(sig_overlay, (sig_x, sig_y - 5), sig_overlay)
+
+        # Signature baseline — anchored 70 px above the bottom edge of auth block
         line_y = auth_box_y2 - 70
         draw.line([sig_x, line_y, sig_x + sig_w, line_y], fill=(100, 116, 139), width=2)
 
-        # Principal / Authority Name & Title below the baseline
-        title_font = get_font(13, bold=False)
-        pname_font = get_font(14, bold=True)
-        signatory_name = school.principal_name or "Principal / Authorized Signatory"
-        signatory_title = getattr(school, "get_signatory_title", lambda: "Principal / Head of Institution")()
-        draw.text((sig_x + 5, line_y + 5), signatory_name, fill=pri_rgb, font=pname_font)
-        draw.text((sig_x + 5, line_y + 23), signatory_title, fill=(71, 85, 105), font=title_font)
+        # Principal name & title below the baseline
+        title_font  = get_font(13, bold=False)
+        pname_font  = get_font(14, bold=True)
+        signatory_name  = school.principal_name or "Principal / Authorized Signatory"
+        signatory_title = getattr(school, "get_signatory_title",
+                                  lambda: "Principal / Head of Institution")()
+        try:
+            draw.text((sig_x + 5, line_y + 5),  signatory_name,  fill=pri_rgb,        font=pname_font)
+            draw.text((sig_x + 5, line_y + 23), signatory_title, fill=(71, 85, 105),   font=title_font)
+        except Exception:
+            pass
 
-        # "[ School / Company Stamp ]" guide label
-        stamp_guide_font = get_font(11, bold=False)
-        draw.text((sig_x + 5, line_y + 42), "[ School / Company Stamp ]", fill=(148, 163, 184), font=stamp_guide_font)
+        # "[ School / Company Stamp ]" guide label inside auth block
+        try:
+            stamp_guide_font = get_font(11, bold=False)
+            draw.text((sig_x + 5, line_y + 42), "[ School / Company Stamp ]",
+                      fill=(148, 163, 184), font=stamp_guide_font)
+        except Exception:
+            pass
 
         # Right Column: High-Contrast, Laser-Sharp Optical QR Code & Security Frame
         qr_token = card_record.qr_token if card_record else "DEMO-TOKEN-2026"
