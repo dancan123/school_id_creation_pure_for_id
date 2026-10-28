@@ -1,5 +1,6 @@
 import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
+import io
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, Response
 from flask_login import login_required
 from extensions import db
 from models import Student, School, CardRecord, QRVerificationToken, IdTemplate
@@ -9,6 +10,50 @@ from services.card_renderer import CardRenderer
 from services.qr_service import QRService
 
 single_id_bp = Blueprint("single_id", __name__)
+
+
+# ── Live Card Preview Image Endpoints ─────────────────────────────────────────
+@single_id_bp.route("/preview/front/<int:student_id>")
+@login_required
+def preview_front(student_id):
+    """Renders the front of the ID card in-memory and returns it as a PNG.
+    This ensures the browser preview is pixel-for-pixel identical to the PDF."""
+    school = get_current_school()
+    student = Student.query.filter_by(id=student_id, school_id=school.id).first_or_404()
+    card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
+    base_url = request.host_url.rstrip("/")
+    try:
+        img = CardRenderer.render_front(school, student, card)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=False)
+        buf.seek(0)
+        return Response(buf.read(), mimetype="image/png",
+                        headers={"Cache-Control": "no-store, max-age=0"})
+    except Exception as exc:
+        return Response(f"Preview error: {exc}", status=500, mimetype="text/plain")
+
+
+@single_id_bp.route("/preview/back/<int:student_id>")
+@login_required
+def preview_back(student_id):
+    """Renders the back of the ID card in-memory and returns it as a PNG."""
+    school = get_current_school()
+    student = Student.query.filter_by(id=student_id, school_id=school.id).first_or_404()
+    card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
+    base_url = request.host_url.rstrip("/")
+    try:
+        img = CardRenderer.render_back(school, student, card, verify_base_url=base_url)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=False)
+        buf.seek(0)
+        return Response(buf.read(), mimetype="image/png",
+                        headers={"Cache-Control": "no-store, max-age=0"})
+    except Exception as exc:
+        return Response(f"Preview error: {exc}", status=500, mimetype="text/plain")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 @single_id_bp.route("/", methods=["GET"])
 @login_required

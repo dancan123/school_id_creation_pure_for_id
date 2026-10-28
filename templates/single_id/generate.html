@@ -115,133 +115,97 @@
           {% if selected_student %}
           
           <div class="id-preview-box">
-            <!-- Front Card Preview -->
+
+            {% if selected_student %}
+
+            <!-- ── FRONT CARD: Actual rendered PNG (pixel-perfect match to PDF) ──────── -->
             <div>
-              <div class="text-center text-white small fw-bold mb-2">FRONT SIDE</div>
-              <div class="card-sample-view shadow-lg position-relative" style="background-color: #FFFFFF; border: 2px solid {{ current_school.primary_color }};">
-                
-                <!-- Front Header Banner -->
-                <div style="background-color: {{ current_school.primary_color }}; height: 60px; padding: 6px 12px; display: flex; align-items: center; gap: 10px;">
-                  {% if current_school.logo_filename %}
-                  <img src="{{ url_for('serve_media', folder='logos', filename=current_school.logo_filename) }}" style="width: 36px; height: 36px; object-fit: contain;">
-                  {% else %}
-                  <div style="width: 36px; height: 36px; border-radius: 50%; background: {{ current_school.secondary_color }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
-                    {{ current_school.name[:2].upper() }}
-                  </div>
-                  {% endif %}
-                  <div style="color: #FFFFFF; overflow: hidden; line-height: 1.2;">
-                    <div style="font-weight: bold; font-size: 13px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;">{{ current_school.name }}</div>
-                    <div style="font-size: 9px; color: #FEF08A;">"{{ current_school.motto }}"</div>
-                    <div style="font-size: 8px; color: #E2E8F0;">{{ current_school.po_box }} • {{ current_school.town }}</div>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-white small fw-bold">FRONT SIDE</span>
+                <span class="badge bg-success bg-opacity-75 small">Exact PDF Preview</span>
+              </div>
+              <div class="card-sample-view shadow-lg position-relative overflow-hidden"
+                   style="background:#0F172A; border: 2px solid {{ current_school.primary_color }};"
+                   id="front-preview-wrap">
+                <!-- Loading skeleton -->
+                <div id="front-skeleton" class="d-flex align-items-center justify-content-center"
+                     style="height:200px; background: linear-gradient(135deg,#1E293B,#0F172A);">
+                  <div class="text-center text-muted">
+                    <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+                    <div class="small">Rendering card&hellip;</div>
                   </div>
                 </div>
-
-                <!-- Accent stripe -->
-                <div style="background-color: {{ current_school.secondary_color }}; height: 5px;"></div>
-
-                <!-- Card Body -->
-                <div style="padding: 10px 14px; display: flex; gap: 14px; position: relative;">
-                  <!-- Photo -->
-                  <div style="width: 86px; height: 108px; border: 2px solid {{ current_school.secondary_color }}; border-radius: 6px; overflow: hidden; background: #F1F5F9; flex-shrink: 0;">
-                    {% if selected_student.photo_filename %}
-                    <img src="{{ url_for('serve_media', folder='photos', filename=selected_student.photo_filename) }}" style="width: 100%; height: 100%; object-fit: cover;">
-                    {% else %}
-                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94A3B8; font-size: 9px; font-weight: bold;">
-                      <i class="fa-solid fa-user fa-2x mb-1"></i> NO PHOTO
-                    </div>
-                    {% endif %}
-                  </div>
-
-                  <!-- Details -->
-                  <div style="flex-grow: 1; font-size: 11px; line-height: 1.4; color: #0F172A;">
-                    <div style="font-size: 8px; font-weight: bold; background: {{ current_school.primary_color }}; color: white; display: inline-block; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px;">STUDENT ID CARD</div>
-                    
-                    <div style="font-size: 13px; font-weight: 800; color: {{ current_school.primary_color }}; margin-bottom: 2px;">{{ selected_student.full_name.upper() }}</div>
-                    <div><span style="color: #64748B;">Adm No:</span> <strong style="font-family: monospace; font-size: 12px;">{{ selected_student.admission_number }}</strong></div>
-                    <div><span style="color: #64748B;">Class:</span> <strong>{{ selected_student.class_name }} {{ selected_student.stream_name or '' }}</strong></div>
-                    <div><span style="color: #64748B;">Card No:</span> <strong>{{ current_school.card_prefix or 'ID-' }}{{ selected_student.admission_number }}</strong></div>
-                    <div><span style="color: #64748B;">Expires:</span> <strong style="color: #DC2626;">DEC {{ current_school.academic_year|int + current_school.validity_years }}</strong></div>
-                  </div>
-                </div>
-
-                <!-- Footer Bar -->
-                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: {{ current_school.primary_color }}; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 9px; color: #FFFFFF; font-weight: bold;">
-                  <span>OFFICIAL STUDENT IDENTIFICATION</span>
-                  <span style="color: #FEF08A;">AY {{ selected_student.academic_year }}</span>
-                </div>
+                <img id="front-preview-img"
+                     src="{{ url_for('single_id.preview_front', student_id=selected_student.id) }}"
+                     alt="Front ID Card"
+                     style="width:100%; display:none; border-radius:0;"
+                     onload="this.style.display='block'; document.getElementById('front-skeleton').style.display='none';"
+                     onerror="document.getElementById('front-skeleton').innerHTML='<div class=\'text-center text-danger small p-3\'>Preview unavailable — try refreshing.</div>';">
               </div>
             </div>
 
-            <!-- Back Card Preview -->
+            <!-- ── BACK CARD: Actual rendered PNG (pixel-perfect match to PDF) ───────── -->
             <div>
-              <div class="text-center text-white small fw-bold mb-2">BACK SIDE (VERIFICATION)</div>
-              <div class="card-sample-view shadow-lg position-relative" style="background-color: #FFFFFF; border: 2px solid {{ current_school.primary_color }};">
-                <!-- Back Header -->
-                <div style="background-color: {{ current_school.primary_color }}; height: 30px; padding: 4px 14px; color: #FFFFFF; font-weight: bold; font-size: 11px; display: flex; align-items: center;">
-                  CARD TERMS, OFFICIAL STAMP &amp; VERIFICATION
-                </div>
-                <div style="background-color: {{ current_school.secondary_color }}; height: 3px;"></div>
-
-                <!-- Back Content -->
-                <div style="padding: 8px 12px; display: flex; gap: 8px; padding-bottom: 30px;">
-
-                  <!-- Left: Disclaimer + Signature + Stamp -->
-                  <div style="flex: 1; font-size: 8px; line-height: 1.4; color: #334155;">
-                    <div style="font-weight: bold; color: {{ current_school.primary_color }}; margin-bottom: 2px; font-size: 7.5px;">TERMS AND CONDITIONS:</div>
-                    {%- set disc_lines = (current_school.disclaimer_text or '1. This card remains the property of the institution.\n2. If found, please return to the administration or nearest police station.').split('\n') -%}
-                    <div style="text-align: center; font-size: 7px; color: #1E293B; margin-bottom: 5px;">
-                      {%- for dl in disc_lines[:2] %}
-                      <div style="font-weight: bold; margin-bottom: 1px;">{{ dl }}</div>
-                      {%- endfor %}
-                    </div>
-                    <div style="font-size: 7px; color: #475569; margin-bottom: 5px;">Hotline: <strong>{{ current_school.phone }}</strong></div>
-
-                    <!-- Signature & Stamp Row -->
-                    <div style="display: flex; gap: 5px; align-items: flex-end; margin-top: 3px;">
-                      <!-- Principal Signature Block -->
-                      <div style="flex: 1; text-align: center;">
-                        <div style="border-bottom: 1.5px solid #94A3B8; height: 16px; margin-bottom: 2px;"></div>
-                        <div style="font-weight: bold; font-size: 6.5px; color: {{ current_school.primary_color }};">{{ current_school.principal_name or 'Principal' }}</div>
-                        <div style="font-size: 6px; color: #64748B;">{{ current_school.get_signatory_title() }}</div>
-                      </div>
-                      <!-- Official Stamp Placeholder -->
-                      <div style="width: 44px; height: 44px; border-radius: 50%; border: 1.5px dashed {{ current_school.primary_color }}; display: flex; align-items: center; justify-content: center; opacity: 0.7; flex-shrink: 0;">
-                        <div style="text-align: center; font-size: 5px; font-weight: bold; color: {{ current_school.primary_color }}; line-height: 1.2;">OFFICIAL<br>STAMP</div>
-                      </div>
-                    </div>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-white small fw-bold">BACK SIDE (VERIFICATION)</span>
+                <button class="btn btn-outline-light btn-sm py-0 px-2" id="refresh-preview-btn"
+                        onclick="refreshPreviews()" title="Reload preview images">
+                  <i class="fa-solid fa-arrows-rotate fa-xs me-1"></i>Refresh
+                </button>
+              </div>
+              <div class="card-sample-view shadow-lg position-relative overflow-hidden"
+                   style="background:#0F172A; border: 2px solid {{ current_school.primary_color }};"
+                   id="back-preview-wrap">
+                <!-- Loading skeleton -->
+                <div id="back-skeleton" class="d-flex align-items-center justify-content-center"
+                     style="height:200px; background: linear-gradient(135deg,#1E293B,#0F172A);">
+                  <div class="text-center text-muted">
+                    <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+                    <div class="small">Rendering card&hellip;</div>
                   </div>
-
-                  <!-- QR Code Professional Security Frame -->
-                  <div style="width: 100px; text-align: center; background: #FFFFFF; border: 2px solid {{ current_school.secondary_color }}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.15); flex-shrink: 0;">
-                    <div style="background: {{ current_school.primary_color }}; color: #FFFFFF; font-size: 6.5px; font-weight: bold; padding: 2px 0; text-transform: uppercase;">&#11044; DIGITAL ID VERIFICATION &#11044;</div>
-                    <div style="padding: 4px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
-                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ (request.host_url ~ 'verify/' ~ (existing_card.qr_token if existing_card else 'DEMO-TOKEN-2026'))|urlencode }}&color=000000" 
-                           alt="QR Code" style="width: 72px; height: 72px; image-rendering: pixelated;" 
-                           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                      <i class="fa-solid fa-qrcode fa-3x text-dark" style="display: none;"></i>
-                    </div>
-                    <div style="font-size: 6.5px; font-weight: bold; color: {{ current_school.primary_color }}; padding-bottom: 2px;">SCAN TO AUTHENTICATE</div>
-                  </div>
-
                 </div>
-
-                <!-- Back Footer -->
-                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: {{ current_school.primary_color }}; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 9px; color: #FFFFFF; font-weight: bold;">
-                  <span>{{ current_school.name.upper() }} &bull; {{ current_school.town.upper() }}</span>
-                  <span style="color: #FEF08A;">OFFICIAL SYSTEM ISSUED &amp; DIGITALLY VERIFIED</span>
-                </div>
+                <img id="back-preview-img"
+                     src="{{ url_for('single_id.preview_back', student_id=selected_student.id) }}"
+                     alt="Back ID Card"
+                     style="width:100%; display:none; border-radius:0;"
+                     onload="this.style.display='block'; document.getElementById('back-skeleton').style.display='none';"
+                     onerror="document.getElementById('back-skeleton').innerHTML='<div class=\'text-center text-danger small p-3\'>Preview unavailable — try refreshing.</div>';">
               </div>
             </div>
 
+            {% else %}
+
+            <!-- ── No student selected placeholder ───────────────────────────────────── -->
+            <div class="col-span-2 d-flex flex-column align-items-center justify-content-center py-5 text-muted"
+                 style="min-height: 220px;">
+              <i class="fa-solid fa-id-card fa-3x mb-3 text-secondary d-block"></i>
+              <h5 class="mb-1">No Student Selected</h5>
+              <p class="small text-muted mb-0">Select a student from the left panel to see their pixel-perfect card preview.</p>
+            </div>
+
+            {% endif %}
+
           </div>
 
-          {% else %}
-          <div class="text-center py-5 text-muted">
-            <i class="fa-solid fa-id-card fa-3x mb-3 text-secondary d-block"></i>
-            <h5>No Student Selected</h5>
-            <p class="small text-muted">Please select an existing student from the left menu to view their card preview.</p>
-          </div>
-          {% endif %}
+          <script>
+          function refreshPreviews() {
+            const ts = Date.now();
+            const front = document.getElementById('front-preview-img');
+            const back  = document.getElementById('back-preview-img');
+            const fsk   = document.getElementById('front-skeleton');
+            const bsk   = document.getElementById('back-skeleton');
+            if (!front || !back) return;
+            const spinner = '<div class="text-center text-muted"><div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div><div class="small">Rendering card&hellip;</div></div>';
+            fsk.innerHTML = spinner; fsk.style.display = 'flex';
+            bsk.innerHTML = spinner; bsk.style.display = 'flex';
+            front.style.display = 'none';
+            back.style.display  = 'none';
+            const fBase = front.src.split('?')[0];
+            const bBase = back.src.split('?')[0];
+            front.src = fBase + '?t=' + ts;
+            back.src  = bBase + '?t=' + ts;
+          }
+          </script>
         </div>
       </div>
     </div>
