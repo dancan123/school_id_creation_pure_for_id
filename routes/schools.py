@@ -47,6 +47,34 @@ def create_school():
             flash(f"A school named '{name}' already exists.", "danger")
             return redirect(url_for("schools.create_school"))
 
+        # Institution type & Corporate Fields
+        institution_type = request.form.get("institution_type", "school").strip()
+        card_title = request.form.get("card_title", "").strip()
+        id_label = request.form.get("id_label", "").strip()
+        class_label = request.form.get("class_label", "").strip()
+        stream_label = request.form.get("stream_label", "").strip()
+        upi_label = request.form.get("upi_label", "").strip()
+        principal_name = request.form.get("principal_name", "").strip()
+        principal_title = request.form.get("principal_title", "").strip()
+
+        # Corporate / Company intelligent presets if empty
+        is_corp = institution_type in ["company", "corporate", "enterprise", "business", "organization", "ngo"]
+        if is_corp:
+            if not card_prefix or card_prefix == "ID-":
+                card_prefix = "EMP-"
+            if not card_title:
+                card_title = "STAFF IDENTIFICATION CARD"
+            if not id_label:
+                id_label = "STAFF NO"
+            if not class_label:
+                class_label = "DEPARTMENT"
+            if not stream_label:
+                stream_label = "JOB TITLE"
+            if not upi_label:
+                upi_label = "NATIONAL ID"
+            if not principal_title:
+                principal_title = "Managing Director"
+
         new_school = School(
             name=name,
             code=code,
@@ -56,6 +84,14 @@ def create_school():
             po_box=po_box,
             phone=phone,
             email=email,
+            institution_type=institution_type,
+            card_title=card_title,
+            id_label=id_label,
+            class_label=class_label,
+            stream_label=stream_label,
+            upi_label=upi_label,
+            principal_name=principal_name,
+            principal_title=principal_title,
             primary_color=primary_color,
             secondary_color=secondary_color,
             accent_color=accent_color,

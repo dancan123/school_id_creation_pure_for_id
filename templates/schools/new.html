@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Register New School - EduID Kenya{% endblock %}
+{% block title %}Register New Institution or Company - EduID Kenya{% endblock %}
 
 {% block content %}
 <div class="container py-4">
   <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-9">
       <div class="card border-0 shadow-sm rounded-4">
         <div class="card-header bg-white border-0 py-4">
           <div class="d-flex align-items-center gap-2">
             <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left"></i></a>
             <div>
-              <h4 class="fw-bold mb-0">Register New School</h4>
-              <p class="text-muted small mb-0">Add an institution to manage its student cards with isolated records and custom colors.</p>
+              <h4 class="fw-bold mb-0" id="headerTitle">Register New Institution / Company</h4>
+              <p class="text-muted small mb-0">Create an organization, company, or school to issue smart photo ID cards with custom branding.</p>
             </div>
           </div>
         </div>
@@ -20,59 +20,110 @@
         <div class="card-body p-4 pt-0">
           <form method="POST" action="{{ url_for('schools.create_school') }}" enctype="multipart/form-data">
             <div class="row g-3">
+
+              <!-- Institution Type Selector -->
+              <div class="col-12">
+                <label class="form-label small fw-bold text-dark">Select Institution Classification <span class="text-danger">*</span></label>
+                <div class="row g-2">
+                  <div class="col-6 col-md-3">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_school" value="school" checked onchange="toggleType('school')">
+                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_school">
+                      <i class="fa-solid fa-school fa-xl"></i>
+                      <span class="fw-bold small">School / JSS</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_company" value="company" onchange="toggleType('company')">
+                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_company">
+                      <i class="fa-solid fa-building fa-xl text-primary"></i>
+                      <span class="fw-bold small">Company / Corporate</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_college" value="college" onchange="toggleType('college')">
+                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_college">
+                      <i class="fa-solid fa-graduation-cap fa-xl"></i>
+                      <span class="fw-bold small">College / Uni</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_org" value="organization" onchange="toggleType('organization')">
+                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_org">
+                      <i class="fa-solid fa-users-rectangle fa-xl"></i>
+                      <span class="fw-bold small">NGO / Sacco</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div class="col-md-8">
-                <label class="form-label small fw-bold">School Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" placeholder="e.g. Lenana School" required>
+                <label class="form-label small fw-bold" id="lbl_name">Institution / School Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" id="input_name" class="form-control" placeholder="e.g. Alliance High School or Angaza Computecs Ltd" required>
               </div>
               <div class="col-md-4">
-                <label class="form-label small fw-bold">School Code</label>
-                <input type="text" name="code" class="form-control" placeholder="e.g. LNN-001">
+                <label class="form-label small fw-bold">Code / Abbreviation</label>
+                <input type="text" name="code" id="input_code" class="form-control" placeholder="e.g. AHS-001 or ACL-KE">
               </div>
 
               <div class="col-12">
-                <label class="form-label small fw-bold">Motto</label>
-                <input type="text" name="motto" class="form-control" placeholder="e.g. Nihil Praeter Optimum">
+                <label class="form-label small fw-bold" id="lbl_motto">Motto / Tagline</label>
+                <input type="text" name="motto" id="input_motto" class="form-control" placeholder="e.g. Excellence in Service / Strong to Serve">
               </div>
 
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Town</label>
+                <label class="form-label small fw-bold">Town / City</label>
                 <input type="text" name="town" class="form-control" value="Nairobi" required>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold">County</label>
+                <label class="form-label small fw-bold">County / State</label>
                 <input type="text" name="county" class="form-control" value="Nairobi" required>
               </div>
 
               <div class="col-md-4">
-                <label class="form-label small fw-bold">Primary Branding Color</label>
-                <input type="color" name="primary_color" class="form-control form-control-color w-100" value="#1E3A8A">
+                <label class="form-label small fw-bold">Primary Brand Color</label>
+                <input type="color" name="primary_color" id="primary_color" class="form-control form-control-color w-100" value="#1E3A8A">
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Secondary Color</label>
-                <input type="color" name="secondary_color" class="form-control form-control-color w-100" value="#F59E0B">
+                <input type="color" name="secondary_color" id="secondary_color" class="form-control form-control-color w-100" value="#F59E0B">
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Accent Color</label>
-                <input type="color" name="accent_color" class="form-control form-control-color w-100" value="#10B981">
+                <input type="color" name="accent_color" id="accent_color" class="form-control form-control-color w-100" value="#10B981">
               </div>
 
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label small fw-bold">Card Prefix</label>
-                <input type="text" name="card_prefix" class="form-control" value="ID-">
+                <input type="text" name="card_prefix" id="input_card_prefix" class="form-control" value="ID-">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold" id="lbl_year">Academic / Fiscal Year</label>
+                <input type="text" name="academic_year" class="form-control" value="2026">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Card Validity (Years)</label>
+                <input type="number" name="validity_years" class="form-control" value="4" min="1" max="10">
+              </div>
+
+              <!-- Authority Signatory -->
+              <div class="col-md-6">
+                <label class="form-label small fw-bold" id="lbl_auth_name">Authorised Signatory Full Name</label>
+                <input type="text" name="principal_name" id="input_principal_name" class="form-control" placeholder="e.g. Chief Principal or Managing Director">
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Academic Year</label>
-                <input type="text" name="academic_year" class="form-control" value="2026">
+                <label class="form-label small fw-bold" id="lbl_auth_title">Signatory Title</label>
+                <input type="text" name="principal_title" id="input_principal_title" class="form-control" value="Principal / Head of Institution">
               </div>
 
               <div class="col-12">
-                <label class="form-label small fw-bold">School Crest / Logo</label>
+                <label class="form-label small fw-bold" id="lbl_logo">Institution / Company Logo</label>
                 <input type="file" name="logo_file" class="form-control" accept="image/*">
+                <small class="text-muted">Upload high-resolution transparent PNG or JPG logo.</small>
               </div>
 
               <div class="col-12 text-end mt-4">
-                <button type="submit" class="btn btn-success px-4 py-2 fw-bold">
-                  <i class="fa-solid fa-check me-2"></i> Register School & Make Active
+                <button type="submit" class="btn btn-success px-4 py-2 fw-bold shadow-sm" id="btnSubmit">
+                  <i class="fa-solid fa-check me-2"></i> Register Institution & Make Active
                 </button>
               </div>
             </div>
@@ -82,4 +133,54 @@
     </div>
   </div>
 </div>
+
+<script>
+function toggleType(type) {
+  var isCorp = (type === 'company' || type === 'organization');
+  var nameInput = document.getElementById('input_name');
+  var prefixInput = document.getElementById('input_card_prefix');
+  var authTitleInput = document.getElementById('input_principal_title');
+  var btnSubmit = document.getElementById('btnSubmit');
+  var priColor = document.getElementById('primary_color');
+  var secColor = document.getElementById('secondary_color');
+
+  if (type === 'company') {
+    document.getElementById('lbl_name').innerHTML = 'Company / Business Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Angaza Computecs Ltd / SafariTech Logistics';
+    prefixInput.value = 'EMP-';
+    authTitleInput.value = 'Managing Director / CEO';
+    document.getElementById('lbl_auth_name').textContent = 'Managing Director / CEO Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title (e.g. Managing Director, HR Manager)';
+    document.getElementById('lbl_year').textContent = 'Calendar / Fiscal Year';
+    document.getElementById('lbl_logo').textContent = 'Company Corporate Logo';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-building me-2"></i> Register Company & Make Active';
+    priColor.value = '#0F172A'; // Slate Corporate
+    secColor.value = '#3B82F6'; // Tech Blue
+  } else if (type === 'college') {
+    document.getElementById('lbl_name').innerHTML = 'College / University Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Nairobi Technical Institute';
+    prefixInput.value = 'COL-';
+    authTitleInput.value = 'Principal / Registrar / Vice-Chancellor';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-graduation-cap me-2"></i> Register College & Make Active';
+  } else if (type === 'organization') {
+    document.getElementById('lbl_name').innerHTML = 'Organization / NGO / SACCO Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Afya SACCO / Kenya Red Cross Society';
+    prefixInput.value = 'MBR-';
+    authTitleInput.value = 'Executive Director / Secretary General';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-users me-2"></i> Register Organization & Make Active';
+  } else {
+    document.getElementById('lbl_name').innerHTML = 'School Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Alliance High School';
+    prefixInput.value = 'ID-';
+    authTitleInput.value = 'Principal / Headteacher';
+    document.getElementById('lbl_auth_name').textContent = 'Principal / Headteacher Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Academic Year';
+    document.getElementById('lbl_logo').textContent = 'School Crest / Logo';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-check me-2"></i> Register School & Make Active';
+    priColor.value = '#1E3A8A';
+    secColor.value = '#F59E0B';
+  }
+}
+</script>
 {% endblock %}

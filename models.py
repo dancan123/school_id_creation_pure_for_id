@@ -73,12 +73,30 @@ class School(db.Model):
         super().__init__(**kwargs)
 
     def is_corporate(self):
-        return (self.institution_type or "").lower() in ["corporate", "company", "enterprise"]
+        return (self.institution_type or "").lower() in [
+            "corporate", "company", "enterprise", "business", "organization", "ngo", "firm", "agency"
+        ]
+
+    def get_institution_label(self):
+        t = (self.institution_type or "school").lower()
+        if t in ["company", "corporate", "enterprise", "business", "firm"]:
+            return "Company"
+        elif t in ["organization", "ngo", "agency"]:
+            return "Organization"
+        elif t in ["college", "university"]:
+            return "College"
+        return "School"
+
+    def get_member_label(self):
+        return "Employee / Staff" if self.is_corporate() else "Student"
+
+    def get_member_label_plural(self):
+        return "Employees / Staff" if self.is_corporate() else "Students"
 
     def get_id_label(self):
         if self.id_label and self.id_label.strip():
             return self.id_label.strip()
-        return "STAFF ID" if self.is_corporate() else "ADM NO"
+        return "STAFF NO" if self.is_corporate() else "ADM NO"
 
     def get_class_label(self):
         if self.class_label and self.class_label.strip():
@@ -88,17 +106,22 @@ class School(db.Model):
     def get_stream_label(self):
         if self.stream_label and self.stream_label.strip():
             return self.stream_label.strip()
-        return "DESIGNATION / ROLE" if self.is_corporate() else "STREAM"
+        return "JOB TITLE / ROLE" if self.is_corporate() else "STREAM"
+
+    def get_upi_label(self):
+        if self.upi_label and self.upi_label.strip():
+            return self.upi_label.strip()
+        return "NATIONAL ID" if self.is_corporate() else "NEMIS / UPI"
 
     def get_card_title(self):
         if self.card_title and self.card_title.strip():
             return self.card_title.strip()
-        return "CORPORATE IDENTITY CARD" if self.is_corporate() else "STUDENT IDENTITY CARD"
+        return "STAFF IDENTIFICATION CARD" if self.is_corporate() else "STUDENT IDENTIFICATION CARD"
 
     def get_signatory_title(self):
         if self.principal_title and self.principal_title.strip():
             return self.principal_title.strip()
-        return "Authorised Signatory" if self.is_corporate() else "Principal / Headteacher"
+        return "Managing Director / HR Manager" if self.is_corporate() else "Principal / Head of Institution"
 
     def to_dict(self):
         return {
