@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - Kenyan School ID System{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+      <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-header bg-dark text-white text-center py-4 border-0" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);">
+          <div class="d-inline-flex p-3 rounded-circle bg-white bg-opacity-10 mb-2">
+            <i class="fa-solid fa-id-card-clip fa-2x text-warning"></i>
+          </div>
+          <h4 class="fw-bold mb-0">EduID Kenya</h4>
+          <p class="text-white-50 small mb-0">School ID Card Generation System</p>
+        </div>
+        <div class="card-body p-4 bg-white">
+          <form method="POST" action="{{ url_for('auth.login') }}">
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted">Username or Email</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
+                <input type="text" name="username" class="form-control border-start-0 ps-0" placeholder="e.g. admin" required autofocus>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold text-muted">Password</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                <input type="password" name="password" class="form-control border-start-0 ps-0" placeholder="••••••••" required>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm" style="background-color: #1E3A8A; border-color: #1E3A8A;">
+              <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to System
+            </button>
+          </form>
+
+          <div class="alert alert-light border mt-4 mb-0 py-2 text-center text-muted small">
+            <i class="fa-solid fa-shield-halved text-success me-1"></i> Standalone Offline System (SQLite)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

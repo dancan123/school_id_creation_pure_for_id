@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Student' if student else 'Add New Student' }} - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left"></i></a>
+            <div>
+              <h4 class="fw-bold mb-0">{{ 'Edit Student Record' if student else 'Add Student to Register' }}</h4>
+              <p class="text-muted small mb-0">Active School: <strong>{{ current_school.name }}</strong></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-4 pt-0">
+          <form method="POST" action="{{ url_for('students.edit_student', student_id=student.id) if student else url_for('students.new_student') }}" enctype="multipart/form-data">
+            
+            <div class="row g-4">
+              <!-- Left Column: Student Details -->
+              <div class="col-lg-7">
+                <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-id-card-clip me-1"></i> Core Identification Details</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Admission Number <span class="text-danger">*</span></label>
+                    <input type="text" name="admission_number" class="form-control" value="{{ student.admission_number if student else '' }}" placeholder="e.g. 10452" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Academic Year <span class="text-danger">*</span></label>
+                    <input type="text" name="academic_year" class="form-control" value="{{ student.academic_year if student else current_school.academic_year }}" required>
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label small fw-bold">Student Full Name <span class="text-danger">*</span></label>
+                    <input type="text" name="full_name" class="form-control" value="{{ student.full_name if student else '' }}" placeholder="e.g. Kelvin Kipkemboi Tanui" required>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Class / Form <span class="text-danger">*</span></label>
+                    <input type="text" name="class_name" class="form-control" value="{{ student.class_name if student else '' }}" placeholder="e.g. Form 1, Grade 7" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Stream / Section</label>
+                    <input type="text" name="stream_name" class="form-control" value="{{ student.stream_name if student and student.stream_name else '' }}" placeholder="e.g. East, Blue, North">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Gender</label>
+                    <select name="gender" class="form-select">
+                      <option value="">Select Gender</option>
+                      <option value="Male" {% if student and student.gender == 'Male' %}selected{% endif %}>Male</option>
+                      <option value="Female" {% if student and student.gender == 'Female' %}selected{% endif %}>Female</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control" value="{{ student.dob if student and student.dob else '' }}">
+                  </div>
+                </div>
+
+                <hr class="my-4">
+
+                <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-heart-pulse me-1"></i> Emergency & Additional Information</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Parent / Guardian Name</label>
+                    <input type="text" name="parent_name" class="form-control" value="{{ student.parent_name if student and student.parent_name else '' }}" placeholder="e.g. John Tanui">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Parent Contact Phone</label>
+                    <input type="text" name="parent_phone" class="form-control" value="{{ student.parent_phone if student and student.parent_phone else '' }}" placeholder="e.g. 0712345678">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Blood Group</label>
+                    <input type="text" name="blood_group" class="form-control" value="{{ student.blood_group if student and student.blood_group else '' }}" placeholder="e.g. O+, A+, B+">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">House / Dormitory</label>
+                    <input type="text" name="house_or_dorm" class="form-control" value="{{ student.house_or_dorm if student and student.house_or_dorm else '' }}" placeholder="e.g. Mount Kenya">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Photograph & Live Webcam -->
+              <div class="col-lg-5">
+                <div class="card bg-light border-0 rounded-4 p-3 text-center">
+                  <h6 class="fw-bold mb-3"><i class="fa-solid fa-camera text-primary me-1"></i> Student Photograph</h6>
+                  
+                  <!-- Current Photo Display -->
+                  <div class="mb-3">
+                    {% if student and student.photo_filename %}
+                    <img id="preview-photo" src="{{ url_for('serve_media', folder='photos', filename=student.photo_filename) }}" alt="Student" class="rounded-3 shadow-sm border" style="width: 170px; height: 210px; object-fit: cover;">
+                    {% else %}
+                    <div id="preview-placeholder" class="rounded-3 bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center mx-auto" style="width: 170px; height: 210px;">
+                      <i class="fa-solid fa-user fa-3x text-secondary"></i>
+                    </div>
+                    <img id="preview-photo" src="" alt="Student" class="rounded-3 shadow-sm border d-none mx-auto" style="width: 170px; height: 210px; object-fit: cover;">
+                    {% endif %}
+                  </div>
+
+                  <!-- File Upload Input -->
+                  <div class="mb-2">
+                    <input type="file" name="photo_file" id="photo_file" class="form-control form-control-sm" accept="image/*" onchange="previewFile(this)">
+                  </div>
+
+                  <!-- Live Webcam Button -->
+                  <div class="mt-2">
+                    <button type="button" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#webcamModal">
+                      <i class="fa-solid fa-camera me-1"></i> Capture Using Webcam
+                    </button>
+                  </div>
+                  <input type="hidden" name="webcam_image_data" id="webcam_image_data">
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <a href="{{ url_for('students.index') }}" class="btn btn-light px-4">Cancel</a>
+              <button type="submit" name="save_only" class="btn btn-secondary px-4 fw-semibold">
+                <i class="fa-solid fa-check me-1"></i> Save Student
+              </button>
+              <button type="submit" name="save_and_generate" class="btn btn-primary px-4 fw-semibold shadow-sm" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+                <i class="fa-solid fa-id-card me-1"></i> Save & Generate ID Card
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Webcam Capture Modal -->
+<div class="modal fade" id="webcamModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-camera me-2 text-primary"></i> Take Student Photo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopWebcam()"></button>
+      </div>
+      <div class="modal-body text-center p-4">
+        <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black mb-3" style="width: 320px; height: 240px;">
+          <video id="webcam-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+          <canvas id="webcam-canvas" class="d-none" width="320" height="240"></canvas>
+        </div>
+        <button type="button" class="btn btn-primary px-4 py-2 rounded-pill fw-bold" onclick="capturePhoto()">
+          <i class="fa-solid fa-camera-retro me-1"></i> Snap Photo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewFile(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById('preview-photo');
+      img.src = e.target.result;
+      img.classList.remove('d-none');
+      const placeholder = document.getElementById('preview-placeholder');
+      if (placeholder) placeholder.classList.add('d-none');
+    }
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+let videoStream = null;
+const webcamModal = document.getElementById('webcamModal');
+if (webcamModal) {
+  webcamModal.addEventListener('shown.bs.modal', function() {
+    startWebcam();
+  });
+  webcamModal.addEventListener('hidden.bs.modal', function() {
+    stopWebcam();
+  });
+}
+
+function startWebcam() {
+  const video = document.getElementById('webcam-video');
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+      .then(function(stream) {
+        videoStream = stream;
+        video.srcObject = stream;
+      })
+      .catch(function(err) {
+        alert("Camera access denied or not available: " + err.message);
+      });
+  }
+}
+
+function stopWebcam() {
+  if (videoStream) {
+    videoStream.getTracks().forEach(track => track.stop());
+    videoStream = null;
+  }
+}
+
+function capturePhoto() {
+  const video = document.getElementById('webcam-video');
+  const canvas = document.getElementById('webcam-canvas');
+  const context = canvas.getContext('2d');
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+
+  document.getElementById('webcam_image_data').value = dataURL;
+  const img = document.getElementById('preview-photo');
+  img.src = dataURL;
+  img.classList.remove('d-none');
+  const placeholder = document.getElementById('preview-placeholder');
+  if (placeholder) placeholder.classList.add('d-none');
+
+  stopWebcam();
+  const modal = bootstrap.Modal.getInstance(document.getElementById('webcamModal'));
+  if (modal) modal.hide();
+}
+</script>
+{% endblock %}

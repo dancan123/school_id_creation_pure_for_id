@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Individual ID - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fa-solid fa-id-card text-primary me-2"></i> Individual ID Card Generation</h4>
+      <p class="text-muted small mb-0">Select or search for a student to preview and generate an instant, print-ready CR80 PVC ID card.</p>
+    </div>
+    <a href="{{ url_for('students.new_student') }}" class="btn btn-outline-primary btn-sm">
+      <i class="fa-solid fa-user-plus me-1"></i> Register New Student
+    </a>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Student Selector & Controls -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white border-0 py-3">
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-user-check text-primary me-2"></i> Select Student</h6>
+        </div>
+        <div class="card-body p-4 pt-0">
+          <form method="GET" action="{{ url_for('single_id.index') }}" class="mb-4">
+            <label class="form-label small fw-bold">Student Record</label>
+            <select name="student_id" class="form-select form-select-lg shadow-sm" onchange="this.form.submit()">
+              <option value="">-- Choose Student --</option>
+              {% for s in students %}
+              <option value="{{ s.id }}" {% if selected_student and selected_student.id == s.id %}selected{% endif %}>
+                {{ s.admission_number }} - {{ s.full_name }} ({{ s.class_name }})
+              </option>
+              {% endfor %}
+            </select>
+          </form>
+
+          {% if selected_student %}
+          <div class="p-3 bg-light rounded-3 mb-4">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              {% if selected_student.photo_filename %}
+              <img src="{{ url_for('serve_media', folder='photos', filename=selected_student.photo_filename) }}" class="rounded-3 border" style="width: 54px; height: 68px; object-fit: cover;">
+              {% else %}
+              <div class="rounded-3 bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center" style="width: 54px; height: 68px;">
+                <i class="fa-solid fa-user text-muted"></i>
+              </div>
+              {% endif %}
+              <div>
+                <h6 class="fw-bold mb-0">{{ selected_student.full_name }}</h6>
+                <div class="small text-muted">Adm No: <strong class="text-dark">{{ selected_student.admission_number }}</strong></div>
+                <div class="small text-muted">Class: {{ selected_student.class_name }} {{ selected_student.stream_name or '' }}</div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top small">
+              <span class="text-muted">Card Status:</span>
+              <span class="badge {% if selected_student.card_status == 'active' %}bg-success{% else %}bg-secondary{% endif %}">
+                {{ selected_student.card_status.upper() }}
+              </span>
+            </div>
+            {% if existing_card %}
+            <div class="d-flex justify-content-between align-items-center pt-1 small">
+              <span class="text-muted">Print Status:</span>
+              <span class="badge {% if existing_card.print_status == 'printed' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                {{ existing_card.print_status.upper() }} ({{ existing_card.print_count }} prints)
+              </span>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Generate Action Form -->
+          <form method="POST" action="{{ url_for('single_id.generate_card') }}">
+            <input type="hidden" name="student_id" value="{{ selected_student.id }}">
+            
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-2" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+              <i class="fa-solid fa-wand-magic-sparkles me-2"></i> {{ 'Regenerate Card' if existing_card else 'Generate ID Card' }}
+            </button>
+          </form>
+
+          {% if existing_card and existing_card.single_pdf_filename %}
+          <a href="{{ url_for('single_id.download_card_pdf', card_id=existing_card.id) }}" class="btn btn-success w-100 py-2 fw-bold shadow-sm mb-2">
+            <i class="fa-solid fa-file-pdf me-2"></i> Download Print-Ready PDF
+          </a>
+
+          {% if selected_student.parent_phone and clean_whatsapp_phone(selected_student.parent_phone) %}
+          <a href="{{ get_whatsapp_parent_card_notice_url(selected_student, current_school, existing_card) }}"
+             target="_blank" class="btn btn-outline-success w-100 py-2 fw-semibold btn-sm mb-2 shadow-sm">
+            <i class="fa-brands fa-whatsapp me-1"></i> Notify Parent on WhatsApp
+          </a>
+          {% endif %}
+
+          <!-- Reprint / Replacement Button -->
+          <button type="button" class="btn btn-outline-danger w-100 py-2 fw-semibold btn-sm" data-bs-toggle="modal" data-bs-target="#reprintModal">
+            <i class="fa-solid fa-rotate-right me-1"></i> Issue Replacement / Reprint
+          </button>
+          {% endif %}
+
+          {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fa-solid fa-arrow-up-long fa-2x mb-2 text-secondary"></i>
+            <p class="small mb-0">Select a student from the dropdown above to preview and generate their ID card.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Live Card Preview -->
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-eye text-primary me-2"></i> Live Card Preview (CR80 PVC: 85.60 × 53.98 mm)</h6>
+          <span class="badge bg-light text-muted">300 DPI Ultra High Resolution</span>
+        </div>
+        <div class="card-body p-4 pt-0">
+          {% if selected_student %}
+          
+          <div class="id-preview-box">
+            <!-- Front Card Preview -->
+            <div>
+              <div class="text-center text-white small fw-bold mb-2">FRONT SIDE</div>
+              <div class="card-sample-view shadow-lg position-relative" style="background-color: #FFFFFF; border: 2px solid {{ current_school.primary_color }};">
+                
+                <!-- Front Header Banner -->
+                <div style="background-color: {{ current_school.primary_color }}; height: 60px; padding: 6px 12px; display: flex; align-items: center; gap: 10px;">
+                  {% if current_school.logo_filename %}
+                  <img src="{{ url_for('serve_media', folder='logos', filename=current_school.logo_filename) }}" style="width: 36px; height: 36px; object-fit: contain;">
+                  {% else %}
+                  <div style="width: 36px; height: 36px; border-radius: 50%; background: {{ current_school.secondary_color }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
+                    {{ current_school.name[:2].upper() }}
+                  </div>
+                  {% endif %}
+                  <div style="color: #FFFFFF; overflow: hidden; line-height: 1.2;">
+                    <div style="font-weight: bold; font-size: 13px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;">{{ current_school.name }}</div>
+                    <div style="font-size: 9px; color: #FEF08A;">"{{ current_school.motto }}"</div>
+                    <div style="font-size: 8px; color: #E2E8F0;">{{ current_school.po_box }} • {{ current_school.town }}</div>
+                  </div>
+                </div>
+
+                <!-- Accent stripe -->
+                <div style="background-color: {{ current_school.secondary_color }}; height: 5px;"></div>
+
+                <!-- Card Body -->
+                <div style="padding: 10px 14px; display: flex; gap: 14px; position: relative;">
+                  <!-- Photo -->
+                  <div style="width: 86px; height: 108px; border: 2px solid {{ current_school.secondary_color }}; border-radius: 6px; overflow: hidden; background: #F1F5F9; flex-shrink: 0;">
+                    {% if selected_student.photo_filename %}
+                    <img src="{{ url_for('serve_media', folder='photos', filename=selected_student.photo_filename) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94A3B8; font-size: 9px; font-weight: bold;">
+                      <i class="fa-solid fa-user fa-2x mb-1"></i> NO PHOTO
+                    </div>
+                    {% endif %}
+                  </div>
+
+                  <!-- Details -->
+                  <div style="flex-grow: 1; font-size: 11px; line-height: 1.4; color: #0F172A;">
+                    <div style="font-size: 8px; font-weight: bold; background: {{ current_school.primary_color }}; color: white; display: inline-block; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px;">STUDENT ID CARD</div>
+                    
+                    <div style="font-size: 13px; font-weight: 800; color: {{ current_school.primary_color }}; margin-bottom: 2px;">{{ selected_student.full_name.upper() }}</div>
+                    <div><span style="color: #64748B;">Adm No:</span> <strong style="font-family: monospace; font-size: 12px;">{{ selected_student.admission_number }}</strong></div>
+                    <div><span style="color: #64748B;">Class:</span> <strong>{{ selected_student.class_name }} {{ selected_student.stream_name or '' }}</strong></div>
+                    <div><span style="color: #64748B;">Card No:</span> <strong>{{ current_school.card_prefix or 'ID-' }}{{ selected_student.admission_number }}</strong></div>
+                    <div><span style="color: #64748B;">Expires:</span> <strong style="color: #DC2626;">DEC {{ current_school.academic_year|int + current_school.validity_years }}</strong></div>
+                  </div>
+                </div>
+
+                <!-- Footer Bar -->
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: {{ current_school.primary_color }}; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 9px; color: #FFFFFF; font-weight: bold;">
+                  <span>OFFICIAL STUDENT IDENTIFICATION</span>
+                  <span style="color: #FEF08A;">AY {{ selected_student.academic_year }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Back Card Preview -->
+            <div>
+              <div class="text-center text-white small fw-bold mb-2">BACK SIDE (VERIFICATION)</div>
+              <div class="card-sample-view shadow-lg position-relative" style="background-color: #FFFFFF; border: 2px solid {{ current_school.primary_color }};">
+                <!-- Back Header -->
+                <div style="background-color: {{ current_school.primary_color }}; height: 30px; padding: 4px 14px; color: #FFFFFF; font-weight: bold; font-size: 11px; display: flex; align-items: center;">
+                  TERMS & EMERGENCY CONTACTS
+                </div>
+                <div style="background-color: {{ current_school.secondary_color }}; height: 3px;"></div>
+
+                <!-- Back Content -->
+                <div style="padding: 10px 14px; display: flex; gap: 10px;">
+                  <div style="flex: 1; font-size: 9px; line-height: 1.35; color: #334155;">
+                    <div style="font-weight: bold; color: {{ current_school.primary_color }}; margin-bottom: 2px;">DISCLAIMER:</div>
+                    <div style="font-size: 8px; color: #475569; margin-bottom: 6px;">{{ current_school.disclaimer_text[:130] }}...</div>
+                    <div style="font-weight: bold; color: {{ current_school.primary_color }};">CONTACTS:</div>
+                    {% if selected_student.parent_phone %}
+                    <div>Parent: <strong>{{ selected_student.parent_phone }}</strong></div>
+                    {% endif %}
+                    <div>Hotline: <strong>{{ current_school.phone }}</strong></div>
+                  </div>
+
+                  <!-- QR Code Professional Security Frame -->
+                  <div style="width: 104px; text-align: center; background: #FFFFFF; border: 2px solid var(--secondary); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                    <div style="background: var(--primary); color: #FFFFFF; font-size: 7px; font-weight: bold; padding: 2px 0; text-transform: uppercase;">SECURE QR</div>
+                    <div style="padding: 4px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ (request.host_url ~ 'verify/' ~ (existing_card.qr_token if existing_card else 'DEMO-TOKEN-2026'))|urlencode }}&color=000000" 
+                           alt="QR Code" style="width: 76px; height: 76px; image-rendering: pixelated;" 
+                           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                      <i class="fa-solid fa-qrcode fa-3x text-dark" style="display: none;"></i>
+                    </div>
+                    <div style="font-size: 7px; font-weight: bold; color: var(--primary); padding-bottom: 2px;">SCAN TO VERIFY</div>
+                  </div>
+                </div>
+
+                <!-- Back Footer -->
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: {{ current_school.primary_color }}; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 9px; color: #FFFFFF; font-weight: bold;">
+                  <span>PROPERTY OF {{ current_school.name.upper() }}</span>
+                  <span style="color: #FEF08A;">OFFICIAL ISSUED</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="fa-solid fa-id-card fa-3x mb-3 text-secondary d-block"></i>
+            <h5>No Student Selected</h5>
+            <p class="small text-muted">Please select an existing student from the left menu to view their card preview.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Card Replacement / Reprint -->
+{% if selected_student and existing_card %}
+<div class="modal fade" id="reprintModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i> Card Replacement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('single_id.generate_card') }}">
+        <div class="modal-body p-4">
+          <p class="small text-muted">
+            You are replacing the existing card for <strong>{{ selected_student.full_name }}</strong> (Adm: {{ selected_student.admission_number }}).
+            The existing card status will be updated to <em>replaced</em> and a new secure verification QR token will be generated.
+          </p>
+          <input type="hidden" name="student_id" value="{{ selected_student.id }}">
+          <input type="hidden" name="is_reprint" value="1">
+          
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Reason for Replacement / Reprint</label>
+            <select name="reprint_reason" class="form-select" required>
+              <option value="Card Lost or Stolen">Card Lost or Stolen</option>
+              <option value="Card Damaged or Broken">Card Damaged or Broken</option>
+              <option value="Student Details or Class Updated">Student Details or Class Updated</option>
+              <option value="Print Defect / Quality Error">Print Defect / Quality Error</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger fw-bold">
+            <i class="fa-solid fa-rotate-right me-1"></i> Confirm & Issue Replacement Card
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

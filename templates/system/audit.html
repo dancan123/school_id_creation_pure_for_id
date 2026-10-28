@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}System Audit Logs - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center">
+      <div>
+        <h4 class="fw-bold mb-1"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Security & Operation Audit Trail</h4>
+        <p class="text-muted small mb-0">Cryptographic and operational history of card generation, user actions, and print logs.</p>
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Log ID</th>
+              <th>Action</th>
+              <th>Details</th>
+              <th>Operator</th>
+              <th>IP Address</th>
+              <th class="text-end">Timestamp (UTC)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <td class="font-monospace text-muted">{{ log.id }}</td>
+              <td><span class="badge bg-secondary font-monospace">{{ log.action }}</span></td>
+              <td class="small">{{ log.details or '-' }}</td>
+              <td class="fw-semibold">{{ log.username or 'System' }}</td>
+              <td class="font-monospace small text-muted">{{ log.ip_address }}</td>
+              <td class="text-end small text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">No audit log records recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+      <small class="text-muted">Showing page {{ pagination.page }} of {{ pagination.pages }}</small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('system.audit', page=pagination.prev_num) }}">&laquo;</a></li>
+          {% endif %}
+          {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+            {% if p %}
+              <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('system.audit', page=p) }}">{{ p }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          {% if pagination.has_next %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('system.audit', page=pagination.next_num) }}">&raquo;</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

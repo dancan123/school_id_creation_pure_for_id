@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Import Wizard - Step 1: Upload - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <!-- Step Indicator -->
+      <div class="d-flex justify-content-between mb-4 position-relative">
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-primary p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;">1</div>
+          <div class="small fw-bold text-primary">Upload Files</div>
+        </div>
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-light text-muted border p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;">2</div>
+          <div class="small text-muted">Map Columns</div>
+        </div>
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-light text-muted border p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;">3</div>
+          <div class="small text-muted">Validate & Confirm</div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="fw-bold mb-1">Bulk Student Import Wizard</h4>
+            <p class="text-muted small mb-0">Importing into active school: <strong>{{ current_school.name }}</strong></p>
+          </div>
+          <a href="{{ url_for('bulk_import.download_template') }}" class="btn btn-outline-success btn-sm fw-semibold">
+            <i class="fa-solid fa-file-excel me-1"></i> Download Sample Excel
+          </a>
+        </div>
+
+        <div class="card-body p-4 pt-0">
+          <form method="POST" action="{{ url_for('bulk_import.upload') }}" enctype="multipart/form-data">
+            
+            <div class="mb-4 p-4 border border-2 border-dashed rounded-4 text-center bg-light">
+              <i class="fa-solid fa-file-excel fa-3x text-success mb-3"></i>
+              <h5 class="fw-bold">Upload Student Data Spreadsheet</h5>
+              <p class="text-muted small mb-3">Supports Microsoft Excel (<strong>.xlsx, .xls</strong>) or Comma Separated Values (<strong>.csv</strong>)</p>
+              <input type="file" name="data_file" class="form-control w-75 mx-auto" accept=".xlsx, .xls, .csv" required>
+            </div>
+
+            <div class="mb-4 p-4 border border-2 border-dashed rounded-4 text-center bg-light">
+              <i class="fa-solid fa-file-zipper fa-3x text-warning mb-3"></i>
+              <h5 class="fw-bold">Optional: Student Photographs (ZIP Archive)</h5>
+              <p class="text-muted small mb-3">Upload a <strong>.zip</strong> file containing student photos. Photos will be matched automatically by admission number (e.g. <code>1001.jpg</code>, <code>ADM-1002.png</code>).</p>
+              <input type="file" name="photos_zip" class="form-control w-75 mx-auto" accept=".zip">
+            </div>
+
+            <div class="alert alert-info border-0 rounded-3 small">
+              <i class="fa-solid fa-lightbulb me-1"></i> <strong>Pro Tip:</strong> Ensure admission numbers in the spreadsheet match photo filenames for 100% automated matching.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <a href="{{ url_for('students.index') }}" class="btn btn-light px-4">Cancel</a>
+              <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+                Next: Map Columns <i class="fa-solid fa-arrow-right ms-1"></i>
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

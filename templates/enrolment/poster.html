@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student ID Card Onboarding Poster — {{ school.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: {{ school.primary_color or '#1E3A8A' }};
+      --secondary: {{ school.secondary_color or '#F59E0B' }};
+      --accent: {{ school.accent_color or '#10B981' }};
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #F1F5F9;
+      color: #0F172A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px;
+    }
+    .print-controls {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    .btn-print {
+      padding: 10px 22px;
+      background: #0F172A;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* A4 Poster Container */
+    .poster-sheet {
+      width: 210mm;
+      min-height: 297mm;
+      background: white;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      border-radius: 8px;
+      padding: 16mm 18mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      border: 8px solid var(--primary);
+    }
+    .poster-inner-border {
+      position: absolute;
+      inset: 4mm;
+      border: 2px solid var(--secondary);
+      pointer-events: none;
+    }
+
+    /* Header */
+    .poster-header {
+      text-align: center;
+      border-bottom: 3px double #CBD5E1;
+      padding-bottom: 12mm;
+    }
+    .school-crest-img {
+      width: 75px;
+      height: 75px;
+      object-fit: contain;
+      margin-bottom: 6px;
+    }
+    .poster-header h1 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+    .poster-header .motto {
+      font-size: 0.95rem;
+      font-style: italic;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .poster-header .location {
+      font-size: 0.85rem;
+      color: #64748B;
+      font-weight: 600;
+    }
+
+    /* Announcement Banner */
+    .announcement-banner {
+      background: var(--primary);
+      color: white;
+      text-align: center;
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin: 12mm 0;
+    }
+    .announcement-banner h2 {
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+    .announcement-banner p {
+      font-size: 0.9rem;
+      color: #FEF08A;
+      font-weight: 600;
+    }
+
+    /* Center QR Section */
+    .qr-center-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+      background: #F8FAFC;
+      border: 3px dashed var(--secondary);
+      border-radius: 20px;
+      padding: 14mm 16mm;
+      margin-bottom: 12mm;
+    }
+    .qr-frame {
+      background: white;
+      padding: 12px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      border: 2px solid #0F172A;
+      text-align: center;
+    }
+    .qr-frame img {
+      width: 170px;
+      height: 170px;
+      display: block;
+    }
+    .qr-scan-label {
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: #0F172A;
+      margin-top: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    .qr-instructions h3 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+    .qr-instructions ol {
+      padding-left: 20px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #334155;
+    }
+    .qr-instructions li strong { color: #0F172A; }
+
+    /* Web Link Box */
+    .direct-link-box {
+      text-align: center;
+      background: #F1F5F9;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10mm;
+    }
+    .direct-link-box small { font-weight: 700; color: #64748B; font-size: 0.8rem; text-transform: uppercase; }
+    .direct-link-box code {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-top: 4px;
+    }
+
+    /* Footer */
+    .poster-footer {
+      border-top: 2px solid #E2E8F0;
+      padding-top: 8mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: #64748B;
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .print-controls { display: none !important; }
+      .poster-sheet { box-shadow: none; width: 100%; border: 6px solid var(--primary); border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-controls">
+  <button type="button" class="btn-print" onclick="window.print()">
+    <i class="fa-solid fa-print"></i> Print A4 Noticeboard Poster
+  </button>
+  <a href="{{ url_for('enrolment.self_enrol', school_code=school.code or school.id) }}" class="btn-print" style="background:var(--primary); text-decoration:none;">
+    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Onboarding Portal
+  </a>
+</div>
+
+<div class="poster-sheet">
+  <div class="poster-inner-border"></div>
+
+  <!-- School Header -->
+  <div class="poster-header">
+    {% if school.logo_filename %}
+    <img src="/media/logos/{{ school.logo_filename }}" class="school-crest-img" alt="Crest">
+    {% endif %}
+    <h1>{{ school.name }}</h1>
+    <div class="motto">"{{ school.motto or 'Strive for Excellence' }}"</div>
+    <div class="location">{{ school.po_box }} &bull; {{ school.town }}, {{ school.county }} County</div>
+  </div>
+
+  <!-- Announcement Banner -->
+  <div class="announcement-banner">
+    <h2>STUDENT ID CARD ONBOARDING OPEN</h2>
+    <p>ACADEMIC YEAR {{ school.academic_year }} &bull; ALL STUDENTS ARE REQUIRED TO REGISTER</p>
+  </div>
+
+  <!-- Center QR Code & Steps -->
+  <div class="qr-center-box">
+    <div class="qr-frame">
+      <img src="{{ url_for('enrolment.get_school_qr', school_code=school.code or school.id) }}" alt="QR Code">
+      <div class="qr-scan-label">SCAN WITH SMARTPHONE</div>
+    </div>
+
+    <div class="qr-instructions">
+      <h3>Quick 3-Minute Registration:</h3>
+      <ol>
+        <li>Open your smartphone <strong>Camera</strong> and point at the QR code.</li>
+        <li>Tap the link to open the official <strong>{{ school.name }}</strong> ID portal.</li>
+        <li>Snap or upload your <strong>passport photo</strong> using our framing tool.</li>
+        <li>Enter your <strong>Admission Number</strong>, Name, and Grade/Class.</li>
+        <li><strong>Review your ID Card</strong> live on screen and click Submit!</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Direct Web Link -->
+  <div class="direct-link-box">
+    <small>Or visit on computer browser:</small>
+    <code>{{ onboard_url }}</code>
+  </div>
+
+  <!-- Poster Footer -->
+  <div class="poster-footer">
+    <div>
+      <strong>School Hotline:</strong> {{ school.phone }} &bull; <strong>Email:</strong> {{ school.email }}
+    </div>
+    <div>
+      Official EduID Kenya System &bull; Issued by School Administration
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

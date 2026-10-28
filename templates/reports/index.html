@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Operational Reports & Analytics - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fa-solid fa-chart-pie text-primary me-2"></i> Operational Reports & Analytics</h4>
+      <p class="text-muted small mb-0">Production statistics, card issuance manifests, and audit activity for <strong>{{ current_school.name }}</strong></p>
+    </div>
+    <a href="{{ url_for('reports.export_students_csv') }}" class="btn btn-outline-success btn-sm fw-bold">
+      <i class="fa-solid fa-file-csv me-1"></i> Export Complete Student Register (CSV)
+    </a>
+  </div>
+
+  <!-- Operational Stat Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-2">
+      <div class="card stat-card p-3">
+        <div class="text-muted small fw-semibold">REGISTERED STUDENTS</div>
+        <div class="fs-3 fw-bold text-dark mt-1">{{ total_students }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+      <div class="card stat-card p-3">
+        <div class="text-muted small fw-semibold">CARDS GENERATED</div>
+        <div class="fs-3 fw-bold text-primary mt-1">{{ cards_generated }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+      <div class="card stat-card p-3">
+        <div class="text-muted small fw-semibold">CARDS PRINTED</div>
+        <div class="fs-3 fw-bold text-success mt-1">{{ cards_printed }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+      <div class="card stat-card p-3">
+        <div class="text-muted small fw-semibold">AWAITING PRINT</div>
+        <div class="fs-3 fw-bold text-warning mt-1">{{ cards_pending }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+      <div class="card stat-card p-3">
+        <div class="text-muted small fw-semibold">MISSING PHOTOS</div>
+        <div class="fs-3 fw-bold text-danger mt-1">{{ missing_photos }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+      <div class="card stat-card p-3">
+        <div class="text-muted small fw-semibold">REPRINTS & REPLACEMENTS</div>
+        <div class="fs-3 fw-bold text-info mt-1">{{ reprints_count }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Class & Stream Issuance Breakdown -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-3">
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-chalkboard-user text-primary me-2"></i> Card Issuance by Class and Stream</h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-custom mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Class / Form</th>
+                  <th>Stream</th>
+                  <th class="text-center">Registered</th>
+                  <th class="text-center">Cards Issued</th>
+                  <th class="text-end">Coverage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for stat in class_stats %}
+                <tr>
+                  <td class="fw-bold">{{ stat.class_name }}</td>
+                  <td>{{ stat.stream_name or 'Main' }}</td>
+                  <td class="text-center">{{ stat.total_students }}</td>
+                  <td class="text-center">{{ stat.cards_issued }}</td>
+                  <td class="text-end">
+                    {% set pct = (stat.cards_issued / stat.total_students * 100)|round|int if stat.total_students > 0 else 0 %}
+                    <div class="d-flex align-items-center justify-content-end gap-2">
+                      <div class="progress flex-grow-1" style="height: 6px; max-width: 80px;">
+                        <div class="progress-bar bg-success" style="width: {{ pct }}%;"></div>
+                      </div>
+                      <span class="small fw-bold">{{ pct }}%</span>
+                    </div>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">No student classes registered yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Audit Logs -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Recent Audit Log Activity</h6>
+          <a href="{{ url_for('system.audit') }}" class="btn btn-link btn-sm text-decoration-none">View All</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-custom mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>User</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in recent_audits %}
+                <tr>
+                  <td>
+                    <span class="badge bg-light text-dark border font-monospace" style="font-size: 11px;">{{ log.action }}</span>
+                    {% if log.details %}
+                    <div class="text-muted" style="font-size: 11px;">{{ log.details[:40] }}...</div>
+                    {% endif %}
+                  </td>
+                  <td class="small">{{ log.username or 'System' }}</td>
+                  <td class="small text-muted">{{ log.created_at.strftime('%H:%M:%S') }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="3" class="text-center py-4 text-muted">No activity logs recorded yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

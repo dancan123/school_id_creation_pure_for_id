@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}Quick-Add Student — {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <!-- Header -->
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+          <h4 class="fw-bold mb-0"><i class="fa-solid fa-user-plus" style="color:var(--primary);margin-right:8px;"></i>Quick-Add Student</h4>
+          <p class="text-muted small mb-0">Minimum information needed to generate an ID card for <strong>{{ current_school.name }}</strong></p>
+        </div>
+      </div>
+
+      <!-- Info callout: what's required -->
+      <div class="alert border-0 rounded-4 mb-4 d-flex gap-3 align-items-start" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-left:4px solid var(--primary) !important;">
+        <i class="fa-solid fa-lightbulb fa-lg" style="color:var(--primary);margin-top:2px;"></i>
+        <div>
+          <p class="fw-bold mb-1" style="color:var(--primary);">Only 3 fields are required to generate an ID card:</p>
+          <div class="d-flex flex-wrap gap-2 mt-1">
+            <span class="badge rounded-pill px-3 py-2" style="background:var(--primary);color:white;"><i class="fa-solid fa-star me-1"></i>Full Name</span>
+            <span class="badge rounded-pill px-3 py-2" style="background:var(--primary);color:white;"><i class="fa-solid fa-star me-1"></i>Admission Number</span>
+            <span class="badge rounded-pill px-3 py-2" style="background:var(--primary);color:white;"><i class="fa-solid fa-star me-1"></i>Class / Grade</span>
+            <span class="badge rounded-pill px-3 py-2 bg-light text-muted"><i class="fa-solid fa-plus me-1"></i>Photo (recommended)</span>
+          </div>
+        </div>
+      </div>
+
+      {% if errors %}
+      <div class="alert alert-danger rounded-4 border-0 mb-4">
+        {% for err in errors %}<p class="mb-1 small"><i class="fa-solid fa-exclamation-circle me-1"></i>{{ err }}</p>{% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+          <ul class="nav nav-tabs border-0 gap-2" id="entryTabs">
+            <li class="nav-item">
+              <button class="nav-link active fw-semibold" id="tab-single" data-bs-toggle="tab" data-bs-target="#paneSingle">
+                <i class="fa-solid fa-user me-1"></i>Single Student
+              </button>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('bulk_import.upload') }}" class="nav-link text-muted">
+                <i class="fa-solid fa-table me-1"></i>Bulk Import (Excel/CSV)
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card-body p-4">
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="paneSingle">
+              <form method="POST" enctype="multipart/form-data" action="{{ url_for('enrolment.quick_add_student') }}">
+
+                <!-- Curriculum Toggle -->
+                <div class="mb-3">
+                  <label class="form-label small fw-bold">Curriculum System <span class="text-danger">*</span></label>
+                  <div class="d-flex gap-2">
+                    <button type="button" id="btnCBC" onclick="setCurriculum('CBC')"
+                            class="btn btn-sm flex-grow-1 fw-semibold"
+                            style="border:2px solid var(--primary);background:var(--primary);color:white;">
+                      <i class="fa-solid fa-graduation-cap me-1"></i>CBC (New System)
+                    </button>
+                    <button type="button" id="btn844" onclick="setCurriculum('844')"
+                            class="btn btn-sm flex-grow-1 fw-semibold"
+                            style="border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;">
+                      <i class="fa-solid fa-book me-1"></i>8-4-4 (Old System)
+                    </button>
+                  </div>
+                  <input type="hidden" name="curriculum_type" id="curriculumInput" value="{{ form.get('curriculum_type','CBC') }}">
+                </div>
+
+                <div class="row g-3">
+                  <!-- Full Name -->
+                  <div class="col-12">
+                    <label class="form-label small fw-bold">Student Full Name <span class="text-danger">*</span></label>
+                    <input type="text" name="full_name" class="form-control" autofocus
+                           value="{{ form.get('full_name','') }}"
+                           placeholder="e.g. Amara Otieno Kwamboka" required>
+                  </div>
+
+                  <!-- Admission Number -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Admission Number <span class="text-danger">*</span></label>
+                    <input type="text" name="admission_number" class="form-control"
+                           value="{{ form.get('admission_number','') }}"
+                           placeholder="e.g. 2024052" required>
+                  </div>
+
+                  <!-- Academic Year -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Academic Year <span class="text-danger">*</span></label>
+                    <select name="academic_year" class="form-select">
+                      {% set cur_yr = (form.get('academic_year', current_school.academic_year) or '2026')|int %}
+                      {% for yr in range(cur_yr - 1, cur_yr + 3) %}
+                        <option value="{{ yr }}" {% if yr == cur_yr %}selected{% endif %}>{{ yr }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Class / Grade -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Class / Grade <span class="text-danger">*</span></label>
+                    <select name="class_name" id="classSelect" class="form-select" required>
+                      <option value="">— Select Class —</option>
+                      <optgroup label="CBC Classes" id="cbcGroup">
+                        {% for cls in cbc_classes %}
+                          <option value="{{ cls }}" {% if form.get('class_name')==cls %}selected{% endif %}>{{ cls }}</option>
+                        {% endfor %}
+                      </optgroup>
+                      <optgroup label="8-4-4 Classes" id="oldGroup" style="display:none;">
+                        {% for cls in old_classes %}
+                          <option value="{{ cls }}" {% if form.get('class_name')==cls %}selected{% endif %}>{{ cls }}</option>
+                        {% endfor %}
+                      </optgroup>
+                    </select>
+                    <small class="text-muted">Or type directly: <a href="{{ url_for('students.new_student') }}">full form →</a></small>
+                  </div>
+
+                  <!-- Stream -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Stream / Section</label>
+                    <input type="text" name="stream_name" class="form-control"
+                           value="{{ form.get('stream_name','') }}"
+                           placeholder="e.g. East, North, Blue">
+                  </div>
+
+                  <!-- Gender -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Gender</label>
+                    <select name="gender" class="form-select">
+                      <option value="">— Optional —</option>
+                      <option value="Male" {% if form.get('gender')=='Male' %}selected{% endif %}>Male</option>
+                      <option value="Female" {% if form.get('gender')=='Female' %}selected{% endif %}>Female</option>
+                    </select>
+                  </div>
+
+                  <!-- Photo -->
+                  <div class="col-12">
+                    <label class="form-label small fw-bold">
+                      <i class="fa-solid fa-camera me-1"></i>Passport Photo <span class="text-muted fw-normal">(optional, can be added later)</span>
+                    </label>
+
+                    <ul class="nav nav-tabs border-0 mb-3" id="photoTabs">
+                      <li class="nav-item">
+                        <button type="button" class="nav-link active small py-1" onclick="showPhotoTab('upload', this)">
+                          <i class="fa-solid fa-upload me-1"></i>Upload File
+                        </button>
+                      </li>
+                      <li class="nav-item">
+                        <button type="button" class="nav-link small py-1" onclick="showPhotoTab('webcam', this)">
+                          <i class="fa-solid fa-camera me-1"></i>Use Webcam
+                        </button>
+                      </li>
+                    </ul>
+
+                    <!-- Upload tab -->
+                    <div id="tab-upload">
+                      <div class="border rounded-3 p-3 bg-light d-flex align-items-center gap-3">
+                        <img id="uploadPreview" src="" alt="" style="width:60px;height:60px;border-radius:8px;object-fit:cover;display:none;border:2px solid var(--primary);">
+                        <i class="fa-solid fa-image fa-2x text-muted" id="uploadIcon"></i>
+                        <div class="flex-grow-1">
+                          <input type="file" name="photo_file" class="form-control form-control-sm"
+                                 accept="image/jpeg,image/png,image/webp"
+                                 onchange="previewUpload(event)">
+                          <small class="text-muted">JPG / PNG, max 5MB, passport-size</small>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Webcam tab -->
+                    <div id="tab-webcam" style="display:none;">
+                      <div class="border rounded-3 p-3 bg-light text-center">
+                        <video id="webcamFeed" autoplay playsinline style="width:100%;max-width:280px;border-radius:8px;display:none;"></video>
+                        <canvas id="webcamCanvas" style="display:none;"></canvas>
+                        <img id="webcamPreview" src="" alt="Webcam Capture" style="width:160px;height:160px;border-radius:10px;object-fit:cover;display:none;margin:0 auto;border:3px solid var(--primary);">
+                        <div class="mt-3 d-flex gap-2 justify-content-center flex-wrap">
+                          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="startWebcam()">
+                            <i class="fa-solid fa-video me-1"></i>Open Camera
+                          </button>
+                          <button type="button" class="btn btn-sm" style="background:var(--primary);color:white;" id="captureBtn" onclick="captureWebcam()" style="display:none;" disabled>
+                            <i class="fa-solid fa-camera me-1"></i>Capture Photo
+                          </button>
+                          <button type="button" class="btn btn-outline-danger btn-sm" id="retakeBtn" onclick="retakeWebcam()" style="display:none;">
+                            <i class="fa-solid fa-rotate me-1"></i>Retake
+                          </button>
+                        </div>
+                        <input type="hidden" name="webcam_image_data" id="webcamImageData">
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Actions -->
+                <div class="d-flex gap-2 flex-wrap">
+                  <button type="submit" name="save_only" class="btn btn-outline-primary flex-grow-1">
+                    <i class="fa-solid fa-save me-1"></i>Save to Register
+                  </button>
+                  <button type="submit" name="generate_now" value="1" class="btn flex-grow-1" style="background:var(--primary);color:white;">
+                    <i class="fa-solid fa-id-card me-1"></i>Save &amp; Generate ID Card Now
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setCurriculum(type) {
+  document.getElementById('curriculumInput').value = type;
+  var isOld = (type === '844');
+  document.getElementById('cbcGroup').style.display  = isOld ? 'none' : '';
+  document.getElementById('oldGroup').style.display  = isOld ? '' : 'none';
+  document.getElementById('classSelect').value = '';
+  document.getElementById('btnCBC').style.cssText = isOld
+    ? 'border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;'
+    : 'border:2px solid var(--primary);background:var(--primary);color:white;';
+  document.getElementById('btn844').style.cssText = isOld
+    ? 'border:2px solid var(--primary);background:var(--primary);color:white;'
+    : 'border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;';
+}
+window.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('curriculumInput').value === '844') setCurriculum('844');
+});
+
+function previewUpload(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var p = document.getElementById('uploadPreview');
+    p.src = ev.target.result;
+    p.style.display = 'block';
+    document.getElementById('uploadIcon').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function showPhotoTab(tab, btn) {
+  document.getElementById('tab-upload').style.display = tab === 'upload' ? '' : 'none';
+  document.getElementById('tab-webcam').style.display = tab === 'webcam' ? '' : 'none';
+  document.querySelectorAll('#photoTabs .nav-link').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+var webcamStream = null;
+function startWebcam() {
+  navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480, facingMode: 'user' } }).then(function(s) {
+    webcamStream = s;
+    var v = document.getElementById('webcamFeed');
+    v.srcObject = s; v.style.display = 'block';
+    document.getElementById('captureBtn').style.display = 'inline-flex';
+    document.getElementById('captureBtn').disabled = false;
+  }).catch(function() { alert('Could not access camera. Please use file upload instead.'); });
+}
+function captureWebcam() {
+  var v = document.getElementById('webcamFeed');
+  var c = document.getElementById('webcamCanvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  var dataUrl = c.toDataURL('image/jpeg', 0.92);
+  document.getElementById('webcamImageData').value = dataUrl;
+  var p = document.getElementById('webcamPreview');
+  p.src = dataUrl; p.style.display = 'block';
+  v.style.display = 'none';
+  if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
+  document.getElementById('captureBtn').style.display = 'none';
+  document.getElementById('retakeBtn').style.display = 'inline-flex';
+}
+function retakeWebcam() {
+  document.getElementById('webcamPreview').style.display = 'none';
+  document.getElementById('webcamImageData').value = '';
+  document.getElementById('retakeBtn').style.display = 'none';
+  startWebcam();
+}
+</script>
+{% endblock %}

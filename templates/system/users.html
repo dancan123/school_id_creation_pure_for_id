@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center">
+          <div>
+            <h4 class="fw-bold mb-1"><i class="fa-solid fa-users-gear text-primary me-2"></i> System Users & Roles</h4>
+            <p class="text-muted small mb-0">Authorized operators and system administrators.</p>
+          </div>
+        </div>
+
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-custom mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Assigned School</th>
+                  <th>Status</th>
+                  <th>Last Login</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                <tr>
+                  <td class="fw-bold">{{ u.username }}</td>
+                  <td>{{ u.full_name }}</td>
+                  <td>{{ u.email }}</td>
+                  <td><span class="badge bg-primary text-uppercase">{{ u.role }}</span></td>
+                  <td>{{ u.school.name if u.school else 'All Schools (Global)' }}</td>
+                  <td>
+                    <span class="badge {% if u.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                      {{ 'Active' if u.is_active else 'Disabled' }}
+                    </span>
+                  </td>
+                  <td class="small text-muted">{{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else 'Never' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

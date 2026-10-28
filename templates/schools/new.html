@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Register New School - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 py-4">
+          <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left"></i></a>
+            <div>
+              <h4 class="fw-bold mb-0">Register New School</h4>
+              <p class="text-muted small mb-0">Add an institution to manage its student cards with isolated records and custom colors.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-4 pt-0">
+          <form method="POST" action="{{ url_for('schools.create_school') }}" enctype="multipart/form-data">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label small fw-bold">School Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Lenana School" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">School Code</label>
+                <input type="text" name="code" class="form-control" placeholder="e.g. LNN-001">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">Motto</label>
+                <input type="text" name="motto" class="form-control" placeholder="e.g. Nihil Praeter Optimum">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Town</label>
+                <input type="text" name="town" class="form-control" value="Nairobi" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">County</label>
+                <input type="text" name="county" class="form-control" value="Nairobi" required>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Primary Branding Color</label>
+                <input type="color" name="primary_color" class="form-control form-control-color w-100" value="#1E3A8A">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Secondary Color</label>
+                <input type="color" name="secondary_color" class="form-control form-control-color w-100" value="#F59E0B">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Accent Color</label>
+                <input type="color" name="accent_color" class="form-control form-control-color w-100" value="#10B981">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Card Prefix</label>
+                <input type="text" name="card_prefix" class="form-control" value="ID-">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Academic Year</label>
+                <input type="text" name="academic_year" class="form-control" value="2026">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">School Crest / Logo</label>
+                <input type="file" name="logo_file" class="form-control" accept="image/*">
+              </div>
+
+              <div class="col-12 text-end mt-4">
+                <button type="submit" class="btn btn-success px-4 py-2 fw-bold">
+                  <i class="fa-solid fa-check me-2"></i> Register School & Make Active
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

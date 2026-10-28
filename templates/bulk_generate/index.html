@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk ID Generation - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fa-solid fa-layer-group text-primary me-2"></i> Bulk ID Card Generation Engine</h4>
+      <p class="text-muted small mb-0">Batch-process high-resolution ID cards with cryptographic QR codes and print-ready PDFs for <strong>{{ current_school.name }}</strong></p>
+    </div>
+    <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm">{{ total_eligible }} Eligible Students</span>
+  </div>
+
+  <div class="row g-4">
+    <!-- Generation Form Card -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 py-3">
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-sliders text-primary me-2"></i> Configure Batch Generation</h6>
+        </div>
+        <div class="card-body p-4 pt-0">
+          <form method="POST" action="{{ url_for('bulk_generate.start_generation') }}" onsubmit="return confirm('Start generating cards for the selected students? This will compile a print-ready PDF.');">
+            
+            <!-- Scope Selection -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Target Generation Scope</label>
+              <select name="scope" id="scope_select" class="form-select" onchange="toggleScopeInputs(this.value)">
+                <option value="all">Entire School (All Registered Students)</option>
+                <option value="class">Specific Class / Form</option>
+              </select>
+            </div>
+
+            <div id="class_scope_group" class="d-none mb-3">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Select Class</label>
+                  <select name="class_name" class="form-select form-select-sm">
+                    <option value="">-- Choose Class --</option>
+                    {% for c in classes %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Select Stream (Optional)</label>
+                  <select name="stream_name" class="form-select form-select-sm">
+                    <option value="">All Streams</option>
+                    {% for s in streams %}
+                    <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Print Format Selection -->
+            <div class="mb-4">
+              <label class="form-label small fw-bold">Print Output Layout & Media</label>
+              
+              <div class="form-check p-3 border rounded-3 mb-2 bg-light">
+                <input class="form-check-input ms-0 me-2" type="radio" name="print_format" id="format_cr80" value="cr80_single" checked>
+                <label class="form-check-label fw-bold" for="format_cr80">
+                  <i class="fa-solid fa-id-card text-primary me-1"></i> CR80 PVC Card Printer Format
+                  <div class="text-muted small fw-normal">Exact 85.60 × 53.98 mm physical dimensions. Front & Back multipage PDF for direct PVC card printers (e.g. Fargo, Zebra, Evolis).</div>
+                </label>
+              </div>
+
+              <div class="form-check p-3 border rounded-3 mb-2 bg-light">
+                <input class="form-check-input ms-0 me-2" type="radio" name="print_format" id="format_a4_8" value="a4_grid_8">
+                <label class="form-check-label fw-bold" for="format_a4_8">
+                  <i class="fa-solid fa-file-pdf text-danger me-1"></i> A4 Sheet Proofing / Outsourced (8 Cards / Page)
+                  <div class="text-muted small fw-normal">Standard 210 × 297 mm paper with 2x4 card grid, duplex back alignment, and cut-guidelines for outsourcing.</div>
+                </label>
+              </div>
+
+              <div class="form-check p-3 border rounded-3 bg-light">
+                <input class="form-check-input ms-0 me-2" type="radio" name="print_format" id="format_a4_10" value="a4_grid_10">
+                <label class="form-check-label fw-bold" for="format_a4_10">
+                  <i class="fa-solid fa-file-pdf text-danger me-1"></i> A4 High-Density Sheet (10 Cards / Page)
+                  <div class="text-muted small fw-normal">2x5 card grid on A4 paper for paper proofs.</div>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+              <i class="fa-solid fa-play me-2"></i> Start Bulk Generation & Build PDF
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch History Table -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Generation Batch History</h6>
+          <span class="badge bg-light text-muted">{{ jobs|length }} Batches</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-custom mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Batch ID</th>
+                  <th>Scope</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Date & Time</th>
+                  <th class="text-end">Download PDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for j in jobs %}
+                <tr>
+                  <td class="fw-bold font-monospace small">{{ j.id[:8] }}</td>
+                  <td><span class="badge bg-light text-dark border">{{ j.target_scope.replace(':', ' ') }}</span></td>
+                  <td class="fw-bold">{{ j.total_count }}</td>
+                  <td>
+                    {% if j.status == 'completed' %}
+                    <span class="badge bg-success"><i class="fa-solid fa-check"></i> Completed</span>
+                    {% elif j.status == 'processing' %}
+                    <span class="badge bg-warning text-dark"><i class="fa-solid fa-spinner fa-spin"></i> Processing</span>
+                    {% else %}
+                    <span class="badge bg-danger">{{ j.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="small text-muted">{{ j.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                  <td class="text-end">
+                    {% if j.pdf_filename %}
+                    <a href="{{ url_for('bulk_generate.download_batch_pdf', job_id=j.id) }}" class="btn btn-outline-success btn-sm py-1 px-3 fw-bold">
+                      <i class="fa-solid fa-download me-1"></i> PDF
+                    </a>
+                    {% else %}
+                    <span class="text-muted small">Generating...</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-layer-group fa-2x mb-2 text-secondary d-block"></i>
+                    No batch generation jobs executed yet.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Bulk Renewal Panel ── #}
+  <div class="row g-4 mt-1">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm rounded-4" style="border-top: 4px solid #f59e0b !important;">
+        <div class="card-header bg-white border-0 py-3 d-flex align-items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate text-warning"></i>
+          <h6 class="fw-bold mb-0">Bulk ID Card Renewal</h6>
+          <span class="badge bg-warning-subtle text-warning rounded-pill ms-1">Preserves audit history</span>
+          <button class="btn btn-outline-warning btn-sm ms-auto" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#renewPanel">
+            <i class="fa-solid fa-chevron-down me-1"></i> Expand
+          </button>
+        </div>
+        <div class="collapse" id="renewPanel">
+          <div class="card-body p-4 pt-0">
+            <p class="text-muted small mb-3">
+              Bulk renewal archives the current active card for each selected student and issues a fresh card with a new QR token and expiry date.
+              The old card history is preserved for audit purposes, and cards display a <strong>RENEWED R1</strong> badge.
+            </p>
+            <form method="POST" action="{{ url_for('single_id.renew_bulk') }}"
+                  onsubmit="return confirm('Confirm bulk renewal for the selected scope? Old cards will be archived.')">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold small">Renewal Scope</label>
+                  <select name="scope" class="form-select" onchange="toggleRenewScope(this.value)">
+                    <option value="all">All Active Students</option>
+                    <option value="class">By Class / Stream</option>
+                  </select>
+                </div>
+                <div class="col-md-8 d-none" id="renew_class_group">
+                  <div class="row g-2">
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold small">Class</label>
+                      <select name="class_name" class="form-select form-select-sm">
+                        <option value="">-- Choose Class --</option>
+                        {% for c in classes %}
+                        <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold small">Stream (Optional)</label>
+                      <select name="stream_name" class="form-select form-select-sm">
+                        <option value="">All Streams</option>
+                        {% for s in streams %}
+                        <option value="{{ s }}">{{ s }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold small">Renewal Notes (Optional)</label>
+                  <input type="text" name="renewal_notes" class="form-control"
+                         placeholder="e.g. Annual Renewal 2026, Lost Card Replacement">
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                  <button type="submit" class="btn btn-warning fw-bold w-100">
+                    <i class="fa-solid fa-arrows-rotate me-2"></i> Execute Bulk Renewal
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleScopeInputs(scope) {
+  const group = document.getElementById('class_scope_group');
+  group.classList.toggle('d-none', scope !== 'class');
+}
+function toggleRenewScope(scope) {
+  document.getElementById('renew_class_group').classList.toggle('d-none', scope !== 'class');
+}
+</script>
+{% endblock %}

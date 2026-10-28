@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Kenyan School ID Card Generation System{% endblock %}</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body data-primary="{{ current_school.primary_color if current_school else '#1E3A8A' }}" data-secondary="{{ current_school.secondary_color if current_school else '#F59E0B' }}" data-accent="{{ current_school.accent_color if current_school else '#10B981' }}">
+
+  <script>
+    (function() {
+      var b = document.body;
+      if (b && b.dataset) {
+        if (b.dataset.primary) document.documentElement.style.setProperty('--primary', b.dataset.primary);
+        if (b.dataset.secondary) document.documentElement.style.setProperty('--secondary', b.dataset.secondary);
+        if (b.dataset.accent) document.documentElement.style.setProperty('--accent', b.dataset.accent);
+      }
+    })();
+  </script>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark shadow-sm navbar-top-custom">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand navbar-brand-custom" href="{{ url_for('dashboard.index') }}">
+        <i class="fa-solid fa-id-card-clip text-warning"></i>
+        <span>EduID <span class="badge bg-primary" style="font-size: 11px;">Kenya</span></span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('dashboard.index') }}"><i class="fa-solid fa-gauge-high me-1"></i> Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('students.index') }}"><i class="fa-solid fa-user-graduate me-1"></i> Students</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+              <i class="fa-solid fa-user-plus me-1"></i> Enrolment
+            </a>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item" href="{{ url_for('enrolment.queue') }}">
+                  <i class="fa-solid fa-inbox me-2 text-warning"></i>Review Onboarding Queue
+                </a>
+              </li>
+              {% if current_school %}
+              <li>
+                <a class="dropdown-item" href="{{ url_for('enrolment.self_enrol', school_code=current_school.code or current_school.id) }}" target="_blank">
+                  <i class="fa-solid fa-arrow-up-right-from-square me-2 text-success"></i>Open Public Onboarding Portal
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('enrolment.print_poster', school_code=current_school.code or current_school.id) }}" target="_blank">
+                  <i class="fa-solid fa-print me-2 text-dark"></i>Print Noticeboard Poster
+                </a>
+              </li>
+              {% endif %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('enrolment.quick_add_student') }}">
+                  <i class="fa-solid fa-bolt me-2 text-warning"></i>Quick-Add Student
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('students.new_student') }}">
+                  <i class="fa-solid fa-user-plus me-2 text-primary"></i>Full Student Form
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('bulk_import.upload') }}">
+                  <i class="fa-solid fa-file-import me-2 text-info"></i>Bulk Import
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('enrolment.onboard_hub') }}" target="_blank">
+                  <i class="fa-solid fa-school me-2 text-secondary"></i>All Schools Directory
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('single_id.index') }}"><i class="fa-solid fa-id-card me-1"></i> Single ID</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('bulk_generate.index') }}"><i class="fa-solid fa-layer-group me-1"></i> Bulk Generate</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('print_queue.index') }}"><i class="fa-solid fa-print me-1"></i> Print Queue</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('templates_designer.index') }}"><i class="fa-solid fa-palette me-1"></i> Designer</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('reports.index') }}"><i class="fa-solid fa-chart-pie me-1"></i> Reports</a>
+          </li>
+        </ul>
+
+        <!-- Active School Switcher (Multi-School at a Go) -->
+        <div class="d-flex align-items-center gap-3">
+          {% if current_user.is_authenticated and current_school %}
+          <div class="dropdown">
+            <button class="btn btn-dark btn-sm dropdown-toggle d-flex align-items-center gap-2 border border-secondary" type="button" data-bs-toggle="dropdown">
+              <span class="school-badge-indicator"></span>
+              <span class="fw-semibold text-truncate" style="max-width: 180px;">{{ current_school.name }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li class="dropdown-header text-uppercase fs-7 text-muted">Switch Active School</li>
+              {% for sch in all_schools %}
+              <li>
+                <a class="dropdown-item d-flex align-items-center justify-content-between {% if sch.id == current_school.id %}active{% endif %}" href="{{ url_for('schools.switch_school', school_id=sch.id) }}">
+                  <span><i class="fa-solid fa-school me-2 text-primary"></i> {{ sch.name }}</span>
+                  <span class="badge rounded-pill" data-dot-color="{{ sch.primary_color }}" style="width: 12px; height: 12px; display: inline-block; background-color: #64748B;"> </span>
+                </a>
+              </li>
+              {% endfor %}
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-success" href="{{ url_for('schools.create_school') }}"><i class="fa-solid fa-plus-circle me-2"></i> Register New School</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-sliders me-2"></i> School Settings & Colors</a></li>
+            </ul>
+          </div>
+          {% endif %}
+
+          <!-- User / Settings Dropdown -->
+          {% if current_user.is_authenticated %}
+          <div class="dropdown">
+            <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown">
+              <i class="fa-solid fa-circle-user"></i>
+              <span>{{ current_user.username }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li class="dropdown-header text-muted">{{ current_user.full_name }} ({{ current_user.role }})</li>
+              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-gear me-2"></i> School Settings</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('system.backup') }}"><i class="fa-solid fa-database me-2"></i> System Backup</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('system.audit') }}"><i class="fa-solid fa-clock-rotate-left me-2"></i> Audit Logs</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket me-2"></i> Logout</a></li>
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Flash Messages -->
+  <div class="container-fluid px-4 mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show d-flex align-items-center gap-2 shadow-sm" role="alert">
+            <i class="fa-solid {% if category == 'success' %}fa-circle-check text-success{% elif category == 'danger' or category == 'error' %}fa-triangle-exclamation text-danger{% else %}fa-circle-info text-info{% endif %} fs-5"></i>
+            <div>{{ message }}</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Main Content Body -->
+  <main class="main-content py-3">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-top py-3 text-center text-muted small mt-auto">
+    <div class="container">
+      <span>Kenyan School ID Card Generation System &bull; Production SQLite Multi-School Edition &bull; &copy; 2026</span>
+    </div>
+  </footer>
+
+  <!-- Bootstrap 5 Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.querySelectorAll('[data-dot-color]').forEach(function(el) {
+      if (el.dataset.dotColor) el.style.backgroundColor = el.dataset.dotColor;
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

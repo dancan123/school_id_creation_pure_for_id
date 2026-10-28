@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student ID Self-Onboarding — {{ school.name }}</title>
+  <meta name="description" content="Official self-service ID card enrolment portal for {{ school.name }}. Upload passport photo, provide CBC/8-4-4 details, and preview your student ID card.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: {{ school.primary_color or '#1E3A8A' }};
+      --secondary: {{ school.secondary_color or '#F59E0B' }};
+      --accent: {{ school.accent_color or '#10B981' }};
+      --slate-900: #0F172A;
+      --slate-800: #1E293B;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-100: #F1F5F9;
+      --slate-50: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 10% 10%, #172554 0%, #0F172A 50%, #020617 100%);
+      min-height: 100vh;
+      color: #1E293B;
+      padding: 20px 14px 60px;
+    }
+    .portal-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Top Navigation / Breadcrumb */
+    .top-bar-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.82rem;
+    }
+    .top-bar-nav a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s;
+    }
+    .top-bar-nav a:hover { color: #FFFFFF; }
+    .btn-share-link {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-share-link:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* School Header Card */
+    .school-header-banner {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      padding: 24px 30px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      color: white;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+    .school-crest {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 3px solid rgba(255, 255, 255, 0.8);
+    }
+    .school-crest img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 6px;
+    }
+    .crest-fallback {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .school-info { flex-grow: 1; }
+    .school-info h1 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 3px;
+    }
+    .school-info .motto {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.85);
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .school-info .details {
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.65);
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .school-badges-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-left: auto;
+    }
+    .code-badge {
+      background: var(--secondary);
+      color: #0F172A;
+      font-weight: 800;
+      font-size: 0.8rem;
+      padding: 8px 16px;
+      border-radius: 50px;
+      letter-spacing: 0.04em;
+    }
+
+    /* Main Dual Layout: Form + Live ID Review */
+    .onboarding-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* Left Form Card */
+    .form-card {
+      background: #FFFFFF;
+      border-radius: 24px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+    }
+    .form-card-header {
+      background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+      padding: 22px 28px;
+      color: white;
+    }
+    .form-card-header h2 {
+      font-size: 1.18rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .form-card-header p {
+      font-size: 0.82rem;
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+    .form-card-body {
+      padding: 28px;
+    }
+
+    /* Section Headers */
+    .form-section-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748B;
+      margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #F1F5F9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-section-title i { color: var(--primary); }
+
+    /* Form Fields */
+    .form-group { margin-bottom: 16px; }
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .req-star { color: #EF4444; margin-left: 2px; }
+    input[type="text"], input[type="date"], select, textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 12px;
+      border: 1.5px solid #CBD5E1;
+      background: #F8FAFC;
+      font-size: 0.92rem;
+      font-family: inherit;
+      color: #0F172A;
+      transition: all 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+    }
+    .input-monospace {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Admission check status feedback */
+    .admission-feedback {
+      font-size: 0.74rem;
+      margin-top: 4px;
+      display: none;
+    }
+    .admission-feedback.valid { color: #059669; display: block; }
+    .admission-feedback.invalid { color: #DC2626; display: block; }
+
+    /* Curriculum Segmented Switch */
+    .curr-switch-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .curr-switch-btn {
+      flex: 1;
+      padding: 10px 14px;
+      border: 2px solid #E2E8F0;
+      background: #F8FAFC;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #64748B;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .curr-switch-btn.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+    .curr-switch-btn:hover:not(.active) {
+      border-color: #94A3B8;
+      background: #F1F5F9;
+    }
+
+    /* ── Advanced Passport Photo Tools Container ── */
+    .photo-tools-card {
+      border: 2px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 16px;
+      background: #F8FAFC;
+      margin-bottom: 20px;
+    }
+    .photo-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .photo-tab-btn {
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1px solid #CBD5E1;
+      background: white;
+      cursor: pointer;
+      color: #475569;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .photo-tab-btn.active {
+      background: #0F172A;
+      color: white;
+      border-color: #0F172A;
+    }
+
+    /* Camera Viewfinder */
+    .camera-box {
+      display: none;
+      background: #000;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      text-align: center;
+    }
+    .camera-box.active { display: block; }
+    #cameraVideo {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      transform: scaleX(-1); /* mirror selfie view */
+    }
+    /* Oval Passport Facial Framing Overlay */
+    .face-oval-guide {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 150px;
+      height: 200px;
+      border: 2px dashed rgba(245, 158, 11, 0.85);
+      border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+      pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+    }
+    .face-guide-text {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      right: 0;
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+    .camera-controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px;
+      background: #0F172A;
+    }
+    .btn-snap {
+      background: #DC2626;
+      color: white;
+      border: none;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-snap:hover { transform: scale(1.06); }
+    .btn-camera-flip {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      align-self: center;
+    }
+
+    /* Cropper View */
+    .upload-cropper-box {
+      display: none;
+    }
+    .upload-cropper-box.active { display: block; }
+    .upload-dropzone {
+      border: 2px dashed #94A3B8;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .upload-dropzone:hover {
+      border-color: var(--primary);
+      background: #EFF6FF;
+    }
+    .upload-dropzone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .cropper-canvas-wrap {
+      display: none;
+      text-align: center;
+      margin-top: 14px;
+    }
+    #cropCanvas {
+      background: #0F172A;
+      border-radius: 12px;
+      cursor: grab;
+      touch-action: none;
+      max-width: 100%;
+    }
+    .cropper-sliders {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .cropper-sliders input[type="range"] {
+      flex: 1;
+    }
+
+    /* Active Photo Preview Box */
+    .photo-ready-box {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      border: 2px solid var(--accent);
+      align-items: center;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .photo-thumb {
+      width: 72px;
+      height: 90px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid #0F172A;
+    }
+    .photo-ready-info h5 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #065F46;
+      margin-bottom: 2px;
+    }
+    .photo-ready-info p {
+      font-size: 0.72rem;
+      color: #64748B;
+      margin-bottom: 8px;
+    }
+    .btn-retake {
+      padding: 6px 12px;
+      background: #F1F5F9;
+      color: #0F172A;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Digital Signature Pad */
+    .sig-canvas-wrap {
+      border: 2px dashed #94A3B8;
+      border-radius: 12px;
+      background: white;
+      position: relative;
+      touch-action: none;
+      margin-bottom: 6px;
+    }
+    #sigCanvas {
+      width: 100%;
+      height: 110px;
+      display: block;
+      cursor: crosshair;
+    }
+    .sig-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      color: #64748B;
+    }
+    .btn-clear-sig {
+      background: none;
+      border: none;
+      color: #DC2626;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    /* Collapsible Optional Section */
+    .collapsible-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: #F8FAFC;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      cursor: pointer;
+      margin-top: 10px;
+      user-select: none;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #475569;
+    }
+    .collapsible-content {
+      display: none;
+      padding-top: 14px;
+    }
+    .collapsible-content.open { display: block; }
+
+    /* Submit Button */
+    .btn-submit-enrol {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.25s;
+      margin-top: 24px;
+      box-shadow: 0 10px 25px rgba(30, 58, 138, 0.35);
+    }
+    .btn-submit-enrol:hover {
+      opacity: 0.93;
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(30, 58, 138, 0.45);
+    }
+
+    /* ── Right Column: Interactive Live Card ID Review ── */
+    .review-panel {
+      position: sticky;
+      top: 20px;
+    }
+    .review-card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      padding: 24px;
+      color: white;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    .review-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .review-header h3 {
+      font-size: 1rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .live-badge {
+      background: #EF4444;
+      color: white;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 50px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      animation: pulseLive 1.5s infinite;
+    }
+    @keyframes pulseLive {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .flip-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .flip-btn {
+      flex: 1;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      background: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .flip-btn.active {
+      background: white;
+      color: #0F172A;
+    }
+
+    /* ── CR80 Live Card Visual Simulator (Exact CR80 Ratio: 85.60 x 53.98) ── */
+    .card-simulator {
+      background: white;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+      position: relative;
+      aspect-ratio: 85.6 / 53.98;
+      display: flex;
+      flex-direction: column;
+      color: #0F172A;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    /* Front Simulator */
+    .sim-front-header {
+      background: var(--primary);
+      height: 27%;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: white;
+      position: relative;
+    }
+    .sim-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: white;
+      object-fit: contain;
+      padding: 3px;
+      flex-shrink: 0;
+    }
+    .sim-logo-alt {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: var(--secondary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .sim-header-text { overflow: hidden; line-height: 1.15; }
+    .sim-sch-name {
+      font-weight: 800;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sim-sch-motto {
+      font-size: 0.6rem;
+      color: #FEF08A;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sim-sch-loc {
+      font-size: 0.55rem;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    .sim-stripe {
+      height: 4px;
+      background: var(--secondary);
+    }
+
+    .sim-front-body {
+      padding: 10px 14px;
+      flex-grow: 1;
+      display: flex;
+      gap: 14px;
+    }
+    .sim-photo-box {
+      width: 30%;
+      height: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #E2E8F0;
+      border: 2px solid var(--secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .sim-photo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .sim-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 0.68rem;
+      line-height: 1.35;
+    }
+    .sim-id-badge {
+      font-size: 0.55rem;
+      font-weight: 800;
+      background: var(--primary);
+      color: white;
+      padding: 1px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 2px;
+      align-self: flex-start;
+    }
+    .sim-stud-name {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sim-row {
+      display: flex;
+      gap: 4px;
+    }
+    .sim-label { color: #64748B; font-weight: 500; }
+    .sim-val { font-weight: 700; color: #0F172A; }
+
+    .sim-front-footer {
+      height: 10%;
+      background: var(--primary);
+      border-top: 2px solid var(--secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    /* Back Simulator */
+    .sim-back-header {
+      background: var(--primary);
+      height: 14%;
+      padding: 4px 12px;
+      color: white;
+      font-weight: 800;
+      font-size: 0.65rem;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid var(--secondary);
+    }
+    .sim-back-body {
+      padding: 8px 12px;
+      display: flex;
+      gap: 10px;
+      flex-grow: 1;
+    }
+    .sim-terms-col {
+      flex: 1.3;
+      font-size: 0.52rem;
+      color: #334155;
+      line-height: 1.3;
+    }
+    .sim-qr-col {
+      flex: 0.9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-left: 1px dashed #CBD5E1;
+      padding-left: 8px;
+    }
+    .sim-qr-box {
+      width: 58px;
+      height: 58px;
+      background: white;
+      border: 1px solid #0F172A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: #0F172A;
+      margin-bottom: 3px;
+    }
+    .sim-qr-text {
+      font-size: 0.48rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .sim-back-footer {
+      height: 10%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 0.52rem;
+      color: white;
+      font-weight: 700;
+    }
+
+    .review-note {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 14px;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .review-note i { color: var(--secondary); }
+
+    /* Alert Boxes */
+    .error-card {
+      background: #FEF2F2;
+      border: 1px solid #FCA5A5;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      color: #991B1B;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 900px) {
+      .onboarding-grid { grid-template-columns: 1fr; }
+      .review-panel { position: static; order: -1; }
+    }
+  </style>
+</head>
+<body>
+<div class="portal-wrap">
+
+  <!-- Top Bar Navigation -->
+  <div class="top-bar-nav">
+    <a href="{{ url_for('enrolment.onboard_hub') }}">
+      <i class="fa-solid fa-arrow-left"></i> Change School / Directory
+    </a>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="{{ url_for('enrolment.print_poster', school_code=school.code or school.id) }}" target="_blank" class="btn-share-link">
+        <i class="fa-solid fa-print"></i> Noticeboard Poster
+      </a>
+      <button type="button" class="btn-share-link" onclick="copyPortalLink()">
+        <i class="fa-solid fa-share-nodes"></i> Share Link
+      </button>
+    </div>
+  </div>
+
+  <!-- School Branding Header -->
+  <div class="school-header-banner">
+    <div class="school-crest">
+      {% if school.logo_filename %}
+      <img src="/media/logos/{{ school.logo_filename }}" alt="{{ school.name }}">
+      {% else %}
+      <span class="crest-fallback">{{ school.name[:2].upper() }}</span>
+      {% endif %}
+    </div>
+
+    <div class="school-info">
+      <h1>{{ school.name }}</h1>
+      <p class="motto">"{{ school.motto or 'Student Identity Onboarding Portal' }}"</p>
+      <div class="details">
+        <span><i class="fa-solid fa-location-dot me-1"></i>{{ school.town }}, {{ school.county }} County</span>
+        {% if school.phone %}<span><i class="fa-solid fa-phone me-1"></i>{{ school.phone }}</span>{% endif %}
+        <span><i class="fa-solid fa-calendar me-1"></i>Academic Year {{ school.academic_year }}</span>
+      </div>
+    </div>
+
+    <div class="school-badges-group">
+      <span class="code-badge">
+        <i class="fa-solid fa-hashtag me-1"></i>{{ school.code or ('SCH-' ~ school.id) }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Dual Layout: Form + Live ID Review -->
+  <div class="onboarding-grid">
+
+    <!-- Form Section -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <h2><i class="fa-solid fa-user-plus"></i> Student ID Onboarding</h2>
+        <p>Complete the details below and capture your passport photo. Your official plastic CR80 ID card will be verified and printed by the school administration.</p>
+      </div>
+
+      <div class="form-card-body">
+        {% if errors %}
+        <div class="error-card">
+          <ul style="padding-left: 18px; margin: 0;">
+            {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" id="enrolForm">
+          <input type="hidden" name="school_id" value="{{ school.id }}">
+          <input type="hidden" name="photo_cropped_data" id="photoCroppedData">
+          <input type="hidden" name="webcam_image_data" id="webcamImageData">
+          <input type="hidden" name="signature_data" id="signatureData">
+
+          <!-- 1. IDENTIFICATION & ACADEMIC -->
+          <div class="form-section-title">
+            <i class="fa-solid fa-id-card"></i> Student Identity & Academic Details
+          </div>
+
+          <div class="form-group">
+            <label>Full Student Name <span class="req-star">*</span></label>
+            <input type="text" name="full_name" id="inputFullName" required autofocus
+                   placeholder="e.g. Kelvin Kipkemboi Tanui (Surname first or as per birth cert)"
+                   value="{{ form.get('full_name', '') }}"
+                   oninput="updateCardPreview()">
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Admission Number <span class="req-star">*</span></label>
+              <input type="text" name="admission_number" id="inputAdmNo" required
+                     placeholder="e.g. 2024001 or 1234"
+                     class="input-monospace"
+                     value="{{ form.get('admission_number', '') }}"
+                     oninput="handleAdmissionInput()">
+              <div id="admFeedback" class="admission-feedback"></div>
+            </div>
+
+            <div class="form-group">
+              <label>Academic Year <span class="req-star">*</span></label>
+              <select name="academic_year" id="inputYear" onchange="updateCardPreview()">
+                {% set cur_yr = (school.academic_year or '2026')|int %}
+                {% for yr in range(cur_yr - 1, cur_yr + 3) %}
+                <option value="{{ yr }}" {% if form.get('academic_year', school.academic_year) == yr|string %}selected{% endif %}>{{ yr }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Curriculum Switcher -->
+          <div class="form-group">
+            <label>Curriculum System <span class="req-star">*</span></label>
+            <div class="curr-switch-box">
+              <button type="button" class="curr-switch-btn active" id="btnCBC" onclick="setCurriculum('CBC')">
+                <i class="fa-solid fa-graduation-cap"></i> CBC (Junior / Senior School)
+              </button>
+              <button type="button" class="curr-switch-btn" id="btn844" onclick="setCurriculum('844')">
+                <i class="fa-solid fa-book"></i> 8-4-4 (Secondary / Primary)
+              </button>
+            </div>
+            <input type="hidden" name="curriculum_type" id="curriculumInput" value="{{ form.get('curriculum_type', 'CBC') }}">
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Class / Grade <span class="req-star">*</span></label>
+              <select name="class_name" id="classSelect" required onchange="updateCardPreview()">
+                <option value="">-- Choose Class / Grade --</option>
+                <optgroup label="CBC Classes" id="cbcOptGroup">
+                  {% for c in cbc_classes %}
+                  <option value="{{ c }}" {% if form.get('class_name') == c %}selected{% endif %}>{{ c }}</option>
+                  {% endfor %}
+                </optgroup>
+                <optgroup label="8-4-4 Classes" id="old844OptGroup" style="display:none;">
+                  {% for c in old_classes %}
+                  <option value="{{ c }}" {% if form.get('class_name') == c %}selected{% endif %}>{{ c }}</option>
+                  {% endfor %}
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Stream / Class Section</label>
+              <input type="text" name="stream_name" id="inputStream"
+                     placeholder="e.g. East, Blue, Simba, Alpha"
+                     value="{{ form.get('stream_name', '') }}"
+                     oninput="updateCardPreview()">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>National UPI / NEMIS / Assessment No <span style="color:#94A3B8; font-weight:400;">(Optional)</span></label>
+            <input type="text" name="nemis_upi" id="inputNemis"
+                   placeholder="e.g. NEMIS UPI or Assessment Code"
+                   class="input-monospace"
+                   value="{{ form.get('nemis_upi', '') }}">
+          </div>
+
+          <!-- 2. PASSPORT PHOTO TOOLS (WEBCAM & CROPPER) -->
+          <div class="form-section-title" style="margin-top: 24px;">
+            <i class="fa-solid fa-camera-retro"></i> Passport Photo Tools <span class="req-star">*</span>
+          </div>
+
+          <div class="photo-tools-card">
+            <div class="photo-tabs">
+              <button type="button" class="photo-tab-btn active" id="tabCameraBtn" onclick="switchPhotoTab('camera')">
+                <i class="fa-solid fa-video"></i> Live Camera Snapshot
+              </button>
+              <button type="button" class="photo-tab-btn" id="tabUploadBtn" onclick="switchPhotoTab('upload')">
+                <i class="fa-solid fa-crop-simple"></i> Upload & Passport Cropper
+              </button>
+            </div>
+
+            <!-- Tab 1: Live Webcam Viewfinder -->
+            <div class="camera-box active" id="cameraBox">
+              <video id="cameraVideo" autoplay playsinline muted></video>
+              <div class="face-oval-guide"></div>
+              <div class="face-guide-text">Align face inside the oval &bull; Look straight</div>
+
+              <div class="camera-controls">
+                <button type="button" class="btn-camera-flip" title="Flip Camera" onclick="toggleCameraFacing()">
+                  <i class="fa-solid fa-camera-rotate"></i>
+                </button>
+                <button type="button" class="btn-snap" title="Snap Photo" onclick="snapWebcamPhoto()">
+                  <i class="fa-solid fa-camera"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tab 2: Upload & Interactive Cropper -->
+            <div class="upload-cropper-box" id="uploadCropperBox">
+              <div class="upload-dropzone" id="dropZone">
+                <input type="file" id="filePicker" accept="image/jpeg,image/png,image/webp" onchange="handleFileSelect(event)">
+                <i class="fa-solid fa-cloud-arrow-up fa-2x text-primary mb-2"></i>
+                <p style="font-size:0.85rem; font-weight:700; color:#0F172A; margin-bottom:2px;">Click to upload passport photo</p>
+                <small style="color:#64748B;">Supports JPG, PNG, WebP. High resolution with plain background.</small>
+              </div>
+
+              <div class="cropper-canvas-wrap" id="cropCanvasWrap">
+                <canvas id="cropCanvas" width="240" height="300"></canvas>
+                <div class="cropper-sliders">
+                  <span style="font-size:0.75rem; color:#475569;"><i class="fa-solid fa-magnifying-glass-minus"></i></span>
+                  <input type="range" id="zoomSlider" min="1" max="3" step="0.05" value="1" oninput="drawCropper()">
+                  <span style="font-size:0.75rem; color:#475569;"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
+                  <button type="button" class="btn-retake" onclick="rotateCropImage()"><i class="fa-solid fa-rotate-right"></i> Rotate</button>
+                  <button type="button" class="btn-retake" style="background:#0F172A; color:white;" onclick="confirmCrop()"><i class="fa-solid fa-check"></i> Apply</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ready Photo Preview Display -->
+            <div class="photo-ready-box" id="photoReadyBox">
+              <img src="" id="photoReadyImg" class="photo-thumb" alt="Passport">
+              <div class="photo-ready-info">
+                <h5><i class="fa-solid fa-circle-check"></i> Passport Photo Ready</h5>
+                <p>Framed at official 300 DPI ID dimensions.</p>
+                <button type="button" class="btn-retake" onclick="retakePhoto()"><i class="fa-solid fa-camera-rotate me-1"></i> Retake / Change</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. DIGITAL SIGNATURE PAD -->
+          <div class="form-section-title">
+            <i class="fa-solid fa-signature"></i> Student Digital Signature <span style="color:#94A3B8; font-weight:400;">(Optional)</span>
+          </div>
+
+          <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:14px; padding:12px; margin-bottom:20px;">
+            <p style="font-size:0.75rem; color:#64748B; margin-bottom:6px;">Sign inside the box using your fingertip (on mobile/touchscreen) or mouse.</p>
+            <div class="sig-canvas-wrap">
+              <canvas id="sigCanvas"></canvas>
+            </div>
+            <div class="sig-actions">
+              <span>Sign above the line</span>
+              <button type="button" class="btn-clear-sig" onclick="clearSignature()"><i class="fa-solid fa-eraser me-1"></i>Clear</button>
+            </div>
+          </div>
+
+          <!-- 4. EMERGENCY & PERSONAL DETAILS (COLLAPSIBLE) -->
+          <div class="collapsible-trigger" onclick="toggleOptionalSection()">
+            <span><i class="fa-solid fa-shield-heart me-2 text-primary"></i> Personal & Emergency Contact Details</span>
+            <i class="fa-solid fa-chevron-down" id="optChev"></i>
+          </div>
+
+          <div class="collapsible-content" id="optContent">
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label>Gender</label>
+                <select name="gender" id="inputGender">
+                  <option value="">-- Select --</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Date of Birth</label>
+                <input type="date" name="dob" id="inputDob">
+              </div>
+
+              <div class="form-group">
+                <label>Blood Group</label>
+                <select name="blood_group" id="inputBlood" onchange="updateCardPreview()">
+                  <option value="">-- Unknown --</option>
+                  {% for bg in blood_groups %}
+                  <option value="{{ bg }}">{{ bg }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Parent / Guardian Full Name</label>
+                <input type="text" name="parent_name" id="inputParentName" placeholder="e.g. Grace Wanjiku Tanui">
+              </div>
+
+              <div class="form-group">
+                <label>Parent / Guardian Phone</label>
+                <input type="text" name="parent_phone" id="inputParentPhone" placeholder="e.g. +254 712 345678" oninput="updateCardPreview()">
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Relationship</label>
+                <select name="emergency_relationship">
+                  <option value="Parent">Parent</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Father">Father</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Sponsor">Sponsor</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>House / Dormitory / Club</label>
+                <input type="text" name="house_or_dorm" placeholder="e.g. Kilimanjaro House">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Special Health Alert / Medical Notes</label>
+              <input type="text" name="medical_notes" placeholder="e.g. Asthmatic, Allergic to Penicillin">
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-submit-enrol" id="submitBtn">
+            <i class="fa-solid fa-paper-plane"></i> Review & Submit Student Onboarding
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Side: Live Card ID Review Simulator -->
+    <div class="review-panel">
+      <div class="review-card">
+        <div class="review-header">
+          <h3><i class="fa-solid fa-eye text-warning"></i> Card ID Live Review</h3>
+          <span class="live-badge"><i class="fa-solid fa-circle"></i> LIVE PREVIEW</span>
+        </div>
+
+        <div class="flip-tabs">
+          <button type="button" class="flip-btn active" id="flipFrontBtn" onclick="showCardSide('front')">
+            <i class="fa-solid fa-id-card me-1"></i> Front Side
+          </button>
+          <button type="button" class="flip-btn" id="flipBackBtn" onclick="showCardSide('back')">
+            <i class="fa-solid fa-shield-halved me-1"></i> Back Side (Security)
+          </button>
+        </div>
+
+        <!-- Interactive Simulator Card Container -->
+        <div class="card-simulator" id="cardSim">
+          <!-- FRONT SIDE -->
+          <div id="simFrontWrap" style="height:100%; display:flex; flex-direction:column;">
+            <div class="sim-front-header">
+              {% if school.logo_filename %}
+              <img src="/media/logos/{{ school.logo_filename }}" class="sim-logo" alt="Logo">
+              {% else %}
+              <div class="sim-logo-alt">{{ school.name[:2].upper() }}</div>
+              {% endif %}
+              <div class="sim-header-text">
+                <div class="sim-sch-name">{{ school.name }}</div>
+                <div class="sim-sch-motto">"{{ school.motto or 'Strive to Excel' }}"</div>
+                <div class="sim-sch-loc">{{ school.po_box }} &bull; {{ school.town }}</div>
+              </div>
+            </div>
+            <div class="sim-stripe"></div>
+
+            <div class="sim-front-body">
+              <div class="sim-photo-box" id="simPhotoBox">
+                <i class="fa-solid fa-user text-muted" style="font-size:24px;"></i>
+              </div>
+              <div class="sim-details">
+                <span class="sim-id-badge">STUDENT IDENTITY CARD</span>
+                <div class="sim-stud-name" id="simName">STUDENT FULL NAME</div>
+                <div class="sim-row"><span class="sim-label">Adm No:</span><span class="sim-val" id="simAdm">ADM-0000</span></div>
+                <div class="sim-row"><span class="sim-label">Class:</span><span class="sim-val" id="simClass">Grade 7</span></div>
+                <div class="sim-row"><span class="sim-label">Card No:</span><span class="sim-val" id="simCardNo">{{ school.card_prefix or 'ID-' }}0000</span></div>
+                <div class="sim-row"><span class="sim-label">Expires:</span><span class="sim-val" style="color:#DC2626;" id="simExpiry">DEC 2030</span></div>
+              </div>
+            </div>
+
+            <div class="sim-front-footer">
+              <span>OFFICIAL STUDENT IDENTIFICATION</span>
+              <span style="color:#FEF08A;" id="simYear">AY {{ school.academic_year }}</span>
+            </div>
+          </div>
+
+          <!-- BACK SIDE -->
+          <div id="simBackWrap" style="height:100%; display:none; flex-direction:column;">
+            <div class="sim-back-header">
+              <span>TERMS & EMERGENCY VERIFICATION</span>
+            </div>
+            <div class="sim-back-body">
+              <div class="sim-terms-col">
+                <strong>TERMS:</strong><br>
+                1. Property of {{ school.name }}.<br>
+                2. If found, return to school office or police.<br>
+                3. Non-transferable.<br><br>
+                <strong>HOTLINE:</strong> <span id="simHotline">{{ school.emergency_contact_phone or school.phone }}</span><br>
+                <div id="simBloodWrap" style="margin-top:2px; color:#DC2626; font-weight:700;">Blood: <span id="simBlood">--</span></div>
+              </div>
+              <div class="sim-qr-col">
+                <div class="sim-qr-box">
+                  <i class="fa-solid fa-qrcode"></i>
+                </div>
+                <span class="sim-qr-text">ISO 18004 AUTH</span>
+                <span style="font-size:0.42rem; color:#64748B;">SCAN TO VERIFY</span>
+              </div>
+            </div>
+            <div class="sim-back-footer">
+              <span>{{ school.name.upper() }}</span>
+              <span style="color:#FEF08A;">SECURITY SECURED</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="review-note">
+          <i class="fa-solid fa-circle-check"></i>
+          This live simulation shows how your physical PVC CR80 card will be printed upon approval.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Curriculum Switcher
+function setCurriculum(type) {
+  document.getElementById('curriculumInput').value = type;
+  document.getElementById('btnCBC').classList.toggle('active', type === 'CBC');
+  document.getElementById('btn844').classList.toggle('active', type === '844');
+  document.getElementById('cbcOptGroup').style.display = type === 'CBC' ? '' : 'none';
+  document.getElementById('old844OptGroup').style.display = type === '844' ? '' : 'none';
+  document.getElementById('classSelect').value = '';
+  updateCardPreview();
+}
+
+// Collapsible Optional Section
+function toggleOptionalSection() {
+  var content = document.getElementById('optContent');
+  var chev = document.getElementById('optChev');
+  content.classList.toggle('open');
+  chev.classList.toggle('fa-chevron-up');
+  chev.classList.toggle('fa-chevron-down');
+}
+
+// Card Simulator Side Switching
+function showCardSide(side) {
+  document.getElementById('simFrontWrap').style.display = side === 'front' ? 'flex' : 'none';
+  document.getElementById('simBackWrap').style.display = side === 'back' ? 'flex' : 'none';
+  document.getElementById('flipFrontBtn').classList.toggle('active', side === 'front');
+  document.getElementById('flipBackBtn').classList.toggle('active', side === 'back');
+}
+
+// Live Card Preview Synchronization
+function updateCardPreview() {
+  var name = document.getElementById('inputFullName').value.trim();
+  var adm = document.getElementById('inputAdmNo').value.trim();
+  var cls = document.getElementById('classSelect').value;
+  var stream = document.getElementById('inputStream').value.trim();
+  var yr = document.getElementById('inputYear').value;
+  var blood = document.getElementById('inputBlood').value;
+  var parentPhone = document.getElementById('inputParentPhone').value.trim();
+
+  document.getElementById('simName').textContent = name ? name.toUpperCase() : 'STUDENT FULL NAME';
+  document.getElementById('simAdm').textContent = adm ? adm.toUpperCase() : 'ADM-0000';
+  document.getElementById('simClass').textContent = cls ? (cls + (stream ? ' ' + stream : '')) : 'Grade 7';
+  document.getElementById('simCardNo').textContent = '{{ school.card_prefix or "ID-" }}' + (adm ? adm.toUpperCase() : '0000');
+  document.getElementById('simYear').textContent = 'AY ' + yr;
+  document.getElementById('simExpiry').textContent = 'DEC ' + (parseInt(yr) + {{ school.validity_years or 4 }});
+
+  if (blood) {
+    document.getElementById('simBlood').textContent = blood;
+    document.getElementById('simBloodWrap').style.display = 'block';
+  } else {
+    document.getElementById('simBloodWrap').style.display = 'none';
+  }
+}
+
+// Admission Live Availability Check (Debounced)
+var admDebounceTimer;
+function handleAdmissionInput() {
+  updateCardPreview();
+  clearTimeout(admDebounceTimer);
+  var adm = document.getElementById('inputAdmNo').value.trim();
+  var fb = document.getElementById('admFeedback');
+  if (adm.length < 2) {
+    fb.className = 'admission-feedback';
+    fb.textContent = '';
+    return;
+  }
+  admDebounceTimer = setTimeout(function() {
+    fetch('/api/check-admission?school_id={{ school.id }}&admission_number=' + encodeURIComponent(adm))
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.available) {
+          fb.className = 'admission-feedback valid';
+          fb.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Admission number is available';
+        } else {
+          fb.className = 'admission-feedback invalid';
+          fb.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + data.message;
+        }
+      });
+  }, 450);
+}
+
+// ── WEBCAM & PHOTO TOOLS ──
+var cameraStream = null;
+var facingMode = 'user'; // 'user' (front) or 'environment' (back)
+var rawImageObj = new Image();
+var cropScale = 1;
+var cropOffsetX = 0;
+var cropOffsetY = 0;
+var isDragging = false;
+var dragStartX = 0;
+var dragStartY = 0;
+var cropRotation = 0;
+
+function switchPhotoTab(tab) {
+  document.getElementById('tabCameraBtn').classList.toggle('active', tab === 'camera');
+  document.getElementById('tabUploadBtn').classList.toggle('active', tab === 'upload');
+  document.getElementById('cameraBox').classList.toggle('active', tab === 'camera');
+  document.getElementById('uploadCropperBox').classList.toggle('active', tab === 'upload');
+
+  if (tab === 'camera') {
+    startCamera();
+  } else {
+    stopCamera();
+  }
+}
+
+function startCamera() {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 480 } }
+    }).then(function(stream) {
+      cameraStream = stream;
+      var video = document.getElementById('cameraVideo');
+      video.srcObject = stream;
+    }).catch(function(err) {
+      console.warn("Camera access denied or unavailable: ", err);
+      switchPhotoTab('upload');
+    });
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(function(t) { t.stop(); });
+    cameraStream = null;
+  }
+}
+
+function toggleCameraFacing() {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  stopCamera();
+  startCamera();
+}
+
+function snapWebcamPhoto() {
+  var video = document.getElementById('cameraVideo');
+  if (!video) return;
+
+  var canvas = document.createElement('canvas');
+  canvas.width = 480;
+  canvas.height = 600; // 3:4 passport aspect ratio
+  var ctx = canvas.getContext('2d');
+
+  // Video source dimensions
+  var vw = video.videoWidth || 640;
+  var vh = video.videoHeight || 480;
+
+  // Center crop
+  var targetAspect = 480 / 600;
+  var cropW = vh * targetAspect;
+  var cropH = vh;
+  var startX = (vw - cropW) / 2;
+
+  // Mirror effect if front camera
+  if (facingMode === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+
+  ctx.drawImage(video, startX, 0, cropW, cropH, 0, 0, canvas.width, canvas.height);
+  var dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+  applyFinalPhoto(dataUrl);
+  stopCamera();
+}
+
+// Upload & Cropper Logic
+function handleFileSelect(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(evt) {
+    rawImageObj = new Image();
+    rawImageObj.onload = function() {
+      document.getElementById('dropZone').style.display = 'none';
+      document.getElementById('cropCanvasWrap').style.display = 'block';
+      cropScale = 1;
+      cropOffsetX = 0;
+      cropOffsetY = 0;
+      cropRotation = 0;
+      document.getElementById('zoomSlider').value = 1;
+      drawCropper();
+    };
+    rawImageObj.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function rotateCropImage() {
+  cropRotation = (cropRotation + 90) % 360;
+  drawCropper();
+}
+
+function drawCropper() {
+  var canvas = document.getElementById('cropCanvas');
+  var ctx = canvas.getContext('2d');
+  var cw = canvas.width;
+  var ch = canvas.height;
+
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.save();
+  ctx.translate(cw / 2 + cropOffsetX, ch / 2 + cropOffsetY);
+  ctx.rotate((cropRotation * Math.PI) / 180);
+
+  var zoom = parseFloat(document.getElementById('zoomSlider').value);
+  var baseScale = Math.max(cw / rawImageObj.width, ch / rawImageObj.height);
+  var s = baseScale * zoom;
+
+  ctx.drawImage(
+    rawImageObj,
+    (-rawImageObj.width * s) / 2,
+    (-rawImageObj.height * s) / 2,
+    rawImageObj.width * s,
+    rawImageObj.height * s
+  );
+  ctx.restore();
+
+  // Draw passport framing oval
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.ellipse(cw / 2, ch / 2, cw * 0.38, ch * 0.42, 0, 0, 2 * Math.PI);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// Canvas Drag/Pan
+var cCanvas = document.getElementById('cropCanvas');
+cCanvas.addEventListener('mousedown', function(e) {
+  isDragging = true;
+  dragStartX = e.clientX - cropOffsetX;
+  dragStartY = e.clientY - cropOffsetY;
+});
+window.addEventListener('mousemove', function(e) {
+  if (!isDragging) return;
+  cropOffsetX = e.clientX - dragStartX;
+  cropOffsetY = e.clientY - dragStartY;
+  drawCropper();
+});
+window.addEventListener('mouseup', function() { isDragging = false; });
+
+// Touch support for dragging
+cCanvas.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    dragStartX = e.touches[0].clientX - cropOffsetX;
+    dragStartY = e.touches[0].clientY - cropOffsetY;
+  }
+});
+window.addEventListener('touchmove', function(e) {
+  if (!isDragging || e.touches.length !== 1) return;
+  cropOffsetX = e.touches[0].clientX - dragStartX;
+  cropOffsetY = e.touches[0].clientY - dragStartY;
+  drawCropper();
+});
+window.addEventListener('touchend', function() { isDragging = false; });
+
+function confirmCrop() {
+  var canvas = document.getElementById('cropCanvas');
+  // Temporary output without dashed guides
+  var outCanvas = document.createElement('canvas');
+  outCanvas.width = 480;
+  outCanvas.height = 600;
+  var octx = outCanvas.getContext('2d');
+
+  var zoom = parseFloat(document.getElementById('zoomSlider').value);
+  var ratio = 480 / canvas.width;
+
+  octx.save();
+  octx.translate(outCanvas.width / 2 + cropOffsetX * ratio, outCanvas.height / 2 + cropOffsetY * ratio);
+  octx.rotate((cropRotation * Math.PI) / 180);
+
+  var baseScale = Math.max(outCanvas.width / rawImageObj.width, outCanvas.height / rawImageObj.height);
+  var s = baseScale * zoom;
+
+  octx.drawImage(
+    rawImageObj,
+    (-rawImageObj.width * s) / 2,
+    (-rawImageObj.height * s) / 2,
+    rawImageObj.width * s,
+    rawImageObj.height * s
+  );
+  octx.restore();
+
+  var dataUrl = outCanvas.toDataURL('image/jpeg', 0.94);
+  applyFinalPhoto(dataUrl);
+}
+
+function applyFinalPhoto(dataUrl) {
+  document.getElementById('photoCroppedData').value = dataUrl;
+  document.getElementById('photoReadyImg').src = dataUrl;
+
+  document.getElementById('cameraBox').classList.remove('active');
+  document.getElementById('uploadCropperBox').classList.remove('active');
+  document.getElementById('photoReadyBox').style.display = 'flex';
+
+  // Update Simulator Photo
+  var simBox = document.getElementById('simPhotoBox');
+  simBox.innerHTML = '<img src="' + dataUrl + '" alt="Passport">';
+}
+
+function retakePhoto() {
+  document.getElementById('photoReadyBox').style.display = 'none';
+  document.getElementById('photoCroppedData').value = '';
+  document.getElementById('dropZone').style.display = 'block';
+  document.getElementById('cropCanvasWrap').style.display = 'none';
+  switchPhotoTab('camera');
+}
+
+// ── DIGITAL SIGNATURE PAD ──
+var sigCanvas = document.getElementById('sigCanvas');
+var sctx = sigCanvas.getContext('2d');
+var isSigning = false;
+
+function initSignaturePad() {
+  var rect = sigCanvas.parentElement.getBoundingClientRect();
+  sigCanvas.width = rect.width || 400;
+  sigCanvas.height = 110;
+  sctx.lineWidth = 2.5;
+  sctx.strokeStyle = '#0F172A';
+  sctx.lineCap = 'round';
+  sctx.lineJoin = 'round';
+}
+window.addEventListener('resize', initSignaturePad);
+window.addEventListener('DOMContentLoaded', initSignaturePad);
+
+function getSigPos(e) {
+  var rect = sigCanvas.getBoundingClientRect();
+  var clientX = e.clientX || (e.touches && e.touches[0].clientX);
+  var clientY = e.clientY || (e.touches && e.touches[0].clientY);
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+sigCanvas.addEventListener('mousedown', function(e) {
+  isSigning = true;
+  var pos = getSigPos(e);
+  sctx.beginPath();
+  sctx.moveTo(pos.x, pos.y);
+});
+sigCanvas.addEventListener('mousemove', function(e) {
+  if (!isSigning) return;
+  var pos = getSigPos(e);
+  sctx.lineTo(pos.x, pos.y);
+  sctx.stroke();
+});
+window.addEventListener('mouseup', function() {
+  if (isSigning) {
+    isSigning = false;
+    document.getElementById('signatureData').value = sigCanvas.toDataURL('image/png');
+  }
+});
+
+// Touch events for signature
+sigCanvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  isSigning = true;
+  var pos = getSigPos(e);
+  sctx.beginPath();
+  sctx.moveTo(pos.x, pos.y);
+});
+sigCanvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (!isSigning) return;
+  var pos = getSigPos(e);
+  sctx.lineTo(pos.x, pos.y);
+  sctx.stroke();
+});
+sigCanvas.addEventListener('touchend', function() {
+  if (isSigning) {
+    isSigning = false;
+    document.getElementById('signatureData').value = sigCanvas.toDataURL('image/png');
+  }
+});
+
+function clearSignature() {
+  sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  document.getElementById('signatureData').value = '';
+}
+
+// Copy Portal Link
+function copyPortalLink() {
+  var url = window.location.href;
+  navigator.clipboard.writeText(url).then(function() {
+    alert('Onboarding portal link copied to clipboard:\n' + url);
+  });
+}
+
+// Form Submission handling
+document.getElementById('enrolForm').addEventListener('submit', function(e) {
+  var photoVal = document.getElementById('photoCroppedData').value;
+  var filePicker = document.getElementById('filePicker');
+  if (!photoVal && (!filePicker.files || filePicker.files.length === 0)) {
+    // If camera active, snap now
+    if (cameraStream) {
+      snapWebcamPhoto();
+    } else {
+      var proceed = confirm('You have not uploaded or snapped a passport photo. An ID card without a photo may be rejected. Do you wish to continue?');
+      if (!proceed) {
+        e.preventDefault();
+        return;
+      }
+    }
+  }
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Submitting & Processing ID Data…';
+});
+
+// Init
+window.addEventListener('DOMContentLoaded', function() {
+  startCamera();
+  updateCardPreview();
+});
+</script>
+</body>
+</html>

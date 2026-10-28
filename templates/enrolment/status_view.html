@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Application Status — {{ school.name if school else 'EduID Kenya' }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: {{ school.primary_color if school else '#1E3A8A' }};
+      --secondary: {{ school.secondary_color if school else '#F59E0B' }};
+      --accent: {{ school.accent_color if school else '#10B981' }};
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 15% 15%, #1e3a8a 0%, #0f172a 65%, #050b14 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 16px;
+      color: #0F172A;
+    }
+    .status-card {
+      background: white;
+      border-radius: 24px;
+      max-width: 650px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+    }
+    .status-header {
+      background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+      color: white;
+      padding: 28px;
+      text-align: center;
+    }
+    .status-header h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+    .status-header p { font-size: 0.82rem; opacity: 0.85; }
+    .status-body { padding: 28px; }
+
+    /* Progress Stepper */
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin-bottom: 28px;
+    }
+    .stepper::before {
+      content: '';
+      position: absolute;
+      top: 18px;
+      left: 10%;
+      right: 10%;
+      height: 3px;
+      background: #E2E8F0;
+      z-index: 1;
+    }
+    .step-item {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      flex: 1;
+    }
+    .step-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid #CBD5E1;
+      color: #64748B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin: 0 auto 8px;
+    }
+    .step-item.done .step-dot {
+      background: #10B981;
+      border-color: #10B981;
+      color: white;
+    }
+    .step-item.active .step-dot {
+      background: var(--secondary);
+      border-color: var(--secondary);
+      color: #0F172A;
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25);
+    }
+    .step-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748B;
+    }
+    .step-item.active .step-label,
+    .step-item.done .step-label { color: #0F172A; }
+
+    .details-box {
+      background: #F8FAFC;
+      border-radius: 14px;
+      border: 1px solid #E2E8F0;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-lbl { color: #64748B; font-weight: 500; }
+    .detail-val { font-weight: 700; color: #0F172A; }
+
+    .btn-hub {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border-radius: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<div class="status-card">
+  <div class="status-header">
+    <h2>ID Card Onboarding Status</h2>
+    <p>{{ school.name if school else 'School Identification System' }} &bull; Reference {{ enrolment.submission_token or ('#' ~ enrolment.id) }}</p>
+  </div>
+
+  <div class="status-body">
+
+    <!-- Stepper Pipeline -->
+    <div class="stepper">
+      <div class="step-item done">
+        <div class="step-dot"><i class="fa-solid fa-check"></i></div>
+        <div class="step-label">Submitted</div>
+      </div>
+      <div class="step-item {% if enrolment.status in ('approved', 'rejected') %}done{% else %}active{% endif %}">
+        <div class="step-dot">
+          {% if enrolment.status == 'approved' %}
+          <i class="fa-solid fa-check"></i>
+          {% elif enrolment.status == 'rejected' %}
+          <i class="fa-solid fa-times text-danger"></i>
+          {% else %}
+          2
+          {% endif %}
+        </div>
+        <div class="step-label">School Verification</div>
+      </div>
+      <div class="step-item {% if card %}done{% elif enrolment.status == 'approved' %}active{% endif %}">
+        <div class="step-dot">
+          {% if card %}<i class="fa-solid fa-check"></i>{% else %}3{% endif %}
+        </div>
+        <div class="step-label">Card Production</div>
+      </div>
+      <div class="step-item {% if card and card.print_status == 'printed' %}done{% endif %}">
+        <div class="step-dot"><i class="fa-solid fa-box-archive"></i></div>
+        <div class="step-label">Ready for Collection</div>
+      </div>
+    </div>
+
+    <!-- Status Banner -->
+    {% if enrolment.status == 'approved' %}
+    <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:16px; margin-bottom:20px; text-align:center;">
+      <h4 style="color:#065F46; font-size:1rem; font-weight:800; margin-bottom:4px;">
+        <i class="fa-solid fa-circle-check me-1"></i> Application Approved!
+      </h4>
+      <p style="font-size:0.8rem; color:#047857; margin:0;">
+        Your student record is verified. Your physical card is queued for printing.
+        {% if card %}Card Serial: <strong>{{ card.card_number }}</strong>{% endif %}
+      </p>
+    </div>
+    {% elif enrolment.status == 'rejected' %}
+    <div style="background:#FEF2F2; border:1px solid #FCA5A5; border-radius:12px; padding:16px; margin-bottom:20px;">
+      <h4 style="color:#991B1B; font-size:1rem; font-weight:800; margin-bottom:4px;">
+        <i class="fa-solid fa-circle-xmark me-1"></i> Submission Not Approved
+      </h4>
+      <p style="font-size:0.8rem; color:#B91C1C; margin:0;">
+        Reason: {{ enrolment.rejection_reason or 'Photo or information did not meet requirements.' }}
+      </p>
+    </div>
+    {% else %}
+    <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:12px; padding:16px; margin-bottom:20px; text-align:center;">
+      <h4 style="color:#92400E; font-size:1rem; font-weight:800; margin-bottom:4px;">
+        <i class="fa-solid fa-hourglass-half me-1"></i> Pending Verification
+      </h4>
+      <p style="font-size:0.8rem; color:#B45309; margin:0;">
+        Your submission was received on {{ enrolment.submitted_at.strftime('%d %b %Y at %H:%M') }}.
+        School administration will review and approve your ID card.
+      </p>
+    </div>
+    {% endif %}
+
+    <!-- Student Details -->
+    <div class="details-box">
+      <div class="detail-row">
+        <span class="detail-lbl">Student Name</span>
+        <span class="detail-val">{{ enrolment.full_name }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-lbl">Admission Number</span>
+        <span class="detail-val">{{ enrolment.admission_number }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-lbl">Class / Grade</span>
+        <span class="detail-val">{{ enrolment.class_name }} {{ enrolment.stream_name or '' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-lbl">Academic Year</span>
+        <span class="detail-val">{{ enrolment.academic_year }}</span>
+      </div>
+      {% if enrolment.blood_group %}
+      <div class="detail-row">
+        <span class="detail-lbl">Blood Group</span>
+        <span class="detail-val text-danger">{{ enrolment.blood_group }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+      {% if school and school.phone and clean_whatsapp_phone(school.phone) %}
+      <a href="{{ build_whatsapp_link(school.phone, 'Hello ' ~ school.name ~ ', I am inquiring about student ID card status for ' ~ enrolment.full_name ~ ' (Adm: ' ~ enrolment.admission_number ~ ', Ref: ' ~ (enrolment.submission_token or ('ENR-' ~ enrolment.id)) ~ ').') }}"
+         target="_blank" class="btn-hub" style="background:#25D366; color:white; flex:1; text-align:center;">
+        <i class="fa-brands fa-whatsapp me-1"></i> Inquire via WhatsApp
+      </a>
+      {% endif %}
+      <a href="{{ build_whatsapp_link(message='Student ID Status for ' ~ enrolment.full_name ~ ' (' ~ school.name ~ '): ' ~ enrolment.status.upper() ~ '. Tracking Ref: ' ~ (enrolment.submission_token or ('ENR-' ~ enrolment.id))) }}"
+         target="_blank" class="btn-hub" style="background:#334155; color:white; flex:1; text-align:center;">
+        <i class="fa-solid fa-share-nodes me-1"></i> Share Status
+      </a>
+    </div>
+
+    <a href="{{ url_for('enrolment.onboard_hub') }}" class="btn-hub">
+      <i class="fa-solid fa-arrow-left me-1"></i> Return to Onboarding Hub
+    </a>
+
+  </div>
+</div>
+</body>
+</html>

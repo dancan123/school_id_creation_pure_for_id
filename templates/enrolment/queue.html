@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% block title %}Enrolment Queue & Card Review — {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <!-- Header Banner -->
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">
+        <i class="fa-solid fa-inbox text-primary me-2"></i> Student Self-Onboarding Queue & Card Review
+      </h4>
+      <p class="text-muted small mb-0">
+        Review student onboarding submissions from <strong>{{ current_school.name }}</strong>, inspect Card IDs, and generate print-ready cards.
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      {% if pending_count > 0 %}
+      <span class="badge bg-danger rounded-pill px-3 py-2 fs-6 shadow-sm">
+        <i class="fa-solid fa-bell me-1"></i> {{ pending_count }} Pending Review
+      </span>
+      {% endif %}
+
+      <!-- Share Link & QR Code Modal Trigger -->
+      <button class="btn btn-warning btn-sm fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#shareLinkModal">
+        <i class="fa-solid fa-share-nodes me-1"></i> Share Onboarding Link & QR
+      </button>
+
+      <a href="{{ url_for('enrolment.print_poster', school_code=current_school.code or current_school.id) }}" target="_blank" class="btn btn-outline-secondary btn-sm shadow-sm">
+        <i class="fa-solid fa-print me-1"></i> Print Poster
+      </a>
+
+      <a href="{{ url_for('enrolment.quick_add_student') }}" class="btn btn-primary btn-sm shadow-sm" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+        <i class="fa-solid fa-user-plus me-1"></i> Quick-Add Student
+      </a>
+    </div>
+  </div>
+
+  <!-- Status Counters Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 {% if status_filter == 'pending' %}border-start border-4 border-warning{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">PENDING REVIEW</div>
+            <div class="fs-3 fw-bold text-warning mt-1">{{ pending_count }}</div>
+          </div>
+          <div class="stat-icon bg-warning bg-opacity-10 text-warning" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">
+            <i class="fa-solid fa-hourglass-half"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 {% if status_filter == 'approved' %}border-start border-4 border-success{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">APPROVED & ENROLLED</div>
+            <div class="fs-3 fw-bold text-success mt-1">{{ approved_count }}</div>
+          </div>
+          <div class="stat-icon bg-success bg-opacity-10 text-success" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 {% if status_filter == 'rejected' %}border-start border-4 border-danger{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">REJECTED / INCOMPLETE</div>
+            <div class="fs-3 fw-bold text-danger mt-1">{{ rejected_count }}</div>
+          </div>
+          <div class="stat-icon bg-danger bg-opacity-10 text-danger" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submissions Queue Card -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+    <!-- Header with Tabs and Search -->
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <ul class="nav nav-pills gap-1">
+        <li class="nav-item">
+          <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}"
+             href="{{ url_for('enrolment.queue', status='pending') }}"
+             style="{% if status_filter == 'pending' %}background:{{ current_school.primary_color }};{% endif %}">
+            <i class="fa-solid fa-clock me-1"></i> Pending Review ({{ pending_count }})
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}"
+             href="{{ url_for('enrolment.queue', status='approved') }}"
+             style="{% if status_filter == 'approved' %}background:{{ current_school.primary_color }};{% endif %}">
+            <i class="fa-solid fa-circle-check me-1"></i> Approved ({{ approved_count }})
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}"
+             href="{{ url_for('enrolment.queue', status='rejected') }}"
+             style="{% if status_filter == 'rejected' %}background:{{ current_school.primary_color }};{% endif %}">
+            <i class="fa-solid fa-circle-xmark me-1"></i> Rejected ({{ rejected_count }})
+          </a>
+        </li>
+      </ul>
+
+      <!-- Filter / Search Form -->
+      <form method="GET" action="{{ url_for('enrolment.queue') }}" class="d-flex gap-2">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <div class="input-group input-group-sm">
+          <input type="text" name="search" class="form-control" placeholder="Search name or ADM..." value="{{ search }}">
+          <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Batch Form Wrap -->
+    <form method="POST" action="{{ url_for('enrolment.batch_approve') }}" id="batchForm">
+      {% if status_filter == 'pending' and enrolments %}
+      <div class="p-3 bg-light border-top border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <input type="checkbox" class="form-check-input ms-2" id="selectAll" onclick="toggleSelectAll(this)">
+          <label for="selectAll" class="form-check-label small fw-bold text-muted">Select All Pending</label>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div class="form-check form-switch me-2">
+            <input class="form-check-input" type="checkbox" name="generate_cards" value="1" id="batchGenSwitch" checked>
+            <label class="form-check-label small fw-bold text-primary" for="batchGenSwitch">Generate ID Cards Immediately</label>
+          </div>
+          <button type="submit" class="btn btn-success btn-sm fw-bold">
+            <i class="fa-solid fa-check-double me-1"></i> Batch Approve Selected
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="card-body p-0">
+        {% if enrolments %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-muted small">
+              <tr>
+                {% if status_filter == 'pending' %}
+                <th style="width:40px;" class="ps-3"></th>
+                {% endif %}
+                <th class="py-3 ps-3">Student Details</th>
+                <th class="py-3">Class & Curriculum</th>
+                <th class="py-3 text-center">Passport Photo</th>
+                <th class="py-3">Guardian / Emergency</th>
+                <th class="py-3">Submitted</th>
+                <th class="py-3 text-end pe-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in enrolments %}
+              <tr>
+                {% if status_filter == 'pending' %}
+                <td class="ps-3">
+                  <input type="checkbox" name="enrolment_ids" value="{{ e.id }}" class="form-check-input item-check">
+                </td>
+                {% endif %}
+                <td class="ps-3 py-3">
+                  <div class="fw-bold text-dark fs-6">{{ e.full_name }}</div>
+                  <div class="small text-muted">
+                    Adm: <strong class="text-primary">{{ e.admission_number }}</strong>
+                    {% if e.nemis_upi %}&bull; UPI: <code>{{ e.nemis_upi }}</code>{% endif %}
+                  </div>
+                  <div class="d-flex gap-1 mt-1">
+                    <span class="badge bg-light text-secondary border small">{{ e.submission_token or ('#' ~ e.id) }}</span>
+                    {% if e.gender %}<span class="badge bg-light text-secondary small">{{ e.gender }}</span>{% endif %}
+                    {% if e.blood_group %}<span class="badge bg-danger bg-opacity-10 text-danger small">{{ e.blood_group }}</span>{% endif %}
+                  </div>
+                </td>
+
+                <td class="py-3">
+                  <div class="fw-semibold text-dark">{{ e.class_name }}</div>
+                  {% if e.stream_name %}<div class="small text-muted">Stream: {{ e.stream_name }}</div>{% endif %}
+                  <span class="badge rounded-pill {% if e.curriculum_type == 'CBC' %}bg-success{% else %}bg-secondary{% endif %} bg-opacity-15 {% if e.curriculum_type == 'CBC' %}text-success{% else %}text-secondary{% endif %} small mt-1">
+                    {{ e.curriculum_type }}
+                  </span>
+                </td>
+
+                <td class="py-3 text-center">
+                  {% if e.photo_filename %}
+                  <img src="/media/photos/{{ e.photo_filename }}" alt="Passport"
+                       class="rounded-3 shadow-sm border"
+                       style="width: 48px; height: 60px; object-fit: cover;">
+                  {% else %}
+                  <div class="rounded-3 bg-secondary bg-opacity-25 d-inline-flex align-items-center justify-content-center text-muted"
+                       style="width: 48px; height: 60px;">
+                    <i class="fa-solid fa-user"></i>
+                  </div>
+                  {% endif %}
+                </td>
+
+                <td class="py-3 small">
+                  {% if e.parent_name or e.parent_phone %}
+                  <div class="fw-semibold text-dark">{{ e.parent_name or 'Guardian' }}</div>
+                  <div class="text-muted d-flex align-items-center gap-1 flex-wrap">
+                    <i class="fa-solid fa-phone me-1"></i>{{ e.parent_phone or 'N/A' }}
+                    {% if e.parent_phone and clean_whatsapp_phone(e.parent_phone) %}
+                    <a href="{{ build_whatsapp_link(e.parent_phone, 'Hello, regarding student ' ~ e.full_name ~ ' (Adm: ' ~ e.admission_number ~ ') at ' ~ current_school.name ~ ': ') }}"
+                       target="_blank" class="badge bg-success bg-opacity-25 text-success text-decoration-none px-1 py-1" title="Chat with parent on WhatsApp">
+                      <i class="fa-brands fa-whatsapp"></i> Chat
+                    </a>
+                    {% endif %}
+                  </div>
+                  {% if e.emergency_relationship %}<span class="badge bg-light text-muted">{{ e.emergency_relationship }}</span>{% endif %}
+                  {% else %}
+                  <span class="text-muted italic">Not provided</span>
+                  {% endif %}
+                </td>
+
+                <td class="py-3 small text-muted">
+                  {{ e.submitted_at.strftime('%d %b %Y') }}<br>
+                  <span class="text-black-50">{{ e.submitted_at.strftime('%H:%M') }}</span>
+                </td>
+
+                <td class="py-3 text-end pe-4">
+                  {% if e.status == 'pending' %}
+                  <!-- Review Card ID Button -->
+                  <button type="button" class="btn btn-outline-primary btn-sm me-1"
+                          data-bs-toggle="modal" data-bs-target="#reviewCardModal{{ e.id }}" title="Review Card ID">
+                    <i class="fa-solid fa-id-card me-1"></i> Review Card ID
+                  </button>
+
+                  <!-- Approve Button -->
+                  <button type="button" class="btn btn-success btn-sm me-1"
+                          data-bs-toggle="modal" data-bs-target="#approveModal{{ e.id }}" title="Approve & Generate">
+                    <i class="fa-solid fa-check"></i>
+                  </button>
+
+                  <!-- Reject Button -->
+                  <button type="button" class="btn btn-outline-danger btn-sm"
+                          data-bs-toggle="modal" data-bs-target="#rejectModal{{ e.id }}" title="Reject">
+                    <i class="fa-solid fa-times"></i>
+                  </button>
+
+                  {% elif e.status == 'approved' %}
+                  <span class="badge bg-success bg-opacity-15 text-success px-3 py-2">
+                    <i class="fa-solid fa-circle-check me-1"></i> Approved
+                  </span>
+                  {% if e.student_id %}
+                  <a href="{{ url_for('single_id.index', student_id=e.student_id) }}" class="btn btn-outline-primary btn-sm ms-1">
+                    <i class="fa-solid fa-id-card me-1"></i> View / Print Card
+                  </a>
+                  {% endif %}
+
+                  {% else %}
+                  <span class="badge bg-danger bg-opacity-15 text-danger px-3 py-2">
+                    <i class="fa-solid fa-circle-xmark me-1"></i> Rejected
+                  </span>
+                  {% if e.rejection_reason %}
+                  <div class="small text-muted mt-1" style="max-width:200px;">{{ e.rejection_reason[:60] }}...</div>
+                  {% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fa-solid fa-inbox fa-3x mb-3 text-secondary"></i>
+          <h5 class="fw-bold text-dark">No {{ status_filter }} enrolments found</h5>
+          <p class="small text-muted mb-3">Share your school's unique onboarding link so students can submit their details.</p>
+          <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#shareLinkModal" style="background-color: {{ current_school.primary_color }};">
+            <i class="fa-solid fa-share-nodes me-1"></i> Get Onboarding Link & QR
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODALS FOR EACH PENDING SUBMISSION ── -->
+{% for e in enrolments %}
+{% if e.status == 'pending' %}
+
+<!-- 1. Review Card ID Modal -->
+<div class="modal fade" id="reviewCardModal{{ e.id }}" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header text-white" style="background: linear-gradient(135deg, {{ current_school.primary_color }} 0%, #0F172A 100%);">
+        <h5 class="modal-title fw-bold">
+          <i class="fa-solid fa-eye me-2 text-warning"></i> Card ID Review &bull; {{ e.full_name }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <!-- Live Card Simulator in Modal -->
+        <div class="row g-4 align-items-center mb-4">
+          <div class="col-md-7">
+            <!-- Front Card Preview -->
+            <div class="border rounded-4 overflow-hidden shadow-sm position-relative" style="background:white; aspect-ratio:85.6/53.98; display:flex; flex-direction:column;">
+              <div style="background:{{ current_school.primary_color }}; height:28%; padding:6px 12px; display:flex; align-items:center; gap:8px; color:white;">
+                {% if current_school.logo_filename %}
+                <img src="/media/logos/{{ current_school.logo_filename }}" style="width:34px;height:34px;border-radius:6px;background:white;object-fit:contain;padding:2px;">
+                {% endif %}
+                <div style="line-height:1.2; overflow:hidden;">
+                  <div style="font-weight:800; font-size:11px; text-transform:uppercase;">{{ current_school.name }}</div>
+                  <div style="font-size:8px; color:#FEF08A;">"{{ current_school.motto }}"</div>
+                  <div style="font-size:7px; color:#E2E8F0;">{{ current_school.po_box }} &bull; {{ current_school.town }}</div>
+                </div>
+              </div>
+              <div style="height:3px; background:{{ current_school.secondary_color }};"></div>
+
+              <div style="padding:8px 12px; display:flex; gap:10px; flex-grow:1;">
+                <div style="width:28%; border-radius:6px; overflow:hidden; border:2px solid {{ current_school.secondary_color }}; background:#F1F5F9; display:flex; align-items:center; justify-content:center;">
+                  {% if e.photo_filename %}
+                  <img src="/media/photos/{{ e.photo_filename }}" style="width:100%;height:100%;object-fit:cover;">
+                  {% else %}
+                  <i class="fa-solid fa-user text-muted"></i>
+                  {% endif %}
+                </div>
+                <div style="flex:1; font-size:9px; line-height:1.4;">
+                  <span style="background:{{ current_school.primary_color }}; color:white; font-size:7px; font-weight:800; padding:1px 5px; border-radius:3px;">STUDENT ID CARD</span>
+                  <div style="font-weight:800; font-size:11px; color:{{ current_school.primary_color }}; text-transform:uppercase; margin-top:2px;">{{ e.full_name }}</div>
+                  <div><span class="text-muted">Adm No:</span> <strong class="text-dark">{{ e.admission_number }}</strong></div>
+                  <div><span class="text-muted">Class:</span> <strong>{{ e.class_name }} {{ e.stream_name or '' }}</strong></div>
+                  <div><span class="text-muted">Card No:</span> <strong>{{ current_school.card_prefix or 'ID-' }}{{ e.admission_number }}</strong></div>
+                  <div><span class="text-muted">Expires:</span> <strong style="color:#DC2626;">DEC {{ current_school.academic_year|int + (current_school.validity_years or 4) }}</strong></div>
+                </div>
+              </div>
+
+              <div style="background:{{ current_school.primary_color }}; height:20px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; color:white; font-size:8px; font-weight:bold;">
+                <span>OFFICIAL STUDENT IDENTIFICATION</span>
+                <span style="color:#FEF08A;">AY {{ e.academic_year }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submitted Details Overview -->
+          <div class="col-md-5">
+            <h6 class="fw-bold mb-2">Student Intake Details</h6>
+            <div class="p-3 bg-light rounded-3 small">
+              <div class="mb-1"><span class="text-muted">Full Name:</span> <strong>{{ e.full_name }}</strong></div>
+              <div class="mb-1"><span class="text-muted">Admission:</span> <strong>{{ e.admission_number }}</strong></div>
+              <div class="mb-1"><span class="text-muted">Class:</span> <strong>{{ e.class_name }} {{ e.stream_name or '' }}</strong></div>
+              <div class="mb-1"><span class="text-muted">Curriculum:</span> <span class="badge bg-success bg-opacity-25 text-success">{{ e.curriculum_type }}</span></div>
+              {% if e.dob %}<div class="mb-1"><span class="text-muted">DOB:</span> {{ e.dob }}</div>{% endif %}
+              {% if e.blood_group %}<div class="mb-1"><span class="text-muted">Blood:</span> <strong class="text-danger">{{ e.blood_group }}</strong></div>{% endif %}
+              {% if e.parent_phone %}
+              <div class="mb-1 d-flex align-items-center justify-content-between">
+                <div><span class="text-muted">Parent Phone:</span> {{ e.parent_phone }}</div>
+                {% if clean_whatsapp_phone(e.parent_phone) %}
+                <a href="{{ build_whatsapp_link(e.parent_phone, 'Hello, regarding student ' ~ e.full_name ~ ' (Adm: ' ~ e.admission_number ~ ') at ' ~ current_school.name ~ ': ') }}"
+                   target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 small">
+                  <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp
+                </a>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+
+            {% if e.signature_filename %}
+            <div class="mt-2 text-center">
+              <span class="text-muted small d-block mb-1">Student Digital Signature:</span>
+              <img src="/media/signatures/{{ e.signature_filename }}" style="max-height:40px; border-bottom:1px solid #CBD5E1; padding-bottom:2px;">
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Approval Form Action inside Modal -->
+        <form method="POST" action="{{ url_for('enrolment.approve', enrolment_id=e.id) }}">
+          <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            <button type="submit" name="generate_card" value="1" class="btn btn-primary-custom btn-sm fw-bold" style="background-color: var(--primary);">
+              <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Approve & Generate ID Card Now
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Approve Modal with Inline Correction -->
+<div class="modal fade" id="approveModal{{ e.id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-success">
+          <i class="fa-solid fa-user-check me-2"></i> Approve & Generate ID
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('enrolment.approve', enrolment_id=e.id) }}">
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            Confirm details for <strong>{{ e.full_name }}</strong>. You can correct any typos before approving.
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Student Name</label>
+            <input type="text" name="full_name" class="form-control form-control-sm" value="{{ e.full_name }}" required>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">Admission Number</label>
+              <input type="text" name="admission_number" class="form-control form-control-sm" value="{{ e.admission_number }}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">Curriculum</label>
+              <select name="curriculum_type" class="form-select form-select-sm">
+                <option value="CBC" {% if e.curriculum_type == 'CBC' %}selected{% endif %}>CBC</option>
+                <option value="844" {% if e.curriculum_type == '844' %}selected{% endif %}>8-4-4</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-7">
+              <label class="form-label small fw-bold">Class / Grade</label>
+              <input type="text" name="class_name" class="form-control form-control-sm" value="{{ e.class_name }}" required>
+            </div>
+            <div class="col-5">
+              <label class="form-label small fw-bold">Stream</label>
+              <input type="text" name="stream_name" class="form-control form-control-sm" value="{{ e.stream_name or '' }}">
+            </div>
+          </div>
+
+          <div class="form-check form-switch p-3 bg-light rounded-3 mb-2">
+            <input class="form-check-input" type="checkbox" name="generate_card" value="1" id="genCardCheck{{ e.id }}" checked>
+            <label class="form-check-label small fw-bold text-primary" for="genCardCheck{{ e.id }}">
+              Generate print-ready ID card & PDF now
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success btn-sm fw-bold">
+            <i class="fa-solid fa-check me-1"></i> Confirm & Approve
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Reject Modal -->
+<div class="modal fade" id="rejectModal{{ e.id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-danger">
+          <i class="fa-solid fa-user-xmark me-2"></i> Reject Submission
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('enrolment.reject', enrolment_id=e.id) }}">
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            Are you sure you want to reject the submission for <strong>{{ e.full_name }}</strong> (Adm: {{ e.admission_number }})?
+          </p>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Rejection Reason</label>
+            <textarea name="rejection_reason" class="form-control form-control-sm" rows="3"
+                      placeholder="e.g. Passport photo does not have a plain background / Admission number not found in register." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm fw-bold">Confirm Rejection</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endfor %}
+
+<!-- ── SHARE ENROLMENT PORTAL & QR MODAL ── -->
+<div class="modal fade" id="shareLinkModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">
+          <i class="fa-solid fa-qrcode text-warning me-2"></i> Share {{ current_school.name }} Onboarding Portal
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4 text-center">
+        <p class="small text-muted mb-3">
+          Share this link or print the QR code for students and parents to self-onboard and capture their passport photos.
+        </p>
+
+        <!-- QR Code Preview -->
+        <div class="p-3 bg-light rounded-4 d-inline-block border mb-3 shadow-sm">
+          <img src="{{ url_for('enrolment.get_school_qr', school_code=current_school.code or current_school.id) }}"
+               alt="QR Code" style="width: 180px; height: 180px; display: block;">
+        </div>
+
+        <!-- URL Box -->
+        <div class="input-group mb-3">
+          <input type="text" id="shareUrlInput" class="form-control text-center font-monospace small bg-light"
+                 value="{{ onboard_url }}" readonly>
+          <button class="btn btn-primary-custom" type="button" onclick="copyShareUrl()" style="background-color: var(--primary);">
+            <i class="fa-solid fa-copy me-1"></i> Copy
+          </button>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="{{ get_whatsapp_onboarding_share_url(current_school, onboard_url) }}"
+             target="_blank" class="btn btn-success btn-sm fw-bold shadow-sm">
+            <i class="fa-brands fa-whatsapp me-1"></i> Share on WhatsApp
+          </a>
+
+          <a href="{{ url_for('enrolment.get_school_qr', school_code=current_school.code or current_school.id) }}"
+             download="QR_Onboard_{{ current_school.code or current_school.id }}.png"
+             class="btn btn-outline-secondary btn-sm fw-bold">
+            <i class="fa-solid fa-download me-1"></i> Download QR PNG
+          </a>
+
+          <a href="{{ url_for('enrolment.print_poster', school_code=current_school.code or current_school.id) }}"
+             target="_blank" class="btn btn-outline-dark btn-sm fw-bold">
+            <i class="fa-solid fa-print me-1"></i> Print Poster
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleSelectAll(master) {
+  var checks = document.querySelectorAll('.item-check');
+  checks.forEach(function(c) { c.checked = master.checked; });
+}
+
+function copyShareUrl() {
+  var input = document.getElementById('shareUrlInput');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(function() {
+    alert('Onboarding portal link copied to clipboard!\n' + input.value);
+  });
+}
+</script>
+{% endblock %}

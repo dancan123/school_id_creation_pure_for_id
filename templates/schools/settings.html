@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block title %}Institution Settings – {{ current_school.name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  .settings-header { background: linear-gradient(135deg, #1E3A8A 0%, #2563eb 60%, #7c3aed 100%); }
+  .settings-nav .nav-link { color: #555; border-radius: 10px; padding: .55rem 1rem; font-size: .88rem; font-weight: 500; transition: all .2s; }
+  .settings-nav .nav-link:hover { background: #f0f4ff; color: #2563eb; }
+  .settings-nav .nav-link.active { background: #2563eb; color: #fff; }
+  .settings-nav .nav-link i { width: 22px; text-align:center; }
+  .section-card { border:none; border-radius:16px; box-shadow:0 2px 16px rgba(0,0,0,.07); }
+  .section-card .card-header { background: #f8faff; border-bottom: 1px solid #e9eef7; border-radius:16px 16px 0 0; padding:.9rem 1.4rem; }
+  .color-picker-group { display:flex; gap:.5rem; align-items:center; }
+  .color-picker-group input[type=color] { width:48px; height:38px; padding:2px; border-radius:8px; }
+  .upload-zone { border: 2px dashed #c7d2e8; border-radius:12px; padding:1.2rem; text-align:center; cursor:pointer; transition: border-color .2s, background .2s; }
+  .upload-zone:hover { border-color:#2563eb; background:#f0f5ff; }
+  .upload-zone img.thumb { max-height:80px; max-width:180px; object-fit:contain; border-radius:8px; margin-bottom:.4rem; }
+  .badge-inst-school { background:#dbeafe; color:#1e40af; }
+  .badge-inst-corp { background:#f3e8ff; color:#6d28d9; }
+  .setting-tip { background:#fffbeb; border-left:3px solid #f59e0b; border-radius:0 8px 8px 0; padding:.5rem .9rem; font-size:.82rem; color:#92400e; margin-top:.4rem; }
+  .switch-lg .form-check-input { width:3em; height:1.6em; }
+  .label-preview { display:inline-block; background:#e0e7ff; color:#3730a3; border-radius:6px; padding:.15rem .5rem; font-size:.78rem; font-weight:600; margin-left:6px; }
+  #help-btn { position:fixed; bottom:32px; right:28px; width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; border:none; font-size:1.5rem; box-shadow:0 4px 20px rgba(37,99,235,.45); z-index:9999; transition:transform .2s; }
+  #help-btn:hover { transform:scale(1.12); }
+  .help-modal .modal-header { background:linear-gradient(135deg,#1E3A8A,#7c3aed); color:#fff; }
+  .help-step { display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem; }
+  .help-step-num { width:34px; height:34px; border-radius:50%; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
+  .help-section-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; font-weight:700; margin:1.4rem 0 .5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+
+  {# Page header #}
+  <div class="settings-header text-white rounded-4 px-4 py-4 mb-4 d-flex justify-content-between align-items-start">
+    <div>
+      <h4 class="fw-bold mb-1">
+        <i class="fa-solid fa-sliders me-2"></i> Institution Settings &amp; Branding
+      </h4>
+      <p class="mb-0 opacity-75 small">
+        Configure <strong>{{ current_school.name }}</strong> — colors, logos, stamps, authority signatures, custom field labels, and card rules.
+      </p>
+    </div>
+    <a href="{{ url_for('schools.create_school') }}" class="btn btn-light btn-sm fw-bold">
+      <i class="fa-solid fa-plus-circle me-1"></i> Register Another
+    </a>
+  </div>
+
+  <div class="row g-4">
+
+    {# Left nav #}
+    <div class="col-lg-2 col-md-3 d-none d-md-block">
+      <div class="card section-card p-2 sticky-top" style="top:90px">
+        <nav class="settings-nav nav flex-column gap-1">
+          <a class="nav-link active" href="#sec-institution"><i class="fa-solid fa-building me-2"></i>Institution</a>
+          <a class="nav-link" href="#sec-branding"><i class="fa-solid fa-palette me-2"></i>Colors</a>
+          <a class="nav-link" href="#sec-authority"><i class="fa-solid fa-stamp me-2"></i>Stamp &amp; Sig</a>
+          <a class="nav-link" href="#sec-labels"><i class="fa-solid fa-tag me-2"></i>Field Labels</a>
+          <a class="nav-link" href="#sec-card-rules"><i class="fa-solid fa-id-card me-2"></i>Card Rules</a>
+          <a class="nav-link" href="#sec-onboarding"><i class="fa-solid fa-link me-2"></i>Onboarding</a>
+          <hr class="my-1">
+          <a class="nav-link text-primary" href="#" data-bs-toggle="modal" data-bs-target="#helpModal">
+            <i class="fa-solid fa-circle-question me-2"></i>Help Guide
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    {# Main settings form #}
+    <div class="col-lg-10 col-md-9">
+      <form method="POST" action="{{ url_for('schools.settings') }}" enctype="multipart/form-data" id="settingsForm">
+
+        {# 1. INSTITUTION TYPE #}
+        <div class="card section-card mb-4" id="sec-institution">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="fa-solid fa-building text-primary"></i>
+            <span class="fw-bold">Institution Details</span>
+            <span class="ms-auto badge {% if current_school.institution_type == 'company' %}badge-inst-corp{% else %}badge-inst-school{% endif %} rounded-pill" id="instBadge">
+              {{ (current_school.institution_type or 'school') | capitalize }}
+            </span>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Institution Type</label>
+                <select name="institution_type" id="institutionType" class="form-select" onchange="onInstTypeChange(this.value)">
+                  <option value="school" {% if (current_school.institution_type or 'school') == 'school' %}selected{% endif %}>School / College</option>
+                  <option value="company" {% if current_school.institution_type == 'company' %}selected{% endif %}>Company / Organisation</option>
+                  <option value="church" {% if current_school.institution_type == 'church' %}selected{% endif %}>Church / Faith Institution</option>
+                  <option value="hospital" {% if current_school.institution_type == 'hospital' %}selected{% endif %}>Hospital / Clinic</option>
+                  <option value="ngo" {% if current_school.institution_type == 'ngo' %}selected{% endif %}>NGO / CBO</option>
+                  <option value="other" {% if current_school.institution_type == 'other' %}selected{% endif %}>Other</option>
+                </select>
+                <div class="setting-tip mt-2">
+                  Changing type auto-adapts field labels on ID cards (e.g. Class becomes Department for companies).
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Authority Title
+                  <span class="label-preview" id="authTitlePreview">{{ current_school.principal_title or 'Principal' }}</span>
+                </label>
+                <input type="text" name="principal_title" id="principalTitle" class="form-control"
+                       placeholder="e.g. Principal / CEO / Director / Bishop"
+                       value="{{ current_school.principal_title or '' }}"
+                       oninput="document.getElementById('authTitlePreview').textContent = this.value || '—'">
+                <small class="text-muted">Appears below the authority signature on card back.</small>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Institution Name</label>
+                <input type="text" name="name" class="form-control" value="{{ current_school.name }}" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Code / Abbreviation</label>
+                <input type="text" name="code" class="form-control" value="{{ current_school.code or '' }}" placeholder="e.g. BHS, ACM-KE">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Motto / Tagline</label>
+                <input type="text" name="motto" class="form-control" value="{{ current_school.motto or '' }}" placeholder="Excellence in Education">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Town / City</label>
+                <input type="text" name="town" class="form-control" value="{{ current_school.town or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">County / Region</label>
+                <input type="text" name="county" class="form-control" value="{{ current_school.county or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">P.O. Box</label>
+                <input type="text" name="po_box" class="form-control" value="{{ current_school.po_box or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Phone</label>
+                <input type="text" name="phone" class="form-control" value="{{ current_school.phone or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Email</label>
+                <input type="email" name="email" class="form-control" value="{{ current_school.email or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Website</label>
+                <input type="url" name="website" class="form-control" value="{{ current_school.website or '' }}" placeholder="https://...">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Authority Full Name (Principal / CEO)</label>
+                <input type="text" name="principal_name" class="form-control"
+                       value="{{ current_school.principal_name or '' }}"
+                       placeholder="Full name shown on card back">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Emergency Contact</label>
+                <input type="text" name="emergency_contact_phone" class="form-control"
+                       value="{{ current_school.emergency_contact_phone or '' }}"
+                       placeholder="+254 7XX XXX XXX">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# 2. COLORS & BRANDING #}
+        <div class="card section-card mb-4" id="sec-branding">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="fa-solid fa-palette text-warning"></i>
+            <span class="fw-bold">Colors &amp; Branding</span>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Primary Color</label>
+                <div class="color-picker-group">
+                  <input type="color" name="primary_color" id="primary_color" class="form-control form-control-color" value="{{ current_school.primary_color }}" oninput="syncHex(this,'primary_hex')">
+                  <input type="text" id="primary_hex" class="form-control font-monospace" value="{{ current_school.primary_color }}" oninput="syncPicker(this,'primary_color')">
+                </div>
+                <small class="text-muted">Header banner, QR, borders</small>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Secondary Color</label>
+                <div class="color-picker-group">
+                  <input type="color" name="secondary_color" id="secondary_color" class="form-control form-control-color" value="{{ current_school.secondary_color }}" oninput="syncHex(this,'secondary_hex')">
+                  <input type="text" id="secondary_hex" class="form-control font-monospace" value="{{ current_school.secondary_color }}" oninput="syncPicker(this,'secondary_hex')">
+                </div>
+                <small class="text-muted">Stripes, photo frame</small>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Accent Color</label>
+                <div class="color-picker-group">
+                  <input type="color" name="accent_color" id="accent_color" class="form-control form-control-color" value="{{ current_school.accent_color }}" oninput="syncHex(this,'accent_hex')">
+                  <input type="text" id="accent_hex" class="form-control font-monospace" value="{{ current_school.accent_color }}" oninput="syncPicker(this,'accent_hex')">
+                </div>
+                <small class="text-muted">Badges, highlights</small>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Text Color</label>
+                <div class="color-picker-group">
+                  <input type="color" name="text_color" id="text_color" class="form-control form-control-color" value="{{ current_school.text_color or '#ffffff' }}" oninput="syncHex(this,'text_hex')">
+                  <input type="text" id="text_hex" class="form-control font-monospace" value="{{ current_school.text_color or '#ffffff' }}" oninput="syncPicker(this,'text_hex')">
+                </div>
+                <small class="text-muted">Header text color</small>
+              </div>
+
+              {# Logo upload #}
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Institution Logo</label>
+                <div class="upload-zone" onclick="document.getElementById('logo_file').click()">
+                  {% if current_school.logo_filename %}
+                    <img src="{{ url_for('static', filename='uploads/logos/' + current_school.logo_filename) }}" class="thumb d-block mx-auto mb-1" alt="logo">
+                  {% else %}
+                    <i class="fa-solid fa-image fa-2x text-muted mb-2 d-block"></i>
+                  {% endif %}
+                  <span class="text-muted small">Click to upload PNG/JPG logo</span>
+                  <input type="file" name="logo_file" id="logo_file" accept="image/*" class="d-none">
+                </div>
+              </div>
+
+              {# Card title override #}
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Card Title Override
+                  <span class="label-preview" id="cardTitlePreview">{{ current_school.card_title or 'auto' }}</span>
+                </label>
+                <input type="text" name="card_title" class="form-control"
+                       value="{{ current_school.card_title or '' }}"
+                       placeholder="Auto (STUDENT ID / STAFF ID)"
+                       oninput="document.getElementById('cardTitlePreview').textContent=this.value||'auto'">
+                <small class="text-muted">Overrides the auto card type label at the top of the card.</small>
+              </div>
+
+              <div class="col-md-4 d-flex align-items-center">
+                <div class="w-100">
+                  <div class="form-check form-switch switch-lg mb-2">
+                    <input class="form-check-input" type="checkbox" name="enable_watermark" id="enableWatermark" value="1"
+                           {% if current_school.enable_watermark %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="enableWatermark">Guilloche Watermark</label>
+                  </div>
+                  <div class="setting-tip">
+                    Renders a micro-wave anti-counterfeiting security pattern on card backgrounds.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# 3. AUTHORITY STAMP & SIGNATURE #}
+        <div class="card section-card mb-4" id="sec-authority">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="fa-solid fa-stamp text-danger"></i>
+            <span class="fw-bold">Official Stamp &amp; Authority Signature</span>
+            <span class="badge bg-danger-subtle text-danger rounded-pill ms-auto">Printed on card back</span>
+          </div>
+          <div class="card-body p-4">
+            <div class="setting-tip mb-3">
+              <strong>Tip:</strong> Upload a transparent PNG stamp and a signature image.
+              If no stamp is uploaded, the system auto-generates a circular rubber stamp from your institution name and colors.
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Official Seal / Stamp (PNG with transparency preferred)</label>
+                <div class="upload-zone" onclick="document.getElementById('stamp_file').click()">
+                  {% if current_school.stamp_filename %}
+                    <img src="{{ url_for('static', filename='uploads/stamps/' + current_school.stamp_filename) }}" class="thumb d-block mx-auto mb-1" alt="stamp">
+                    <small class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Stamp uploaded</small>
+                  {% else %}
+                    <i class="fa-solid fa-stamp fa-2x text-muted mb-2 d-block"></i>
+                    <small class="text-muted">Click to upload official seal</small><br>
+                    <small class="text-info">Auto-generated stamp used if empty</small>
+                  {% endif %}
+                  <input type="file" name="stamp_file" id="stamp_file" accept="image/*" class="d-none">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small">Authority Signature Image</label>
+                <div class="upload-zone" onclick="document.getElementById('signature_file').click()">
+                  {% if current_school.principal_signature_filename %}
+                    <img src="{{ url_for('static', filename='uploads/signatures/' + current_school.principal_signature_filename) }}" class="thumb d-block mx-auto mb-1" alt="signature">
+                    <small class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Signature uploaded</small>
+                  {% else %}
+                    <i class="fa-solid fa-signature fa-2x text-muted mb-2 d-block"></i>
+                    <small class="text-muted">Click to upload authority signature</small>
+                  {% endif %}
+                  <input type="file" name="signature_file" id="signature_file" accept="image/*" class="d-none">
+                </div>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label fw-bold small">Back Side Disclaimer Text</label>
+                <textarea name="disclaimer_text" class="form-control" rows="2"
+                          placeholder="If found, return to the address above. Misuse is a disciplinary offence.">{{ current_school.disclaimer_text or '' }}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# 4. CUSTOM FIELD LABELS #}
+        <div class="card section-card mb-4" id="sec-labels">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="fa-solid fa-tag text-info"></i>
+            <span class="fw-bold">Custom Field Labels</span>
+          </div>
+          <div class="card-body p-4">
+            <p class="text-muted small mb-3">Override the default labels printed on the ID card. Leave blank to use smart auto-detected defaults based on institution type.</p>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">ID Number Label
+                  <span class="label-preview" id="idLabelPreview">{{ current_school.id_label or 'Auto' }}</span>
+                </label>
+                <input type="text" name="id_label" class="form-control"
+                       value="{{ current_school.id_label or '' }}"
+                       placeholder="ADM NO / STAFF ID / MEMBER NO"
+                       oninput="document.getElementById('idLabelPreview').textContent=this.value||'Auto'">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Class / Group Label
+                  <span class="label-preview" id="classLabelPreview">{{ current_school.class_label or 'Auto' }}</span>
+                </label>
+                <input type="text" name="class_label" class="form-control"
+                       value="{{ current_school.class_label or '' }}"
+                       placeholder="CLASS / DEPARTMENT / WARD"
+                       oninput="document.getElementById('classLabelPreview').textContent=this.value||'Auto'">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Stream / Unit Label
+                  <span class="label-preview" id="streamLabelPreview">{{ current_school.stream_label or 'Auto' }}</span>
+                </label>
+                <input type="text" name="stream_label" class="form-control"
+                       value="{{ current_school.stream_label or '' }}"
+                       placeholder="STREAM / UNIT / BRANCH"
+                       oninput="document.getElementById('streamLabelPreview').textContent=this.value||'Auto'">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">UPI / Extra Field Label
+                  <span class="label-preview" id="upiLabelPreview">{{ current_school.upi_label or 'Auto' }}</span>
+                </label>
+                <input type="text" name="upi_label" class="form-control"
+                       value="{{ current_school.upi_label or '' }}"
+                       placeholder="UPI / NHIF NO / EMP NO"
+                       oninput="document.getElementById('upiLabelPreview').textContent=this.value||'Auto'">
+              </div>
+            </div>
+            <div class="mt-2">
+              <small class="text-muted"><strong>School defaults:</strong> ADM NO · CLASS · STREAM · UPI &nbsp;|&nbsp; <strong>Company defaults:</strong> STAFF ID · DEPARTMENT · UNIT · EMP NO</small>
+            </div>
+          </div>
+        </div>
+
+        {# 5. CARD RULES #}
+        <div class="card section-card mb-4" id="sec-card-rules">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="fa-solid fa-id-card text-success"></i>
+            <span class="fw-bold">ID Card Rules</span>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Card Number Prefix</label>
+                <input type="text" name="card_prefix" class="form-control"
+                       value="{{ current_school.card_prefix or 'ID-' }}" placeholder="ID- / STF- / MBR-">
+                <small class="text-muted">Prepended to admission number.</small>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Academic / Issue Year</label>
+                <input type="text" name="academic_year" class="form-control"
+                       value="{{ current_school.academic_year or '2026' }}" placeholder="2026">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold small">Card Validity (Years)</label>
+                <input type="number" name="validity_years" class="form-control"
+                       value="{{ current_school.validity_years or 4 }}" min="1" max="10">
+                <small class="text-muted">Expiry = Issue Year + Validity.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# 6. SELF-ONBOARDING #}
+        <div class="card section-card mb-4" id="sec-onboarding">
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="fa-solid fa-link" style="color:#7c3aed"></i>
+            <span class="fw-bold">Self-Onboarding &amp; Shared Link</span>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="form-check form-switch switch-lg mb-3">
+                  <input class="form-check-input" type="checkbox" name="allow_self_onboarding" id="allowSelfOnboarding" value="1"
+                         {% if current_school.allow_self_onboarding %}checked{% endif %}>
+                  <label class="form-check-label fw-bold" for="allowSelfOnboarding">Enable Self-Onboarding Link</label>
+                </div>
+                <div class="form-check form-switch switch-lg">
+                  <input class="form-check-input" type="checkbox" name="auto_approve_onboarding" id="autoApprove" value="1"
+                         {% if current_school.auto_approve_onboarding %}checked{% endif %}>
+                  <label class="form-check-label fw-bold" for="autoApprove">Auto-Approve Submissions</label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                {% if current_school.allow_self_onboarding %}
+                <label class="form-label fw-bold small">Shareable Onboarding Link</label>
+                <div class="input-group">
+                  <input type="text" id="onboardLink" class="form-control font-monospace small"
+                    value="{{ request.host_url }}onboard/{{ current_school.id }}" readonly>
+                  <button class="btn btn-outline-primary" type="button" onclick="copyOnboardLink()">
+                    <i class="fa-solid fa-copy"></i>
+                  </button>
+                </div>
+                <small class="text-muted mt-1 d-block">Share with students/staff to let them self-submit details and photos.</small>
+                {% else %}
+                <div class="alert alert-info small mb-0 rounded-3">
+                  <i class="fa-solid fa-circle-info me-1"></i>
+                  Enable self-onboarding above to generate a shareable link.
+                </div>
+                {% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small">Onboarding Instructions (shown to applicants)</label>
+                <textarea name="onboarding_instructions" class="form-control" rows="3"
+                          placeholder="e.g. Fill in your details accurately. Upload a passport photo with a white background.">{{ current_school.onboarding_instructions or '' }}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# Save Button #}
+        <div class="d-flex justify-content-end gap-2 mb-5">
+          <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+          <button type="submit" class="btn btn-primary px-5 fw-bold">
+            <i class="fa-solid fa-floppy-disk me-2"></i> Save All Settings
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+
+{# Floating Help Button #}
+<button id="help-btn" title="Help and System Guide" data-bs-toggle="modal" data-bs-target="#helpModal">
+  <i class="fa-solid fa-circle-question"></i>
+</button>
+
+{# Help Modal #}
+<div class="modal fade help-modal" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 rounded-4 overflow-hidden">
+      <div class="modal-header py-3">
+        <div>
+          <h5 class="modal-title mb-0 fw-bold" id="helpModalLabel">
+            <i class="fa-solid fa-book-open me-2"></i> System Usage Guide
+          </h5>
+          <small class="opacity-75">Step-by-step procedures for the ID Generation System</small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <ul class="nav nav-pills gap-1 mb-4 flex-wrap" id="helpTabs" role="tablist">
+          <li class="nav-item"><button class="nav-link active small" data-bs-toggle="tab" data-bs-target="#ht-quickstart">Quick Start</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-setup">Setup</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-students">Students</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-onboarding">Onboarding</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-generate">Generate IDs</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-renew">Renewals</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-print">Printing</button></li>
+          <li class="nav-item"><button class="nav-link small" data-bs-toggle="tab" data-bs-target="#ht-corporate">Corporate</button></li>
+        </ul>
+
+        <div class="tab-content">
+
+          <div class="tab-pane fade show active" id="ht-quickstart">
+            <div class="help-step"><div class="help-step-num">1</div><div><strong>Register your institution</strong><br>Go to Settings and fill in institution name, colors, and upload your logo.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div><strong>Upload stamp and signature</strong><br>In the Stamp and Signature section, upload a transparent PNG seal. If no stamp is uploaded, the system auto-generates one from your institution name.</div></div>
+            <div class="help-step"><div class="help-step-num">3</div><div><strong>Add students or staff</strong><br>Use Students, Add Student or share the Self-Onboarding Link so holders register themselves with a passport photo.</div></div>
+            <div class="help-step"><div class="help-step-num">4</div><div><strong>Generate ID cards</strong><br>Use Single ID, select a student, then Generate Card. Or use Bulk Generate for batch operations.</div></div>
+            <div class="help-step"><div class="help-step-num">5</div><div><strong>Print cards</strong><br>Download the CR80 PDF (ISO 7810 credit-card size) and print on a CR80 card printer at 300 DPI.</div></div>
+          </div>
+
+          <div class="tab-pane fade" id="ht-setup">
+            <p class="help-section-title">Settings fields explained</p>
+            <table class="table table-sm small table-bordered rounded-3 overflow-hidden">
+              <thead class="table-light"><tr><th>Field</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Institution Type</strong></td><td>Switches field labels. School uses ADM NO, CLASS, STREAM, UPI. Company uses STAFF ID, DEPARTMENT, UNIT, EMP NO.</td></tr>
+                <tr><td><strong>Authority Title</strong></td><td>Printed under the signature on card back. E.g. Principal, CEO, Bishop, Director.</td></tr>
+                <tr><td><strong>Card Prefix</strong></td><td>Prepended to admission number in card field, e.g. STF-001.</td></tr>
+                <tr><td><strong>Validity Years</strong></td><td>Card expiry equals Issue Year plus this number. Triggers renewal workflow when expired.</td></tr>
+                <tr><td><strong>Guilloche Watermark</strong></td><td>Adds micro-wave anti-counterfeiting pattern on both sides. Highly recommended.</td></tr>
+                <tr><td><strong>Card Title Override</strong></td><td>Replaces the automatic title at the top of the card front.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="tab-pane fade" id="ht-students">
+            <div class="help-step"><div class="help-step-num">1</div><div><strong>Add individually</strong> via Students, Add Student. Fill in full name, admission number, class, DOB, and upload a passport photo.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div><strong>Bulk import via CSV</strong>. Download the sample CSV from Students, Bulk Import, fill in rows, and upload. Photos can be matched by admission number.</div></div>
+            <div class="help-step"><div class="help-step-num">3</div><div><strong>Approve self-onboarded records</strong> from Students, Pending Approvals if auto-approve is off.</div></div>
+          </div>
+
+          <div class="tab-pane fade" id="ht-onboarding">
+            <p class="small text-muted mb-3">Self-onboarding lets students and staff register via a public URL without needing an admin account.</p>
+            <div class="help-step"><div class="help-step-num">1</div><div>Enable self-onboarding and save settings on this page.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div>Copy the shareable link and distribute via WhatsApp, email, or a notice-board QR code.</div></div>
+            <div class="help-step"><div class="help-step-num">3</div><div>Applicants fill in Full Name, Admission or Staff Number, Class, Date of Birth, and upload a passport photo.</div></div>
+            <div class="help-step"><div class="help-step-num">4</div><div>If auto-approve is off, review pending submissions under Students, Pending Approvals before generating cards.</div></div>
+          </div>
+
+          <div class="tab-pane fade" id="ht-generate">
+            <p class="help-section-title">Single Card</p>
+            <div class="help-step"><div class="help-step-num">1</div><div>Go to Single ID, search or select a student, choose a template if needed, and click Generate Card.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div>A 300 DPI front and back PNG is rendered and a CR80 print-ready PDF is created. Download from the card record.</div></div>
+            <p class="help-section-title">Bulk Cards</p>
+            <div class="help-step"><div class="help-step-num">1</div><div>Go to Bulk Generate, filter by class or stream, and click Generate All.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div>A ZIP of individual PDFs is produced, or use Batch Print PDF to get all cards on A4 sheets.</div></div>
+          </div>
+
+          <div class="tab-pane fade" id="ht-renew">
+            <p class="small text-muted mb-3">Renewal archives the old card, issues a new QR token and expiry date, while preserving full audit history.</p>
+            <p class="help-section-title">Single Renewal</p>
+            <div class="help-step"><div class="help-step-num">1</div><div>Open the student in Single ID. If an active card exists, click Renew Card, add notes, and confirm.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div>The old card is archived as renewed. The new card shows a RENEWED R1 badge (R2, R3 for subsequent renewals).</div></div>
+            <p class="help-section-title">Bulk Renewal</p>
+            <div class="help-step"><div class="help-step-num">1</div><div>Go to Bulk Generate and use the Bulk Renew panel. Choose scope: Selected, By Class, By Stream, or All.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div>Add a renewal note, e.g. Annual Renewal 2026, then confirm. All matching cards are renewed in one operation.</div></div>
+          </div>
+
+          <div class="tab-pane fade" id="ht-print">
+            <div class="help-step"><div class="help-step-num">1</div><div><strong>CR80 Format:</strong> Every PDF is sized to ISO 7810 CR80 at 300 DPI, the standard credit-card size used by all ID card printers.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div><strong>Single PDF:</strong> Download from the card record and print directly on a CR80 card printer.</div></div>
+            <div class="help-step"><div class="help-step-num">3</div><div><strong>Batch Print PDF:</strong> From Bulk Generate, download to get all cards on A4 sheets with crop marks for sheet-feed printers.</div></div>
+            <div class="help-step"><div class="help-step-num">4</div><div>Verify with the QR code scanner under Verify to confirm card authenticity before laminating.</div></div>
+          </div>
+
+          <div class="tab-pane fade" id="ht-corporate">
+            <p class="small text-muted mb-3">The system supports companies, NGOs, churches, hospitals, and any organisation, not just schools.</p>
+            <div class="help-step"><div class="help-step-num">1</div><div>Set Institution Type to Company or Organisation. Field labels auto-switch to corporate terminology.</div></div>
+            <div class="help-step"><div class="help-step-num">2</div><div>Set the Authority Title such as CEO or HR Director. It appears under the signature on the card back.</div></div>
+            <div class="help-step"><div class="help-step-num">3</div><div>Use Custom Field Labels to rename any card field, e.g. DEPARTMENT, EMP NO, PAYROLL.</div></div>
+            <div class="help-step"><div class="help-step-num">4</div><div>Register multiple organisations and switch between them using the school switcher in the top navigation bar. Each has completely independent branding.</div></div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <a href="{{ url_for('schools.settings') }}" class="btn btn-outline-secondary btn-sm">Back to Settings</a>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal">Got it!</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function syncHex(picker, hexId) {
+  document.getElementById(hexId).value = picker.value;
+}
+function syncPicker(hexInput, pickerId) {
+  const v = hexInput.value;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById(pickerId).value = v;
+}
+
+function onInstTypeChange(type) {
+  const map = {
+    school:   { badge:'School',   cls:'badge-inst-school', auth:'Principal' },
+    company:  { badge:'Company',  cls:'badge-inst-corp',   auth:'CEO' },
+    church:   { badge:'Church',   cls:'badge-inst-school', auth:'Bishop' },
+    hospital: { badge:'Hospital', cls:'badge-inst-corp',   auth:'Director' },
+    ngo:      { badge:'NGO',      cls:'badge-inst-corp',   auth:'Director' },
+    other:    { badge:'Other',    cls:'badge-inst-school', auth:'Authorised Signatory' }
+  };
+  const d = map[type] || map.other;
+  const badge = document.getElementById('instBadge');
+  badge.textContent = d.badge;
+  badge.className = 'ms-auto badge rounded-pill ' + d.cls;
+  const pt = document.getElementById('principalTitle');
+  if (!pt.value) {
+    pt.placeholder = d.auth;
+    document.getElementById('authTitlePreview').textContent = '—';
+  }
+}
+
+function copyOnboardLink() {
+  const inp = document.getElementById('onboardLink');
+  if (!inp) return;
+  navigator.clipboard.writeText(inp.value).then(() => {
+    const btn = inp.nextElementSibling;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+  });
+}
+
+// Sticky nav active link via IntersectionObserver
+const sections = document.querySelectorAll('[id^="sec-"]');
+const navLinks = document.querySelectorAll('.settings-nav .nav-link[href^="#"]');
+document.querySelectorAll('.settings-nav .nav-link[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    navLinks.forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+    const t = document.querySelector(link.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.settings-nav .nav-link[href="#${entry.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { threshold: 0.35 });
+sections.forEach(s => obs.observe(s));
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Verification - EduID Kenya</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #0F172A;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .verify-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      max-width: 480px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="verify-card">
+    
+    <!-- Header -->
+    <div class="p-4 text-center text-white {% if result and result.valid %}bg-success{% elif result and not result.valid %}bg-danger{% else %}bg-primary{% endif %}" style="background: {% if result and result.valid %}linear-gradient(135deg, #059669 0%, #047857 100%){% elif result and not result.valid %}linear-gradient(135deg, #DC2626 0%, #991B1B 100%){% else %}linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%){% endif %};">
+      <div class="d-inline-flex p-3 rounded-circle bg-white bg-opacity-20 mb-2">
+        {% if result and result.valid %}
+        <i class="fa-solid fa-shield-check fa-3x text-white"></i>
+        {% elif result and not result.valid %}
+        <i class="fa-solid fa-shield-xmark fa-3x text-white"></i>
+        {% else %}
+        <i class="fa-solid fa-qrcode fa-3x text-white"></i>
+        {% endif %}
+      </div>
+      
+      <h4 class="fw-bold mb-1">
+        {% if result and result.valid %}
+        AUTHENTIC STUDENT CARD
+        {% elif result and not result.valid %}
+        VERIFICATION FAILED
+        {% else %}
+        CARD VERIFICATION PORTAL
+        {% endif %}
+      </h4>
+      <div class="small text-white-50">Republic of Kenya &bull; EduID Verification Service</div>
+    </div>
+
+    <!-- Body -->
+    <div class="p-4">
+      {% if result and result.valid %}
+      
+      <div class="alert alert-success text-center py-2 fw-bold small rounded-3 mb-4">
+        <i class="fa-solid fa-circle-check me-1"></i> STATUS: {{ result.status_text }}
+      </div>
+
+      <div class="text-center mb-4">
+        <h5 class="fw-bold mb-1 text-dark">{{ result.student_name }}</h5>
+        <div class="badge bg-primary px-3 py-1 font-monospace fs-6">ADM: {{ result.admission_number }}</div>
+      </div>
+
+      <ul class="list-group list-group-flush mb-4 small">
+        <li class="list-group-item d-flex justify-content-between px-0 py-2">
+          <span class="text-muted">Institution:</span>
+          <span class="fw-bold text-dark text-end">{{ result.school_name }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0 py-2">
+          <span class="text-muted">Location:</span>
+          <span class="fw-semibold text-dark">{{ result.school_county }} County</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0 py-2">
+          <span class="text-muted">Class & Stream:</span>
+          <span class="fw-bold text-dark">{{ result.class_name }} {{ result.stream_name }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0 py-2">
+          <span class="text-muted">Card Serial:</span>
+          <span class="font-monospace text-dark">{{ result.card_number }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0 py-2">
+          <span class="text-muted">Issue & Expiry:</span>
+          <span class="text-dark">{{ result.issue_date }} to <strong class="text-danger">{{ result.expiry_date }}</strong></span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between px-0 py-2">
+          <span class="text-muted">Verification Count:</span>
+          <span class="badge bg-secondary">{{ result.scan_count }} scans</span>
+        </li>
+      </ul>
+
+      <div class="alert alert-light border small text-muted text-center mb-0">
+        <i class="fa-solid fa-lock me-1 text-success"></i> Verified cryptographically against official school records.
+      </div>
+
+      {% elif result and not result.valid %}
+      <div class="alert alert-danger py-3 mb-3">
+        <h6 class="fw-bold mb-1"><i class="fa-solid fa-circle-exclamation me-1"></i> Card Verification Failed</h6>
+        <p class="small mb-0">{{ result.message or 'The security token could not be verified in the school database. The card may be forged, invalid, or replaced.' }}</p>
+      </div>
+
+      <p class="text-center text-muted small">Please inspect the physical card or contact the school administration.</p>
+      {% endif %}
+
+      <!-- Manual Entry Form -->
+      {% if not result or is_manual %}
+      <form method="POST" action="{{ url_for('verification.manual_verify') }}" class="mt-3">
+        <label class="form-label small fw-bold">Manual Verification Token</label>
+        <div class="input-group mb-3">
+          <input type="text" name="token" class="form-control font-monospace" placeholder="Enter token from QR code..." value="{{ token or '' }}" required>
+          <button type="submit" class="btn btn-primary fw-bold">Verify</button>
+        </div>
+      </form>
+      {% endif %}
+
+    </div>
+
+    <!-- Footer -->
+    <div class="bg-light p-3 text-center border-top small text-muted">
+      EduID Kenya &bull; Privacy-Safe Verification Engine
+    </div>
+
+  </div>
+
+</body>
+</html>

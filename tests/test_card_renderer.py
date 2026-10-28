@@ -1,0 +1,81 @@
+import datetime
+import pytest
+from pathlib import Path
+from app import create_app
+from config import TestConfig, Config
+from extensions import db
+from models import School, Student, CardRecord
+from services.card_renderer import CardRenderer, LANDSCAPE_W, LANDSCAPE_H
+
+@pytest.fixture
+def app():
+    app = create_app(TestConfig)
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.session.remove()
+        db.drop_all()
+
+def test_card_render_dimensions_and_images(app, tmp_path):
+    with app.app_context():
+        school = School(
+            name="Kisumu Boys High School",
+            motto="In God We Trust",
+            town="Kisumu",
+            county="Kisumu",
+            primary_color="#1E3A8A",
+            secondary_color="#F59E0B"
+        )
+        db.session.add(school)
+        db.session.commit()
+
+        student = Student(
+            school_id=school.id,
+            admission_number="9876",
+            full_name="Amani Otieno",
+            class_name="Form 3",
+            stream_name="East",
+            academic_year="2026"
+        )
+        db.session.add(student)
+        db.session.commit()
+        card = CardRecord(
+            school_id=school.id,
+            student_id=student.id,
+            card_number="KBH-9876",
+            qr_token="test_token_1234567890abcdef",
+            issue_date=datetime.date.today(),
+            expiry_date=datetime.date(2029, 12, 31),
+            status="active"
+        )
+        db.session.add(card)
+        db.session.commit()
+
+        # Render Front
+        front_img = CardRenderer.render_front(school, student, card)
+        assert front_img.size == (LANDSCAPE_W, LANDSCAPE_H)
+        assert front_img.size == (1011, 638)
+
+        # Render Back
+        back_img = CardRenderer.render_back(school, student, card)
+        assert back_img.size == (1011, 638)
+
+        # Save images
+        f_path = tmp_path / "front.png"
+        b_path = tmp_path / "back.png"
+        front_img.save(f_path)
+        back_img.save(b_path)
+        assert f_path.exists()
+        assert b_path.exists()
+
+        # Generate Single CR80 PDF
+        pdf_path = tmp_path / "test_cr80.pdf"
+        CardRenderer.generate_single_cr80_pdf(f_path, b_path, pdf_path)
+        assert pdf_path.exists()
+        assert pdf_path.stat().st_size > 1000
+
+        # Generate A4 Sheet PDF (with 2 cards)
+        a4_pdf_path = tmp_path / "test_a4.pdf"
+        CardRenderer.generate_a4_sheet_pdf([(f_path, b_path), (f_path, b_path)], a4_pdf_path)
+        assert a4_pdf_path.exists()
+        assert a4_pdf_path.stat().st_size > 2000

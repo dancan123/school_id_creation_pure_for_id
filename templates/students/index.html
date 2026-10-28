@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Student Register - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fa-solid fa-user-graduate text-primary me-2"></i> Student Register</h4>
+      <p class="text-muted small mb-0">Active School: <strong>{{ current_school.name }}</strong> &bull; Total: {{ pagination.total }} students</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('bulk_import.upload') }}" class="btn btn-outline-primary btn-sm">
+        <i class="fa-solid fa-file-import me-1"></i> Bulk Import
+      </a>
+      <a href="{{ url_for('students.new_student') }}" class="btn btn-primary btn-sm fw-semibold" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+        <i class="fa-solid fa-user-plus me-1"></i> Add Student
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter & Search Bar -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-3">
+      <form method="GET" action="{{ url_for('students.index') }}" class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+            <input type="text" name="search" class="form-control" placeholder="Search Adm No or Name..." value="{{ search }}">
+          </div>
+        </div>
+
+        <div class="col-md-2">
+          <select name="class" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Classes</option>
+            {% for c in classes %}
+            <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <select name="stream" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Streams</option>
+            {% for s in streams %}
+            <option value="{{ s }}" {% if stream_filter == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Card Statuses</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active / Issued</option>
+            <option value="replaced" {% if status_filter == 'replaced' %}selected{% endif %}>Replaced</option>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <div class="form-check form-check-inline small mb-0">
+            <input class="form-check-input" type="checkbox" name="missing_photo" id="missing_photo" value="1" {% if missing_photo == '1' %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label text-danger fw-semibold" for="missing_photo">Missing Photo</label>
+          </div>
+        </div>
+
+        <div class="col-md-1 text-end">
+          <a href="{{ url_for('students.index') }}" class="btn btn-light btn-sm text-muted w-100" title="Reset Filters"><i class="fa-solid fa-arrows-rotate"></i></a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Students Table -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width: 60px;">Photo</th>
+              <th>Adm No</th>
+              <th>Student Name</th>
+              <th>Class / Stream</th>
+              <th>Academic Year</th>
+              <th>Card Status</th>
+              <th>Card Number</th>
+              <th class="text-end" style="width: 180px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in students %}
+            <tr>
+              <td>
+                {% if s.photo_filename %}
+                <img src="{{ url_for('serve_media', folder='photos', filename=s.photo_filename) }}" alt="Photo" class="rounded-circle border" style="width: 38px; height: 38px; object-fit: cover;">
+                {% else %}
+                <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center text-muted" style="width: 38px; height: 38px;">
+                  <i class="fa-solid fa-user small"></i>
+                </div>
+                {% endif %}
+              </td>
+              <td class="fw-bold font-monospace">{{ s.admission_number }}</td>
+              <td class="fw-semibold">{{ s.full_name }}</td>
+              <td>{{ s.class_name }} <span class="text-muted">{{ s.stream_name or '' }}</span></td>
+              <td>{{ s.academic_year }}</td>
+              <td>
+                <span class="badge {% if s.card_status == 'active' %}bg-success{% elif s.card_status == 'replaced' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                  {{ s.card_status.upper() }}
+                </span>
+              </td>
+              <td>{{ s.card_number or '-' }}</td>
+              <td class="text-end">
+                {% if s.parent_phone and clean_whatsapp_phone(s.parent_phone) %}
+                <a href="{{ build_whatsapp_link(s.parent_phone, 'Hello, regarding student ' ~ s.full_name ~ ' (Adm: ' ~ s.admission_number ~ ') at ' ~ current_school.name ~ ': ') }}"
+                   target="_blank" class="btn btn-outline-success btn-sm py-1 px-2" title="Chat with Parent on WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('single_id.index', student_id=s.id) }}" class="btn btn-outline-primary btn-sm py-1 px-2" title="Generate or Preview Card">
+                  <i class="fa-solid fa-id-card"></i>
+                </a>
+                <a href="{{ url_for('students.edit_student', student_id=s.id) }}" class="btn btn-outline-secondary btn-sm py-1 px-2" title="Edit Student">
+                  <i class="fa-solid fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('students.delete_student', student_id=s.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete student {{ s.admission_number }}?');">
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Delete Student">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="fa-solid fa-users fa-2x mb-3 text-secondary d-block"></i>
+                No students match the selected filters.<br>
+                <a href="{{ url_for('students.new_student') }}" class="btn btn-primary btn-sm mt-2">Add Student</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+      <small class="text-muted">Showing page {{ pagination.page }} of {{ pagination.pages }}</small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('students.index', page=pagination.prev_num, search=search, class=class_filter, stream=stream_filter, status=status_filter, missing_photo=missing_photo) }}">&laquo;</a></li>
+          {% endif %}
+          
+          {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+            {% if p %}
+              <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('students.index', page=p, search=search, class=class_filter, stream=stream_filter, status=status_filter, missing_photo=missing_photo) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+          {% endfor %}
+
+          {% if pagination.has_next %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('students.index', page=pagination.next_num, search=search, class=class_filter, stream=stream_filter, status=status_filter, missing_photo=missing_photo) }}">&raquo;</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

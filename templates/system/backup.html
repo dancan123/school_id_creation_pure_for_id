@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}System Backup & Restore - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white border-0 py-4">
+          <h4 class="fw-bold mb-1"><i class="fa-solid fa-database text-primary me-2"></i> System Database Backup & Restore</h4>
+          <p class="text-muted small mb-0">Create offline backups of the SQLite database, student photos, and school logos or restore from a previous archive.</p>
+        </div>
+        <div class="card-body p-4 pt-0">
+          
+          <!-- Create Backup Card -->
+          <div class="p-4 border rounded-4 bg-light mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div>
+                <h5 class="fw-bold mb-1"><i class="fa-solid fa-file-zipper text-success me-2"></i> Download Full System Backup</h5>
+                <p class="text-muted small mb-0">Packages the <code>school_id_system.db</code> database and all photos/logos into a timestamped ZIP archive.</p>
+              </div>
+              <form method="POST" action="{{ url_for('system.create_backup') }}">
+                <button type="submit" class="btn btn-success fw-bold px-4 py-2 shadow-sm">
+                  <i class="fa-solid fa-download me-2"></i> Create & Download Backup (.ZIP)
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Restore Backup Form -->
+          <div class="p-4 border rounded-4 border-warning bg-warning bg-opacity-10 mb-4">
+            <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-upload text-warning me-2"></i> Restore System From Archive</h5>
+            <p class="text-muted small mb-3">Upload a previously downloaded <strong>.zip</strong> backup file to restore databases and images.</p>
+            
+            <form method="POST" action="{{ url_for('system.restore_backup') }}" enctype="multipart/form-data" onsubmit="return confirm('WARNING: Restoring will overwrite existing data with the contents of the backup archive. Are you sure?');">
+              <div class="input-group mb-3">
+                <input type="file" name="backup_file" class="form-control" accept=".zip" required>
+                <button type="submit" class="btn btn-dark fw-bold">Restore Backup</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Demo Data Testing Card -->
+          <div class="p-4 border rounded-4 border-info bg-info bg-opacity-10">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div>
+                <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-flask text-primary me-2"></i> Demo 00100 & Sample Cohort</h5>
+                <p class="text-muted small mb-0">Populates demo student <strong>00100 (David Kimani Mwangi)</strong> with photo, pre-rendered CR80 PVC card, and sample cohort across Forms 1 to 4.</p>
+              </div>
+              <form method="POST" action="{{ url_for('system.seed_demo') }}">
+                <button type="submit" class="btn btn-primary fw-bold px-4 py-2 shadow-sm">
+                  <i class="fa-solid fa-magic me-2"></i> Load Demo 00100 Records
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

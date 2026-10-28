@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Import - Step 3: Validate - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Step Indicator -->
+  <div class="row justify-content-center mb-4">
+    <div class="col-lg-6">
+      <div class="d-flex justify-content-between position-relative">
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-success p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;"><i class="fa-solid fa-check"></i></div>
+          <div class="small fw-semibold text-muted">Upload Files</div>
+        </div>
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-success p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;"><i class="fa-solid fa-check"></i></div>
+          <div class="small fw-semibold text-muted">Map Columns</div>
+        </div>
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-primary p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;">3</div>
+          <div class="small fw-bold text-primary">Validate & Confirm</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Validation Metrics -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small fw-semibold">TOTAL ROWS</div>
+            <div class="fs-3 fw-bold text-dark mt-1">{{ total_records }}</div>
+          </div>
+          <div class="stat-icon bg-secondary bg-opacity-10 text-secondary">
+            <i class="fa-solid fa-list-ol"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card p-3 border-success border-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-success small fw-bold">VALID RECORDS READY</div>
+            <div class="fs-3 fw-bold text-success mt-1">{{ valid_records|length }}</div>
+          </div>
+          <div class="stat-icon bg-success bg-opacity-10 text-success">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card p-3 {% if invalid_records %}border-danger border-2{% endif %}">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="{% if invalid_records %}text-danger{% else %}text-muted{% endif %} small fw-bold">INVALID / ERRORS</div>
+            <div class="fs-3 fw-bold {% if invalid_records %}text-danger{% else %}text-muted{% endif %} mt-1">{{ invalid_records|length }}</div>
+          </div>
+          <div class="stat-icon {% if invalid_records %}bg-danger bg-opacity-10 text-danger{% else %}bg-light text-muted{% endif %}">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card stat-card p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-primary small fw-semibold">MATCHED PHOTOS</div>
+            <div class="fs-3 fw-bold text-primary mt-1">{{ photo_match_count }}</div>
+          </div>
+          <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <span class="fw-bold">Destination School:</span>
+        <span class="badge bg-primary px-3 py-2 ms-2">{{ current_school.name }} (AY {{ current_school.academic_year }})</span>
+      </div>
+
+      <div class="d-flex gap-2">
+        {% if errors_list %}
+        <a href="{{ url_for('bulk_import.export_errors_csv') }}" class="btn btn-outline-danger btn-sm fw-semibold">
+          <i class="fa-solid fa-file-csv me-1"></i> Download Error Report ({{ errors_list|length }} issues)
+        </a>
+        {% endif %}
+
+        {% if valid_records %}
+        <form method="POST" action="{{ url_for('bulk_import.commit_import') }}" onsubmit="return confirm('Confirm import of {{ valid_records|length }} valid student records into {{ current_school.name }}?');">
+          <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow-sm">
+            <i class="fa-solid fa-database me-1"></i> Commit {{ valid_records|length }} Valid Records to Database
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Invalid Records Table (If any) -->
+  {% if invalid_records %}
+  <div class="card border-danger shadow-sm rounded-4 mb-4 overflow-hidden">
+    <div class="card-header bg-danger bg-opacity-10 border-0 py-3 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold text-danger mb-0"><i class="fa-solid fa-circle-exclamation me-2"></i> Records Requiring Attention ({{ invalid_records|length }})</h6>
+      <small class="text-muted">These rows will be skipped unless corrected.</small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width: 70px;">Row #</th>
+              <th>Adm No</th>
+              <th>Student Name</th>
+              <th>Class</th>
+              <th>Errors & Validation Reasons</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invalid_records %}
+            <tr class="table-danger table-opacity-25">
+              <td class="fw-bold font-monospace">{{ inv.row_number }}</td>
+              <td class="fw-bold">{{ inv.admission_number or '<BLANK>' }}</td>
+              <td>{{ inv.full_name or '<BLANK>' }}</td>
+              <td>{{ inv.class_name or '<BLANK>' }}</td>
+              <td>
+                {% for err in inv.errors %}
+                <span class="badge bg-danger mb-1">{{ err }}</span><br>
+                {% endfor %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Valid Records Preview Table -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0 text-success"><i class="fa-solid fa-circle-check me-2"></i> Valid Records Ready for Import (Showing first 50 of {{ valid_records|length }})</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-custom mb-0 align-middle">
+          <thead>
+            <tr>
+              <th style="width: 70px;">Row #</th>
+              <th>Adm No</th>
+              <th>Full Name</th>
+              <th>Class</th>
+              <th>Stream</th>
+              <th>Gender</th>
+              <th>Parent Phone</th>
+              <th>Photo Matched</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in valid_records[:50] %}
+            <tr>
+              <td class="text-muted font-monospace">{{ v.row_number }}</td>
+              <td class="fw-bold font-monospace">{{ v.admission_number }}</td>
+              <td class="fw-semibold">{{ v.full_name }}</td>
+              <td>{{ v.class_name }}</td>
+              <td>{{ v.stream_name or '-' }}</td>
+              <td>{{ v.gender or '-' }}</td>
+              <td>{{ v.parent_phone or '-' }}</td>
+              <td>
+                {% if v.has_photo %}
+                <span class="badge bg-success-subtle text-success"><i class="fa-solid fa-camera me-1"></i> {{ v.photo_filename }}</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-muted">No photo</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-4 text-muted">No valid records to display.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

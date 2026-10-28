@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>School Not Found — EduID Kenya</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 15% 15%, #1e3a8a 0%, #0f172a 65%, #050b14 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 16px;
+      color: #0F172A;
+    }
+    .box-card {
+      background: white;
+      border-radius: 20px;
+      max-width: 580px;
+      width: 100%;
+      padding: 36px 30px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+    .box-card h2 { font-size: 1.35rem; font-weight: 800; margin-bottom: 8px; }
+    .box-card p { font-size: 0.88rem; color: #64748B; margin-bottom: 24px; line-height: 1.5; }
+    .btn-hub {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: #1E3A8A;
+      color: white;
+      border-radius: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .schools-mini-list {
+      text-align: left;
+      margin: 20px 0;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 8px;
+    }
+    .mini-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #0F172A;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .mini-item:hover { background: #F1F5F9; }
+  </style>
+</head>
+<body>
+<div class="box-card">
+  <i class="fa-solid fa-school-circle-xmark fa-3x text-danger mb-3"></i>
+  <h2>School Not Found</h2>
+  <p>We could not find an active school matching code or ID "<strong>{{ searched_code }}</strong>". Please select from the registered institutions below or visit our directory.</p>
+
+  {% if available_schools %}
+  <div class="schools-mini-list">
+    {% for s in available_schools %}
+    <a href="/onboard/{{ s.code or s.id }}" class="mini-item">
+      <span><i class="fa-solid fa-school text-primary me-2"></i>{{ s.name }}</span>
+      <span class="badge" style="background:#E2E8F0; color:#475569; padding:3px 8px; border-radius:50px; font-size:0.72rem;">{{ s.code or s.town }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <a href="/onboard" class="btn-hub">
+    <i class="fa-solid fa-magnifying-glass"></i> Browse All Schools in Directory
+  </a>
+</div>
+</body>
+</html>

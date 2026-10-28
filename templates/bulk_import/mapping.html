@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Import - Step 2: Map Columns - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+
+      <!-- Step Indicator -->
+      <div class="d-flex justify-content-between mb-4 position-relative">
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-success p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;"><i class="fa-solid fa-check"></i></div>
+          <div class="small fw-semibold text-muted">Upload Files</div>
+        </div>
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-primary p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;">2</div>
+          <div class="small fw-bold text-primary">Map Columns</div>
+        </div>
+        <div class="text-center flex-fill">
+          <div class="badge rounded-pill bg-light text-muted border p-2 mb-1" style="width: 32px; height: 32px; font-size: 14px;">3</div>
+          <div class="small text-muted">Validate & Confirm</div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 py-4">
+          <h4 class="fw-bold mb-1">Map Spreadsheet Columns to System Fields</h4>
+          <p class="text-muted small mb-0">We detected <strong>{{ total_rows }} records</strong> in your file. Review the auto-detected field mappings below.</p>
+        </div>
+
+        <div class="card-body p-4 pt-0">
+          <form method="POST" action="{{ url_for('bulk_import.mapping') }}">
+            
+            <div class="table-responsive mb-4">
+              <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 35%;">System Field</th>
+                    <th>Spreadsheet Column</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Admission Number <span class="text-danger">*</span></div>
+                      <div class="text-muted small">Unique student registration code</div>
+                    </td>
+                    <td>
+                      <select name="map_admission_number" class="form-select form-select-sm" required>
+                        <option value="">-- Select Column --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('admission_number') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Student Full Name <span class="text-danger">*</span></div>
+                      <div class="text-muted small">First, middle, and surname</div>
+                    </td>
+                    <td>
+                      <select name="map_full_name" class="form-select form-select-sm" required>
+                        <option value="">-- Select Column --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('full_name') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Class / Form <span class="text-danger">*</span></div>
+                      <div class="text-muted small">e.g. Form 1, Grade 7</div>
+                    </td>
+                    <td>
+                      <select name="map_class_name" class="form-select form-select-sm" required>
+                        <option value="">-- Select Column --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('class_name') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Stream / Section</div>
+                      <div class="text-muted small">e.g. East, West, Blue</div>
+                    </td>
+                    <td>
+                      <select name="map_stream_name" class="form-select form-select-sm">
+                        <option value="">-- Optional --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('stream_name') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Gender</div>
+                      <div class="text-muted small">Male / Female</div>
+                    </td>
+                    <td>
+                      <select name="map_gender" class="form-select form-select-sm">
+                        <option value="">-- Optional --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('gender') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Date of Birth</div>
+                      <div class="text-muted small">YYYY-MM-DD</div>
+                    </td>
+                    <td>
+                      <select name="map_dob" class="form-select form-select-sm">
+                        <option value="">-- Optional --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('dob') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Parent / Guardian Phone</div>
+                      <div class="text-muted small">Printed on card back for emergency</div>
+                    </td>
+                    <td>
+                      <select name="map_parent_phone" class="form-select form-select-sm">
+                        <option value="">-- Optional --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('parent_phone') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div class="fw-bold">Blood Group</div>
+                      <div class="text-muted small">Medical info on card back</div>
+                    </td>
+                    <td>
+                      <select name="map_blood_group" class="form-select form-select-sm">
+                        <option value="">-- Optional --</option>
+                        {% for h in headers %}
+                        <option value="{{ h }}" {% if auto_map.get('blood_group') == h %}selected{% endif %}>{{ h }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Preview First 5 Rows -->
+            <h6 class="fw-bold mb-2">First 5 Rows of Uploaded File Preview:</h6>
+            <div class="table-responsive mb-4 bg-light p-2 rounded border">
+              <table class="table table-sm table-bordered small mb-0">
+                <thead>
+                  <tr class="table-secondary">
+                    {% for h in headers %}
+                    <th>{{ h }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in preview_rows %}
+                  <tr>
+                    {% for h in headers %}
+                    <td>{{ r.get(h, '') }}</td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-between pt-3 border-top">
+              <a href="{{ url_for('bulk_import.upload') }}" class="btn btn-outline-secondary px-4"><i class="fa-solid fa-arrow-left me-1"></i> Back to Upload</a>
+              <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+                Validate & Preview Records <i class="fa-solid fa-arrow-right ms-1"></i>
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
