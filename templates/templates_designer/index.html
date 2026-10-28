@@ -118,35 +118,53 @@
               <div class="text-center text-white small fw-bold mb-2">BACK DESIGN (QR CODE)</div>
               <div class="card-sample-view shadow-lg position-relative" style="background-color: #FFFFFF; border: 2px solid {{ current_school.primary_color }};">
                 <div style="background-color: {{ current_school.primary_color }}; height: 30px; padding: 4px 14px; color: #FFFFFF; font-weight: bold; font-size: 11px; display: flex; align-items: center;">
-                  TERMS & EMERGENCY CONTACTS
+                  CARD TERMS, OFFICIAL STAMP &amp; VERIFICATION
                 </div>
                 <div style="background-color: {{ current_school.secondary_color }}; height: 3px;"></div>
 
-                <div style="padding: 10px 14px; display: flex; gap: 10px;">
-                  <div style="flex: 1; font-size: 9px; line-height: 1.35; color: #334155;">
-                    <div style="font-weight: bold; color: {{ current_school.primary_color }}; margin-bottom: 2px;">DISCLAIMER:</div>
-                    <div style="font-size: 8px; color: #475569; margin-bottom: 6px;">{{ current_school.disclaimer_text[:130] }}...</div>
-                    <div style="font-weight: bold; color: {{ current_school.primary_color }};">CONTACTS:</div>
-                    <div>Parent: <strong>0712345678</strong></div>
-                    <div>Hotline: <strong>{{ current_school.phone }}</strong></div>
+                <div style="padding: 8px 12px; display: flex; gap: 8px; padding-bottom: 30px;">
+
+                  <!-- Left: Disclaimer + Signature + Stamp -->
+                  <div style="flex: 1; font-size: 8px; line-height: 1.4; color: #334155;">
+                    <div style="font-weight: bold; color: {{ current_school.primary_color }}; margin-bottom: 2px; font-size: 7.5px;">TERMS AND CONDITIONS:</div>
+                    {%- set disc_lines = (current_school.disclaimer_text or '1. This card remains the property of the institution.\n2. If found, please return to the administration or nearest police station.').split('\n') -%}
+                    <div style="text-align: center; font-size: 7px; color: #1E293B; margin-bottom: 5px;">
+                      {%- for dl in disc_lines[:2] %}
+                      <div style="font-weight: bold; margin-bottom: 1px;">{{ dl }}</div>
+                      {%- endfor %}
+                    </div>
+                    <div style="font-size: 7px; color: #475569; margin-bottom: 5px;">Hotline: <strong>{{ current_school.phone }}</strong></div>
+
+                    <!-- Signature & Stamp Row -->
+                    <div style="display: flex; gap: 5px; align-items: flex-end; margin-top: 3px;">
+                      <div style="flex: 1; text-align: center;">
+                        <div style="border-bottom: 1.5px solid #94A3B8; height: 16px; margin-bottom: 2px;"></div>
+                        <div style="font-weight: bold; font-size: 6.5px; color: {{ current_school.primary_color }};">{{ current_school.principal_name or 'Principal' }}</div>
+                        <div style="font-size: 6px; color: #64748B;">{{ current_school.get_signatory_title() }}</div>
+                      </div>
+                      <div style="width: 44px; height: 44px; border-radius: 50%; border: 1.5px dashed {{ current_school.primary_color }}; display: flex; align-items: center; justify-content: center; opacity: 0.7; flex-shrink: 0;">
+                        <div style="text-align: center; font-size: 5px; font-weight: bold; color: {{ current_school.primary_color }}; line-height: 1.2;">OFFICIAL<br>STAMP</div>
+                      </div>
+                    </div>
                   </div>
 
                   <!-- QR Code Professional Security Frame -->
-                  <div style="width: 104px; text-align: center; background: #FFFFFF; border: 2px solid var(--secondary); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-                    <div style="background: var(--primary); color: #FFFFFF; font-size: 7px; font-weight: bold; padding: 2px 0; text-transform: uppercase;">SECURE QR</div>
+                  <div style="width: 100px; text-align: center; background: #FFFFFF; border: 2px solid {{ current_school.secondary_color }}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.15); flex-shrink: 0;">
+                    <div style="background: {{ current_school.primary_color }}; color: #FFFFFF; font-size: 6.5px; font-weight: bold; padding: 2px 0; text-transform: uppercase;">&#11044; DIGITAL ID VERIFICATION &#11044;</div>
                     <div style="padding: 4px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
                       <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ (request.host_url ~ 'verify/DEMO-PRESET-2026')|urlencode }}&color=000000" 
-                           alt="QR Code" style="width: 76px; height: 76px; image-rendering: pixelated;" 
+                           alt="QR Code" style="width: 72px; height: 72px; image-rendering: pixelated;" 
                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                       <i class="fa-solid fa-qrcode fa-3x text-dark" style="display: none;"></i>
                     </div>
-                    <div style="font-size: 7px; font-weight: bold; color: var(--primary); padding-bottom: 2px;">SCAN TO VERIFY</div>
+                    <div style="font-size: 6.5px; font-weight: bold; color: {{ current_school.primary_color }}; padding-bottom: 2px;">SCAN TO AUTHENTICATE</div>
                   </div>
+
                 </div>
 
                 <div style="position: absolute; bottom: 0; left: 0; right: 0; background: {{ current_school.primary_color }}; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 9px; color: #FFFFFF; font-weight: bold;">
-                  <span>PROPERTY OF {{ current_school.name.upper() }}</span>
-                  <span style="color: #FEF08A;">OFFICIAL ISSUED</span>
+                  <span>{{ current_school.name.upper() }} &bull; {{ current_school.town.upper() }}</span>
+                  <span style="color: #FEF08A;">OFFICIAL SYSTEM ISSUED &amp; DIGITALLY VERIFIED</span>
                 </div>
               </div>
             </div>

@@ -352,10 +352,11 @@ class CardRenderer:
         top_font = get_font(21, bold=True)
         draw.text((35, 18), "CARD TERMS, OFFICIAL STAMP & VERIFICATION", fill=(255, 255, 255), font=top_font)
 
-        # Left Column: Terms & Disclaimer + Emergency + Authority Signature & Stamp
+        # Left Column content area
         left_w = int(w * 0.60)
         sec_title_font = get_font(17, bold=True)
         body_font = get_font(15, bold=False)
+        body_bold_font = get_font(15, bold=True)
 
         draw.text((35, top_h + 20), "TERMS AND CONDITIONS:", fill=pri_rgb, font=sec_title_font)
 
@@ -366,14 +367,23 @@ class CardRenderer:
             "4. Alteration or misuse of this card constitutes an offense."
         )
 
-        lines = disclaimer.split("\n")
+        # Render disclaimer lines — bold, centred, each on its own line
+        lines = [ln.strip() for ln in disclaimer.split("\n") if ln.strip()]
         y_cursor = top_h + 46
+        card_center_x = left_w // 2 + 35
         for line in lines[:4]:
-            draw.text((35, y_cursor), line[:68], fill=(51, 65, 85), font=body_font)
-            y_cursor += 24
+            # Center each line
+            try:
+                bbox = body_bold_font.getbbox(line) if hasattr(body_bold_font, "getbbox") else (0, 0, len(line) * 9, 18)
+                line_w = bbox[2] - bbox[0]
+            except Exception:
+                line_w = len(line) * 9
+            txt_x = max(35, card_center_x - line_w // 2)
+            draw.text((txt_x, y_cursor), line[:75], fill=(15, 23, 42), font=body_bold_font)
+            y_cursor += 26
 
-        # Emergency & Contacts line
-        y_cursor += 6
+        # Hotline & email separator
+        y_cursor += 4
         draw.line([35, y_cursor, left_w + 10, y_cursor], fill=(226, 232, 240), width=2)
         y_cursor += 8
 
@@ -431,6 +441,10 @@ class CardRenderer:
         signatory_title = getattr(school, "get_signatory_title", lambda: "Principal / Head of Institution")()
         draw.text((sig_x + 5, line_y + 4), signatory_name, fill=pri_rgb, font=pname_font)
         draw.text((sig_x + 5, line_y + 22), signatory_title, fill=(71, 85, 105), font=title_font)
+
+        # "PLACE STAMP HERE" guide label inside auth block (right below signature)
+        stamp_guide_font = get_font(11, bold=False)
+        draw.text((sig_x + 5, line_y + 40), "[ School / Company Stamp ]", fill=(148, 163, 184), font=stamp_guide_font)
 
         # Right Column: High-Contrast, Laser-Sharp Optical QR Code & Security Frame
         qr_token = card_record.qr_token if card_record else "DEMO-TOKEN-2026"
