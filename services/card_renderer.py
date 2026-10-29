@@ -477,64 +477,84 @@ class CardRenderer:
         draw.text((35, 18), "CARD TERMS, OFFICIAL STAMP & VERIFICATION", fill=(255, 255, 255), font=top_font)
 
         # Left Column content area
+        # Left Column content area
         left_w = int(w * 0.60)
-        sec_title_font = get_font(17, bold=True)
-        body_font = get_font(15, bold=False)
-        body_bold_font = get_font(15, bold=True)
 
-        draw.text((35, top_h + 20), "TERMS AND CONDITIONS:", fill=pri_rgb, font=sec_title_font)
+        # ── Authority Verification Block geometry (computed first to anchor vertical rhythm) ──
+        bottom_h = int(h * 0.12)
+        footer_top = h - bottom_h
+        sig_margin_above_footer = 20
+        auth_box_h = 170
+        auth_box_y2 = footer_top - sig_margin_above_footer
+        auth_box_y = auth_box_y2 - auth_box_h
 
+        # ── Harmonized Terms & Conditions Institutional Block ───────────────────
+        # Matches the Auth Block geometry directly below it:
+        # Same x-boundaries ([35, left_w + 10]), same corner radius (8px),
+        # same subtle container styling with integrated header banner.
+        t_box_x1 = 35
+        t_box_x2 = left_w + 10
+        t_box_y1 = top_h + 18
+        t_box_y2 = auth_box_y - 16
+
+        # Container card with rounded corners and subtle border
+        draw.rounded_rectangle([t_box_x1, t_box_y1, t_box_x2, t_box_y2], radius=8,
+                               fill=(248, 250, 252), outline=(226, 232, 240), width=1)
+
+        # Header banner inside the block
+        banner_h = 28
+        draw.rounded_rectangle([t_box_x1, t_box_y1, t_box_x2, t_box_y1 + banner_h], radius=8, fill=pri_rgb)
+        draw.rectangle([t_box_x1, t_box_y1 + banner_h - 6, t_box_x2, t_box_y1 + banner_h], fill=pri_rgb)
+
+        terms_hdr_font = get_font(12, bold=True)
+        draw.text((t_box_x1 + 16, t_box_y1 + 6), "● TERMS & CONDITIONS OF ISSUANCE ●", fill=(255, 255, 255), font=terms_hdr_font)
+
+        # Disclaimers / Terms text - cleanly wrapped to guarantee no truncated words
         disclaimer = school.disclaimer_text or (
-            "1. This card remains the property of the school.\n"
-            "2. If found, please return to the school administration or nearest police station."
+            "1. This card remains the property of the institution.\n"
+            "2. If found, please return to the administration or nearest police station."
         )
-
-        # ── Disclaimer Block: bold, centred, each line on its own row ────────────
-        # Only display the first 2 primary terms prominently on the card back
+        import textwrap
         raw_lines = [ln.strip() for ln in disclaimer.split("\n") if ln.strip()]
-        display_lines = raw_lines[:2]   # Limit to 2 lines for clean block layout
+        display_lines = []
+        for rl in raw_lines[:2]:
+            display_lines.extend(textwrap.wrap(rl, width=64))
 
-        block_font = get_font(16, bold=True)
-        block_line_h = 28                # Height per line
-        block_pad_v = 10                 # Top/bottom padding inside the shaded block
-        block_x1 = 35
-        block_x2 = left_w + 10
-        block_y1 = top_h + 46
-        block_h = block_pad_v * 2 + block_line_h * len(display_lines)
-        block_y2 = block_y1 + block_h
-
-        # Shaded background for the disclaimer block
-        draw.rounded_rectangle([block_x1, block_y1, block_x2, block_y2], radius=6,
-                                fill=(241, 245, 249), outline=(203, 213, 225), width=1)
-
-        for idx, line in enumerate(display_lines):
-            ly = block_y1 + block_pad_v + idx * block_line_h
-            # Centre-align each line within the block
+        block_font = get_font(13, bold=True)
+        term_y = t_box_y1 + banner_h + 10
+        line_step = 21 if len(display_lines) > 2 else 24
+        for line in display_lines[:3]:
             try:
-                bbox = block_font.getbbox(line) if hasattr(block_font, "getbbox") else (0, 0, len(line) * 9, 18)
+                bbox = block_font.getbbox(line) if hasattr(block_font, "getbbox") else (0, 0, len(line) * 7.5, 16)
                 line_w = bbox[2] - bbox[0]
             except Exception:
-                line_w = len(line) * 9
-            center_x = block_x1 + (block_x2 - block_x1 - line_w) // 2
-            draw.text((max(block_x1 + 6, center_x), ly), line[:80], fill=(15, 23, 42), font=block_font)
+                line_w = len(line) * 7.5
+            center_x = t_box_x1 + (t_box_x2 - t_box_x1 - line_w) // 2
+            draw.text((max(t_box_x1 + 14, center_x), term_y), line, fill=(15, 23, 42), font=block_font)
+            term_y += line_step
 
-        y_cursor = block_y2 + 12
+        # Hairline divider inside block
+        term_div_y = term_y + 4
+        draw.line([t_box_x1 + 14, term_div_y, t_box_x2 - 14, term_div_y], fill=(226, 232, 240), width=1)
 
-        # Hotline & email separator
-        draw.line([35, y_cursor, left_w + 10, y_cursor], fill=(226, 232, 240), width=2)
-        y_cursor += 8
-
-        em_font = get_font(15, bold=False)
+        # Contact Hotline & Email row
+        em_font = get_font(13, bold=False)
         em_school_phone = school.emergency_contact_phone or school.phone
-        draw.text((35, y_cursor), f"Hotline: {em_school_phone}  •  Email: {school.email or 'admin@school.ac.ke'}", fill=(30, 41, 59), font=em_font)
-        y_cursor += 22
+        contact_y = term_div_y + 8
+        contact_str = f"Hotline: {em_school_phone}  •  Email: {school.email or 'admin@school.ac.ke'}"
+        draw.text((t_box_x1 + 16, contact_y), contact_str, fill=(51, 65, 85), font=em_font)
 
+        # Verification / NEMIS / UPI / Blood Group badge row
+        meta_y = contact_y + 22
         if student.blood_group or getattr(student, "nemis_upi", None):
             bg_text = f"Blood Group: {student.blood_group}" if student.blood_group else ""
             upi_lbl = getattr(school, "upi_label", "NEMIS / UPI") or "NEMIS / UPI"
-            upi_text = f" • {upi_lbl}: {student.nemis_upi}" if getattr(student, "nemis_upi", None) else ""
-            draw.text((35, y_cursor), f"{bg_text}{upi_text}".strip(" •"), fill=(185, 28, 28), font=get_font(15, bold=True))
-            y_cursor += 24
+            upi_text = f"{upi_lbl}: {student.nemis_upi}" if getattr(student, "nemis_upi", None) else ""
+            meta_str = "  •  ".join([part for part in (upi_text, bg_text) if part])
+            draw.text((t_box_x1 + 16, meta_y), meta_str, fill=(185, 28, 28), font=get_font(13, bold=True))
+        else:
+            notice_font = get_font(11, bold=False)
+            draw.text((t_box_x1 + 16, meta_y), "Official institutional credential. Unlawful possession is prohibited.", fill=(148, 163, 184), font=notice_font)
 
         # ── Authority Verification Block: Official Stamp + Principal's Signature ────
         # Pin the block to a fixed margin ABOVE the bottom footer bar so it is always
