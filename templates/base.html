@@ -89,10 +89,6 @@
                   <i class="fa-solid fa-user-plus me-2 text-primary"></i>Full {{ current_school.get_member_label() if current_school else 'Student' }} Form
                 </a>
               </li>
-            </ul>
-          </li>
-                </a>
-              </li>
               <li>
                 <a class="dropdown-item" href="{{ url_for('bulk_import.upload') }}">
                   <i class="fa-solid fa-file-import me-2 text-info"></i>Bulk Import

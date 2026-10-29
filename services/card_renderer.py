@@ -56,32 +56,115 @@ def get_font(size, bold=False):
         return None
 
 def draw_guilloche_watermark(draw, width, height, pri_rgb):
-    """Draws subtle high-security anti-counterfeiting micro-wave patterns."""
-    step = 32
-    line_color = (
-        min(255, int(pri_rgb[0] * 0.12 + 225)),
-        min(255, int(pri_rgb[1] * 0.12 + 225)),
-        min(255, int(pri_rgb[2] * 0.12 + 225))
-    )
-    for y in range(80, height - 50, step):
-        points = []
-        for x in range(0, width, 16):
-            offset_y = math.sin((x / 50.0) + (y / 35.0)) * 6
-            points.append((x, y + offset_y))
-        for i in range(len(points) - 1):
-            draw.line([points[i], points[i+1]], fill=line_color, width=1)
+    """Draws world-class, authentic security guilloche background:
+    - Multi-frequency intersecting micro-wave patterns (diamond moiré weave)
+    - High-security parametric spirograph rosette medallion
+    - Fine concentric security lathe rings
+    - Micro-text security banner track
+    """
+    # 1. Subtle background security tint (ivory-pearl with 2% primary tint)
+    r_tint = min(255, int(pri_rgb[0] * 0.08 + 236))
+    g_tint = min(255, int(pri_rgb[1] * 0.08 + 238))
+    b_tint = min(255, int(pri_rgb[2] * 0.08 + 242))
+    line_color_1 = (r_tint, g_tint, b_tint)
 
-def draw_smart_chip(draw, x, y, w=58, h=44):
-    """Draws metallic gold security chip / NFC contact pad."""
-    gold_outer = (217, 119, 6)
-    gold_fill = (245, 158, 11)
+    r_tint2 = min(255, int(pri_rgb[0] * 0.12 + 224))
+    g_tint2 = min(255, int(pri_rgb[1] * 0.12 + 226))
+    b_tint2 = min(255, int(pri_rgb[2] * 0.12 + 232))
+    line_color_2 = (r_tint2, g_tint2, b_tint2)
+
+    # 2. Intersecting Diamond Moiré Micro-Waves (Opposing Phase Harmonics)
+    step = 22
+    for y in range(85, height - 60, step):
+        pts1 = []
+        pts2 = []
+        for x in range(0, width + 10, 12):
+            off1 = (math.sin(x / 42.0 + y / 28.0) * 5.5 +
+                    math.cos(x / 18.0) * 2.5 +
+                    math.sin(x / 75.0) * 3.0)
+            pts1.append((x, y + off1))
+            off2 = (math.sin(x / 42.0 - y / 28.0 + math.pi) * 5.5 +
+                    math.cos(x / 18.0 + math.pi / 2.0) * 2.5 +
+                    math.sin(x / 75.0) * 3.0)
+            pts2.append((x, y + off2))
+
+        for i in range(len(pts1) - 1):
+            draw.line([pts1[i], pts1[i+1]], fill=line_color_1, width=1)
+            draw.line([pts2[i], pts2[i+1]], fill=line_color_2, width=1)
+
+    # 3. High-Security Parametric Spirograph Rosette Medallion (Epitrochoid / Hypotrochoid)
+    center_rosette_x = int(width * 0.67)
+    center_rosette_y = int(height * 0.54)
+    
+    for radius in (140, 165, 190):
+        draw.ellipse([center_rosette_x - radius, center_rosette_y - radius,
+                      center_rosette_x + radius, center_rosette_y + radius],
+                     outline=line_color_2, width=1)
+    
+    R = 120.0
+    r = 35.0
+    d = 45.0
+    rosette_pts = []
+    num_steps = 360
+    for step_i in range(num_steps + 1):
+        theta = (step_i / num_steps) * (math.pi * 14)
+        rx = center_rosette_x + (R - r) * math.cos(theta) + d * math.cos((R - r) * theta / r)
+        ry = center_rosette_y + (R - r) * math.sin(theta) - d * math.sin((R - r) * theta / r)
+        rosette_pts.append((rx, ry))
+
+    for i in range(len(rosette_pts) - 1):
+        draw.line([rosette_pts[i], rosette_pts[i+1]], fill=line_color_2, width=1)
+
+    r2 = 18.0
+    d2 = 28.0
+    rosette2_pts = []
+    for step_i in range(180 + 1):
+        theta = (step_i / 180.0) * (math.pi * 10)
+        rx = center_rosette_x + (70.0 - r2) * math.cos(theta) + d2 * math.cos((70.0 - r2) * theta / r2)
+        ry = center_rosette_y + (70.0 - r2) * math.sin(theta) - d2 * math.sin((70.0 - r2) * theta / r2)
+        rosette2_pts.append((rx, ry))
+
+    for i in range(len(rosette2_pts) - 1):
+        draw.line([rosette2_pts[i], rosette2_pts[i+1]], fill=line_color_1, width=1)
+
+    # 4. Micro-text Security Lathe Track along top
+    micro_font = get_font(9, bold=True)
+    if micro_font:
+        micro_str = "★ OFFICIAL SECURE CREDENTIAL ★ REPUBLIC OF KENYA ★ CR80 PVC SMART IDENTITY CORE ★ DIGITAL VERIFICATION EMBEDDED ★ "
+        micro_color = (
+            min(255, int(pri_rgb[0] * 0.18 + 200)),
+            min(255, int(pri_rgb[1] * 0.18 + 200)),
+            min(255, int(pri_rgb[2] * 0.18 + 205))
+        )
+        try:
+            draw.text((35, int(height * 0.26) + 20), micro_str[:110], fill=micro_color, font=micro_font)
+        except Exception:
+            pass
+
+def draw_smart_chip(draw, x, y, w=56, h=44):
+    """Draws world-class metallic gold ISO 7816 smart card contact microchip."""
+    gold_dark = (180, 115, 6)
+    gold_mid = (235, 170, 25)
     gold_light = (254, 240, 138)
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=6, fill=gold_fill, outline=gold_outer, width=2)
-    cx, cy = x + w // 2, y + h // 2
-    draw.rounded_rectangle([x + 8, y + 6, x + w - 8, y + h - 6], radius=4, outline=gold_outer, width=1)
-    draw.line([x + 8, cy, x + w - 8, cy], fill=gold_outer, width=1)
-    draw.line([cx, y + 6, cx, y + h - 6], fill=gold_outer, width=1)
-    draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=gold_light, outline=gold_outer, width=1)
+    gold_highlight = (255, 251, 235)
+
+    # Outer chip body with chamfered/rounded corners
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=6, fill=gold_mid, outline=gold_dark, width=2)
+    # Inner subtle bevel
+    draw.rounded_rectangle([x + 2, y + 2, x + w - 2, y + h - 2], radius=4, outline=gold_light, width=1)
+
+    # ISO 7816 contact grid pattern
+    cx = x + w // 2
+    cy = y + h // 2
+    # Horizontal divider
+    draw.line([x + 6, cy, x + w - 6, cy], fill=gold_dark, width=1)
+    # Left vertical divider
+    draw.line([x + 18, y + 6, x + 18, y + h - 6], fill=gold_dark, width=1)
+    # Right vertical divider
+    draw.line([x + w - 18, y + 6, x + w - 18, y + h - 6], fill=gold_dark, width=1)
+    # Center grounding pad with gold highlight
+    draw.rounded_rectangle([cx - 9, cy - 8, cx + 9, cy + 8], radius=3, fill=gold_light, outline=gold_dark, width=1)
+    draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=gold_highlight, outline=gold_dark, width=1)
 
 def get_official_rubber_stamp(school, size=(190, 190), angle=-8):
     """Generates or loads official institution rubber stamp / seal as an RGBA image."""
@@ -242,11 +325,12 @@ class CardRenderer:
             draw.text((ren_x + 10, badge_y + 8), f"RENEWED R{card_record.renewal_count}", fill=(255, 255, 255), font=ren_font)
 
         # Student Photo Frame
-        photo_x, photo_y = 40, header_height + stripe_h + 24
-        photo_w, photo_h = int(w * 0.28), int(h * 0.50) # ~280 x 320 px
+        photo_x, photo_y = 40, header_height + stripe_h + 20
+        photo_w, photo_h = int(w * 0.28), int(h * 0.51) # ~283 x 325 px
 
-        # Outer border / shadow
-        draw.rounded_rectangle([photo_x - 4, photo_y - 4, photo_x + photo_w + 4, photo_y + photo_h + 4], radius=8, fill=sec_rgb)
+        # Outer luxury double border: metallic gold outer, clean white inner spacer
+        draw.rounded_rectangle([photo_x - 3, photo_y - 3, photo_x + photo_w + 3, photo_y + photo_h + 3], radius=8, fill=sec_rgb)
+        draw.rounded_rectangle([photo_x - 1, photo_y - 1, photo_x + photo_w + 1, photo_y + photo_h + 1], radius=7, fill=(255, 255, 255))
         draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_w, photo_y + photo_h], radius=6, fill=(240, 244, 248))
 
         # Paste Photo
@@ -271,62 +355,96 @@ class CardRenderer:
             ph_font = get_font(18, bold=True)
             draw.text((photo_x + 35, photo_y + photo_h - 40), "NO PHOTO", fill=(100, 116, 139), font=ph_font)
 
-        # Smart Gold Contactless Security Chip beside photo
-        draw_smart_chip(draw, photo_x + photo_w + 24, photo_y + 10, w=54, h=42)
+        # High-security holographic foil shield watermark on photo corner
+        holo_x = photo_x + photo_w - 28
+        holo_y = photo_y + photo_h - 28
+        draw.ellipse([holo_x - 1, holo_y - 1, holo_x + 23, holo_y + 23], fill=sec_rgb)
+        draw.ellipse([holo_x, holo_y, holo_x + 22, holo_y + 22], fill=(254, 240, 138), outline=pri_rgb, width=1)
+        holo_font = get_font(12, bold=True)
+        if holo_font:
+            try:
+                draw.text((holo_x + 5, holo_y + 3), "★", fill=pri_rgb, font=holo_font)
+            except Exception:
+                pass
 
-        # Information Block with Dynamic Labels
-        info_x = photo_x + photo_w + 95
-        start_y = header_height + stripe_h + 60
+        # Smart Gold Contactless Security Chip beside photo
+        draw_smart_chip(draw, photo_x + photo_w + 22, photo_y + 10, w=56, h=44)
+
+        # Information Block with Dynamic Labels and Perfect Harmonized Column Offsets
+        info_x = photo_x + photo_w + 92
+        start_y = header_height + stripe_h + 58
         line_spacing = 38
 
         lbl_font = get_font(18, bold=False)
         val_font = get_font(21, bold=True)
-        name_val_font = get_font(26, bold=True)
+        name_val_font = get_font(25, bold=True)
 
         id_lbl_text = f"{getattr(school, 'get_id_label', lambda: 'ADM NO')()}:"
-        class_lbl_text = f"{getattr(school, 'get_class_label', lambda: 'CLASS')()}:"
+        class_lbl_text = f"{getattr(school, 'get_class_label', lambda: 'CLASS / GRADE')()}:"
 
-        # Full Name
+        # Column 2 value start offset (guaranteed 165px label space - never collides)
+        col2_x = info_x + 165
+
+        # Full Name with auto font-scaling for longer names
         draw.text((info_x, start_y), "NAME:", fill=(100, 116, 139), font=lbl_font)
-        draw.text((info_x + 135, start_y - 4), student.full_name.upper(), fill=pri_rgb, font=name_val_font)
+        clean_full_name = student.full_name.upper()
+        if len(clean_full_name) > 28:
+            name_font_to_use = get_font(20, bold=True)
+        elif len(clean_full_name) > 22:
+            name_font_to_use = get_font(22, bold=True)
+        else:
+            name_font_to_use = name_val_font
+        draw.text((col2_x, start_y - 3), clean_full_name, fill=pri_rgb, font=name_font_to_use)
 
         # ID / Admission Number
         curr_y = start_y + line_spacing + 4
         draw.text((info_x, curr_y), id_lbl_text, fill=(100, 116, 139), font=lbl_font)
-        draw.text((info_x + 135, curr_y), student.admission_number, fill=text_rgb, font=val_font)
+        draw.text((col2_x, curr_y), student.admission_number, fill=text_rgb, font=val_font)
 
-        # Class / Department & Stream
+        # Class / Department & Stream (properly spaced in column 2, no overlap)
         curr_y += line_spacing
         draw.text((info_x, curr_y), class_lbl_text, fill=(100, 116, 139), font=lbl_font)
         cls_stream_str = f"{student.class_name} {student.stream_name or ''}".strip()
-        draw.text((info_x + 135, curr_y), cls_stream_str, fill=text_rgb, font=val_font)
+        draw.text((col2_x, curr_y), cls_stream_str, fill=text_rgb, font=val_font)
 
         # Card Number
         curr_y += line_spacing
         draw.text((info_x, curr_y), "CARD NO:", fill=(100, 116, 139), font=lbl_font)
         card_no = card_record.card_number if card_record else f"{school.card_prefix or 'ID-'}{student.admission_number}"
-        draw.text((info_x + 135, curr_y), card_no, fill=text_rgb, font=val_font)
+        draw.text((col2_x, curr_y), card_no, fill=text_rgb, font=val_font)
 
         # Valid Until / Expiry
         curr_y += line_spacing
         draw.text((info_x, curr_y), "EXPIRES:", fill=(100, 116, 139), font=lbl_font)
         exp_date_str = str(card_record.expiry_date) if card_record and card_record.expiry_date else f"DEC {int(student.academic_year) + (school.validity_years or 4)}"
-        draw.text((info_x + 135, curr_y), exp_date_str, fill=(220, 38, 38), font=val_font)
+        draw.text((col2_x, curr_y), exp_date_str, fill=(220, 38, 38), font=val_font)
 
-        # Holder Signature (if student provided digital signature during self-onboarding)
+        # ── Cardholder Signature Zone ──────────────────────────────────────────
+        # Lifted safely above the bottom footer margin (raised by 12px from initial -50)
+        # Guarantees a minimum 9px breathing space from the footer accent line
+        sig_w = 150
+        sig_paste_x = w - sig_w - 28
+        sig_paste_y = h - footer_height - 62
+        sig_baseline_y = sig_paste_y + 35
+
+        sig_drawn = False
         if getattr(student, "signature_filename", None):
             sig_p = Config.SIGNATURES_DIR / student.signature_filename
             if sig_p.exists():
                 try:
                     s_sig = Image.open(sig_p).convert("RGBA")
-                    s_sig.thumbnail((140, 40), Image.Resampling.LANCZOS)
-                    sig_paste_x = w - 170
-                    sig_paste_y = h - footer_height - 50
-                    img.paste(s_sig, (sig_paste_x, sig_paste_y), s_sig)
-                    draw.line([sig_paste_x - 5, sig_paste_y + 42, sig_paste_x + 145, sig_paste_y + 42], fill=(148, 163, 184), width=1)
-                    draw.text((sig_paste_x + 10, sig_paste_y + 44), "Cardholder Signature", fill=(100, 116, 139), font=get_font(12, bold=False))
+                    s_sig.thumbnail((sig_w, 34), Image.Resampling.LANCZOS)
+                    centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
+                    centered_sig_y = sig_baseline_y - s_sig.height - 2
+                    img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
+                    sig_drawn = True
                 except Exception:
-                    pass
+                    sig_drawn = False
+
+        # Cardholder signature baseline and label
+        draw.line([sig_paste_x, sig_baseline_y, sig_paste_x + sig_w, sig_baseline_y], fill=(148, 163, 184), width=1)
+        sig_lbl_font = get_font(11, bold=False)
+        draw.text((sig_paste_x + 20, sig_baseline_y + 4), "Cardholder Signature", fill=(100, 116, 139), font=sig_lbl_font)
 
         # Footer bar text
         foot_font = get_font(17, bold=True)
@@ -516,10 +634,10 @@ class CardRenderer:
         except Exception:
             pass
 
-        # "[ School / Company Stamp ]" guide label inside auth block
+        # "[ Authorized Signatory ]" guide label inside auth block
         try:
             stamp_guide_font = get_font(11, bold=False)
-            draw.text((sig_x + 5, line_y + 42), "[ School / Company Stamp ]",
+            draw.text((sig_x + 5, line_y + 42), "[ Authorized Signatory ]",
                       fill=(148, 163, 184), font=stamp_guide_font)
         except Exception:
             pass
