@@ -94,10 +94,15 @@
             </button>
           </form>
 
-          {% if existing_card and existing_card.single_pdf_filename %}
-          <a href="{{ url_for('single_id.download_card_pdf', card_id=existing_card.id) }}" class="btn btn-success w-100 py-2 fw-bold shadow-sm mb-2">
-            <i class="fa-solid fa-file-pdf me-2"></i> Download Print-Ready PDF
-          </a>
+          {% if existing_card %}
+          <div class="d-grid gap-2 mb-2">
+            <a href="{{ url_for('single_id.download_card_pdf', card_id=existing_card.id) }}" class="btn btn-success py-2 fw-bold shadow-sm">
+              <i class="fa-solid fa-file-pdf me-2"></i> Download Print-Ready PDF
+            </a>
+            <a href="{{ url_for('single_id.download_card_pdf', card_id=existing_card.id, view=1) }}" target="_blank" class="btn btn-outline-dark py-2 fw-semibold btn-sm shadow-sm">
+              <i class="fa-solid fa-print me-2"></i> Open / Direct Print (CR80)
+            </a>
+          </div>
 
           {% if selected_student.parent_phone and clean_whatsapp_phone(selected_student.parent_phone) %}
           <a href="{{ get_whatsapp_parent_card_notice_url(selected_student, current_school, existing_card) }}"

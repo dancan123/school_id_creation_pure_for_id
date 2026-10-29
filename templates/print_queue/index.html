@@ -111,11 +111,12 @@
               </td>
               <td><span class="badge bg-light text-dark border">{{ c.print_count }}</span></td>
               <td class="text-end">
-                {% if c.single_pdf_filename %}
-                <a href="{{ url_for('single_id.download_card_pdf', card_id=c.id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" title="Download PDF">
+                <a href="{{ url_for('single_id.download_card_pdf', card_id=c.id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" title="Download Print-Ready PDF">
                   <i class="fa-solid fa-download"></i> PDF
                 </a>
-                {% endif %}
+                <a href="{{ url_for('single_id.download_card_pdf', card_id=c.id, view=1) }}" target="_blank" class="btn btn-outline-dark btn-sm py-0 px-2" title="Direct Print in Browser">
+                  <i class="fa-solid fa-print"></i>
+                </a>
 
                 {% if c.print_status == 'pending' %}
                 <form method="POST" action="{{ url_for('print_queue.mark_card_printed', card_id=c.id) }}" class="d-inline">

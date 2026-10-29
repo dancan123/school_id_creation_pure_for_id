@@ -208,9 +208,10 @@ def download_card_pdf(card_id):
     db.session.commit()
     log_audit("DOWNLOAD_SINGLE_PDF", f"Downloaded PDF for card {card.card_number}")
 
+    view_mode = request.args.get("view") == "1"
     suffix = f"_R{card.renewal_count}" if (card.renewal_count or 0) > 0 else ""
     return send_file(
         str(pdf_path),
-        as_attachment=True,
+        as_attachment=not view_mode,
         download_name=f"{card.card_number}_{card.student.admission_number}{suffix}_CR80.pdf"
     )
