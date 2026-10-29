@@ -18,6 +18,7 @@
   
   <!-- Custom Styles -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head_extra %}{% endblock %}
 </head>
 <body data-primary="{{ current_school.primary_color if current_school else '#1E3A8A' }}" data-secondary="{{ current_school.secondary_color if current_school else '#F59E0B' }}" data-accent="{{ current_school.accent_color if current_school else '#10B981' }}">
 

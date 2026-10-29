@@ -2,6 +2,24 @@
 
 {% block title %}Generate Individual ID - {{ current_school.name }}{% endblock %}
 
+{% block head_extra %}
+<style>
+  :root {
+    --school-primary:   {{ current_school.primary_color }};
+    --school-secondary: {{ current_school.secondary_color }};
+  }
+  .btn-school-primary {
+    background-color: var(--school-primary);
+    border-color:     var(--school-primary);
+    color: #fff;
+  }
+  .btn-school-primary:hover {
+    filter: brightness(0.9);
+    color: #fff;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-4">
   <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -71,7 +89,7 @@
           <form method="POST" action="{{ url_for('single_id.generate_card') }}">
             <input type="hidden" name="student_id" value="{{ selected_student.id }}">
             
-            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mb-2" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
+            <button type="submit" class="btn btn-school-primary w-100 py-2 fw-bold shadow-sm mb-2">
               <i class="fa-solid fa-wand-magic-sparkles me-2"></i> {{ 'Regenerate Card' if existing_card else 'Generate ID Card' }}
             </button>
           </form>
@@ -125,7 +143,7 @@
                 <span class="badge bg-success bg-opacity-75 small">Exact PDF Preview</span>
               </div>
               <div class="card-sample-view shadow-lg position-relative overflow-hidden"
-                   style="background:#0F172A; border: 2px solid {{ current_school.primary_color }};"
+                   style="background:#0F172A; border: 2px solid var(--school-primary);"
                    id="front-preview-wrap">
                 <!-- Loading skeleton -->
                 <div id="front-skeleton" class="d-flex align-items-center justify-content-center"
@@ -154,7 +172,7 @@
                 </button>
               </div>
               <div class="card-sample-view shadow-lg position-relative overflow-hidden"
-                   style="background:#0F172A; border: 2px solid {{ current_school.primary_color }};"
+                   style="background:#0F172A; border: 2px solid var(--school-primary);"
                    id="back-preview-wrap">
                 <!-- Loading skeleton -->
                 <div id="back-skeleton" class="d-flex align-items-center justify-content-center"
