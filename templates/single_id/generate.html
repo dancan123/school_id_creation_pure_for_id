@@ -141,22 +141,23 @@
                 <span class="badge bg-success bg-opacity-75 small">Exact PDF Preview</span>
               </div>
               <div class="card-sample-view shadow-lg position-relative overflow-hidden"
-                   style="background:#0F172A; border: 2px solid var(--school-primary);"
+                   style="background:#0F172A; border: 2px solid var(--school-primary); width: 380px; height: 240px;"
                    id="front-preview-wrap">
-                <!-- Loading skeleton -->
-                <div id="front-skeleton" class="d-flex align-items-center justify-content-center"
-                     style="height:200px; background: linear-gradient(135deg,#1E293B,#0F172A);">
+                <!-- Front image (fills container directly) -->
+                <img id="front-preview-img"
+                     src="{{ url_for('single_id.preview_front', student_id=selected_student.id) }}"
+                     alt="Front ID Card"
+                     style="width: 100%; height: 100%; object-fit: contain; display: block;"
+                     onload="hideSkeleton('front-skeleton')"
+                     onerror="showPreviewError('front-skeleton')">
+                <!-- Loading skeleton overlay -->
+                <div id="front-skeleton"
+                     style="position: absolute; inset: 0; background: linear-gradient(135deg,#1E293B,#0F172A); display: flex; align-items: center; justify-content: center; z-index: 5; transition: opacity 0.25s ease;">
                   <div class="text-center text-muted">
                     <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
                     <div class="small">Rendering card&hellip;</div>
                   </div>
                 </div>
-                <img id="front-preview-img"
-                     src="{{ url_for('single_id.preview_front', student_id=selected_student.id) }}"
-                     alt="Front ID Card"
-                     style="width:100%; display:none; border-radius:0;"
-                     onload="this.style.display='block'; document.getElementById('front-skeleton').style.display='none';"
-                     onerror="document.getElementById('front-skeleton').innerHTML='<div class=\'text-center text-danger small p-3\'>Preview unavailable — try refreshing.</div>';">
               </div>
             </div>
 
@@ -170,22 +171,23 @@
                 </button>
               </div>
               <div class="card-sample-view shadow-lg position-relative overflow-hidden"
-                   style="background:#0F172A; border: 2px solid var(--school-primary);"
+                   style="background:#0F172A; border: 2px solid var(--school-primary); width: 380px; height: 240px;"
                    id="back-preview-wrap">
-                <!-- Loading skeleton -->
-                <div id="back-skeleton" class="d-flex align-items-center justify-content-center"
-                     style="height:200px; background: linear-gradient(135deg,#1E293B,#0F172A);">
+                <!-- Back image (fills container directly) -->
+                <img id="back-preview-img"
+                     src="{{ url_for('single_id.preview_back', student_id=selected_student.id) }}"
+                     alt="Back ID Card"
+                     style="width: 100%; height: 100%; object-fit: contain; display: block;"
+                     onload="hideSkeleton('back-skeleton')"
+                     onerror="showPreviewError('back-skeleton')">
+                <!-- Loading skeleton overlay -->
+                <div id="back-skeleton"
+                     style="position: absolute; inset: 0; background: linear-gradient(135deg,#1E293B,#0F172A); display: flex; align-items: center; justify-content: center; z-index: 5; transition: opacity 0.25s ease;">
                   <div class="text-center text-muted">
                     <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
                     <div class="small">Rendering card&hellip;</div>
                   </div>
                 </div>
-                <img id="back-preview-img"
-                     src="{{ url_for('single_id.preview_back', student_id=selected_student.id) }}"
-                     alt="Back ID Card"
-                     style="width:100%; display:none; border-radius:0;"
-                     onload="this.style.display='block'; document.getElementById('back-skeleton').style.display='none';"
-                     onerror="document.getElementById('back-skeleton').innerHTML='<div class=\'text-center text-danger small p-3\'>Preview unavailable — try refreshing.</div>';">
               </div>
             </div>
 
@@ -204,23 +206,51 @@
           </div>
 
           <script>
+          function hideSkeleton(id) {
+            const el = document.getElementById(id);
+            if (el) {
+              el.style.opacity = '0';
+              setTimeout(function() {
+                el.style.setProperty('display', 'none', 'important');
+              }, 200);
+            }
+          }
+
+          function showPreviewError(id) {
+            const el = document.getElementById(id);
+            if (el) {
+              el.innerHTML = '<div class="text-center text-danger small p-3"><i class="fa-solid fa-triangle-exclamation mb-2 fs-5 d-block"></i><div>Preview rendering error</div><button class="btn btn-outline-light btn-sm mt-2" onclick="refreshPreviews()">Retry</button></div>';
+              el.style.setProperty('display', 'flex', 'important');
+              el.style.opacity = '1';
+            }
+          }
+
           function refreshPreviews() {
             const ts = Date.now();
-            const front = document.getElementById('front-preview-img');
-            const back  = document.getElementById('back-preview-img');
-            const fsk   = document.getElementById('front-skeleton');
-            const bsk   = document.getElementById('back-skeleton');
-            if (!front || !back) return;
-            const spinner = '<div class="text-center text-muted"><div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div><div class="small">Rendering card&hellip;</div></div>';
-            fsk.innerHTML = spinner; fsk.style.display = 'flex';
-            bsk.innerHTML = spinner; bsk.style.display = 'flex';
-            front.style.display = 'none';
-            back.style.display  = 'none';
-            const fBase = front.src.split('?')[0];
-            const bBase = back.src.split('?')[0];
-            front.src = fBase + '?t=' + ts;
-            back.src  = bBase + '?t=' + ts;
+            ['front', 'back'].forEach(function(side) {
+              const img = document.getElementById(side + '-preview-img');
+              const sk = document.getElementById(side + '-skeleton');
+              if (sk) {
+                sk.innerHTML = '<div class="text-center text-muted"><div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div><div class="small">Rendering card&hellip;</div></div>';
+                sk.style.setProperty('display', 'flex', 'important');
+                sk.style.opacity = '1';
+              }
+              if (img) {
+                const base = img.src.split('?')[0];
+                img.src = base + '?t=' + ts;
+              }
+            });
           }
+
+          // Check on initial load if images are already cached/loaded by the browser
+          document.addEventListener('DOMContentLoaded', function() {
+            ['front', 'back'].forEach(function(side) {
+              const img = document.getElementById(side + '-preview-img');
+              if (img && img.complete && img.naturalHeight !== 0) {
+                hideSkeleton(side + '-skeleton');
+              }
+            });
+          });
           </script>
         </div>
       </div>
