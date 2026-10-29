@@ -194,14 +194,15 @@ def download_card_pdf(card_id):
     school = get_current_school()
     card = CardRecord.query.filter_by(id=card_id, school_id=school.id).first_or_404()
 
-    if not card.single_pdf_filename:
-        flash("PDF has not been generated for this card yet.", "danger")
-        return redirect(url_for("single_id.index", student_id=card.student_id))
+    # Re-generate card images and PDF so the downloaded file ALWAYS reflects
+    # the latest template styling, signature placement, and terms layout in 100% parity with live preview
+    base_url = request.host_url.rstrip("/")
+    front_path, back_path = CardRenderer.save_card_images(school, card.student, card, base_url)
 
-    pdf_path = Config.PDFS_DIR / card.single_pdf_filename
-    if not pdf_path.exists():
-        flash("PDF file not found on disk.", "danger")
-        return redirect(url_for("single_id.index", student_id=card.student_id))
+    pdf_filename = card.single_pdf_filename or f"card_{school.id}_{card.student.admission_number}_{card.qr_token[:6]}.pdf"
+    pdf_path = Config.PDFS_DIR / pdf_filename
+    CardRenderer.generate_single_cr80_pdf(front_path, back_path, pdf_path)
+    card.single_pdf_filename = pdf_filename
 
     card.print_count += 1
     db.session.commit()

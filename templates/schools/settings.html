@@ -26,7 +26,45 @@
   .help-modal .modal-header { background:linear-gradient(135deg,#1E3A8A,#7c3aed); color:#fff; }
   .help-step { display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem; }
   .help-step-num { width:34px; height:34px; border-radius:50%; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
-  .help-section-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; font-weight:700; margin:1.4rem 0 .5rem; }
+  .live-card-box {
+    width: 100%;
+    aspect-ratio: 1011 / 638;
+    border-radius: 14px;
+    position: relative;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    background: #ffffff;
+    overflow: hidden;
+    user-select: none;
+    transition: transform 0.4s ease, box-shadow 0.3s ease;
+  }
+  .live-card-box:hover {
+    box-shadow: 0 16px 36px rgba(0,0,0,0.45);
+  }
+  .live-card-side {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .watermark-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(var(--p-primary, #1E3A8A) 0.65px, transparent 0.65px);
+    background-size: 10px 10px;
+    opacity: 0.07;
+    pointer-events: none;
+  }
+  .animate-pulse {
+    animation: pulseGlow 1.5s infinite;
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.9); }
+  }
 </style>
 {% endblock %}
 
@@ -51,7 +89,7 @@
   <div class="row g-4">
 
     {# Left nav #}
-    <div class="col-lg-2 col-md-3 d-none d-md-block">
+    <div class="col-xxl-2 col-xl-2 col-lg-2 d-none d-xl-block">
       <div class="card section-card p-2 sticky-top" style="top:90px">
         <nav class="settings-nav nav flex-column gap-1">
           <a class="nav-link active" href="#sec-institution"><i class="fa-solid fa-building me-2"></i>Institution</a>
@@ -69,7 +107,7 @@
     </div>
 
     {# Main settings form #}
-    <div class="col-lg-10 col-md-9">
+    <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-12">
       <form method="POST" action="{{ url_for('schools.settings') }}" enctype="multipart/form-data" id="settingsForm">
 
         {# 1. INSTITUTION TYPE #}
@@ -110,49 +148,49 @@
 
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Institution Name</label>
-                <input type="text" name="name" class="form-control" value="{{ current_school.name }}" required>
+                <input type="text" name="name" id="inputName" class="form-control" value="{{ current_school.name }}" required>
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Code / Abbreviation</label>
-                <input type="text" name="code" class="form-control" value="{{ current_school.code or '' }}" placeholder="e.g. BHS, ACM-KE">
+                <input type="text" name="code" id="inputCode" class="form-control" value="{{ current_school.code or '' }}" placeholder="e.g. BHS, ACM-KE">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Motto / Tagline</label>
-                <input type="text" name="motto" class="form-control" value="{{ current_school.motto or '' }}" placeholder="Excellence in Education">
+                <input type="text" name="motto" id="inputMotto" class="form-control" value="{{ current_school.motto or '' }}" placeholder="Excellence in Education">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Town / City</label>
-                <input type="text" name="town" class="form-control" value="{{ current_school.town or '' }}">
+                <input type="text" name="town" id="inputTown" class="form-control" value="{{ current_school.town or '' }}">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">County / Region</label>
-                <input type="text" name="county" class="form-control" value="{{ current_school.county or '' }}">
+                <input type="text" name="county" id="inputCounty" class="form-control" value="{{ current_school.county or '' }}">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">P.O. Box</label>
-                <input type="text" name="po_box" class="form-control" value="{{ current_school.po_box or '' }}">
+                <input type="text" name="po_box" id="inputPoBox" class="form-control" value="{{ current_school.po_box or '' }}">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Phone</label>
-                <input type="text" name="phone" class="form-control" value="{{ current_school.phone or '' }}">
+                <input type="text" name="phone" id="inputPhone" class="form-control" value="{{ current_school.phone or '' }}">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Email</label>
-                <input type="email" name="email" class="form-control" value="{{ current_school.email or '' }}">
+                <input type="email" name="email" id="inputEmail" class="form-control" value="{{ current_school.email or '' }}">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Website</label>
-                <input type="url" name="website" class="form-control" value="{{ current_school.website or '' }}" placeholder="https://...">
+                <input type="url" name="website" id="inputWebsite" class="form-control" value="{{ current_school.website or '' }}" placeholder="https://...">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold small">Authority Full Name (Principal / CEO)</label>
-                <input type="text" name="principal_name" class="form-control"
+                <input type="text" name="principal_name" id="inputPrincipalName" class="form-control"
                        value="{{ current_school.principal_name or '' }}"
                        placeholder="Full name shown on card back">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold small">Emergency Contact</label>
-                <input type="text" name="emergency_contact_phone" class="form-control"
+                <input type="text" name="emergency_contact_phone" id="inputEmergencyPhone" class="form-control"
                        value="{{ current_school.emergency_contact_phone or '' }}"
                        placeholder="+254 7XX XXX XXX">
               </div>
@@ -220,7 +258,7 @@
                 <label class="form-label fw-bold small">Card Title Override
                   <span class="label-preview" id="cardTitlePreview">{{ current_school.card_title or 'auto' }}</span>
                 </label>
-                <input type="text" name="card_title" class="form-control"
+                <input type="text" name="card_title" id="inputCardTitle" class="form-control"
                        value="{{ current_school.card_title or '' }}"
                        placeholder="Auto (STUDENT ID / STAFF ID)"
                        oninput="document.getElementById('cardTitlePreview').textContent=this.value||'auto'">
@@ -285,7 +323,7 @@
               </div>
               <div class="col-md-8">
                 <label class="form-label fw-bold small">Back Side Disclaimer Text</label>
-                <textarea name="disclaimer_text" class="form-control" rows="2"
+                <textarea name="disclaimer_text" id="inputDisclaimerText" class="form-control" rows="2"
                           placeholder="If found, return to the address above. Misuse is a disciplinary offence.">{{ current_school.disclaimer_text or '' }}</textarea>
               </div>
             </div>
@@ -305,7 +343,7 @@
                 <label class="form-label fw-bold small">ID Number Label
                   <span class="label-preview" id="idLabelPreview">{{ current_school.id_label or 'Auto' }}</span>
                 </label>
-                <input type="text" name="id_label" class="form-control"
+                <input type="text" name="id_label" id="inputIdLabel" class="form-control"
                        value="{{ current_school.id_label or '' }}"
                        placeholder="ADM NO / STAFF ID / MEMBER NO"
                        oninput="document.getElementById('idLabelPreview').textContent=this.value||'Auto'">
@@ -314,7 +352,7 @@
                 <label class="form-label fw-bold small">Class / Group Label
                   <span class="label-preview" id="classLabelPreview">{{ current_school.class_label or 'Auto' }}</span>
                 </label>
-                <input type="text" name="class_label" class="form-control"
+                <input type="text" name="class_label" id="inputClassLabel" class="form-control"
                        value="{{ current_school.class_label or '' }}"
                        placeholder="CLASS / DEPARTMENT / WARD"
                        oninput="document.getElementById('classLabelPreview').textContent=this.value||'Auto'">
@@ -323,7 +361,7 @@
                 <label class="form-label fw-bold small">Stream / Unit Label
                   <span class="label-preview" id="streamLabelPreview">{{ current_school.stream_label or 'Auto' }}</span>
                 </label>
-                <input type="text" name="stream_label" class="form-control"
+                <input type="text" name="stream_label" id="inputStreamLabel" class="form-control"
                        value="{{ current_school.stream_label or '' }}"
                        placeholder="STREAM / UNIT / BRANCH"
                        oninput="document.getElementById('streamLabelPreview').textContent=this.value||'Auto'">
@@ -332,7 +370,7 @@
                 <label class="form-label fw-bold small">UPI / Extra Field Label
                   <span class="label-preview" id="upiLabelPreview">{{ current_school.upi_label or 'Auto' }}</span>
                 </label>
-                <input type="text" name="upi_label" class="form-control"
+                <input type="text" name="upi_label" id="inputUpiLabel" class="form-control"
                        value="{{ current_school.upi_label or '' }}"
                        placeholder="UPI / NHIF NO / EMP NO"
                        oninput="document.getElementById('upiLabelPreview').textContent=this.value||'Auto'">
@@ -354,18 +392,18 @@
             <div class="row g-3">
               <div class="col-md-3">
                 <label class="form-label fw-bold small">Card Number Prefix</label>
-                <input type="text" name="card_prefix" class="form-control"
+                <input type="text" name="card_prefix" id="inputCardPrefix" class="form-control"
                        value="{{ current_school.card_prefix or 'ID-' }}" placeholder="ID- / STF- / MBR-">
                 <small class="text-muted">Prepended to admission number.</small>
               </div>
               <div class="col-md-3">
                 <label class="form-label fw-bold small">Academic / Issue Year</label>
-                <input type="text" name="academic_year" class="form-control"
+                <input type="text" name="academic_year" id="inputAcademicYear" class="form-control"
                        value="{{ current_school.academic_year or '2026' }}" placeholder="2026">
               </div>
               <div class="col-md-3">
                 <label class="form-label fw-bold small">Card Validity (Years)</label>
-                <input type="number" name="validity_years" class="form-control"
+                <input type="number" name="validity_years" id="inputValidityYears" class="form-control"
                        value="{{ current_school.validity_years or 4 }}" min="1" max="10">
                 <small class="text-muted">Expiry = Issue Year + Validity.</small>
               </div>
@@ -420,15 +458,236 @@
           </div>
         </div>
 
-        {# Save Button #}
-        <div class="d-flex justify-content-end gap-2 mb-5">
-          <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
-          <button type="submit" class="btn btn-primary px-5 fw-bold">
-            <i class="fa-solid fa-floppy-disk me-2"></i> Save All Settings
-          </button>
+        {# Save Bar with Active Card Sync Option #}
+        <div class="card section-card p-3 mb-5 bg-white border border-primary border-opacity-25 shadow-sm">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" name="sync_existing_cards" id="syncExistingCards" value="1" checked>
+                <label class="form-check-label fw-bold small text-dark" for="syncExistingCards">
+                  <i class="fa-solid fa-arrows-rotate text-primary me-1"></i> Update existing generated cards with new branding
+                </label>
+              </div>
+              <small class="text-muted d-block ms-4" style="font-size: 11px;">Immediately re-renders saved cards with updated colors, stamps, and signatures.</small>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary px-3">Cancel</a>
+              <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-floppy-disk me-2"></i> Save All Settings
+              </button>
+            </div>
+          </div>
         </div>
 
       </form>
+    </div> {# end col-xxl-6 #}
+
+    {# ── RIGHT COLUMN: REAL-TIME LIVE CARD PREVIEW & OPERATIONS ── #}
+    <div class="col-xxl-4 col-xl-4 col-lg-6 col-md-12">
+      <div class="sticky-top" style="top:90px; z-index: 100;">
+        <div class="card section-card border-0 shadow-lg rounded-4 overflow-hidden mb-3">
+          <!-- Card Header & Controls -->
+          <div class="card-header bg-white border-bottom py-3 px-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill small fw-bold">
+                <span class="spinner-grow spinner-grow-sm me-1" style="width: 7px; height: 7px;" role="status"></span> Live Realtime
+              </span>
+              <span class="fw-bold small text-dark">Card Preview</span>
+            </div>
+            <!-- Side Toggle -->
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-primary active py-1 px-2" id="btnSideFront" onclick="switchCardPreviewSide('front')">
+                <i class="fa-solid fa-id-badge me-1"></i> Front
+              </button>
+              <button type="button" class="btn btn-outline-primary py-1 px-2" id="btnSideBack" onclick="switchCardPreviewSide('back')">
+                <i class="fa-solid fa-circle-info me-1"></i> Back
+              </button>
+              <button type="button" class="btn btn-outline-secondary py-1 px-2" title="Flip Card" onclick="toggleCardPreviewSide()">
+                <i class="fa-solid fa-rotate"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Preview Body -->
+          <div class="card-body p-3 text-center" style="background:#0F172A;">
+            <!-- Live Preview Card Container (CR80 PVC aspect ratio 1011x638) -->
+            <div class="live-card-box mx-auto" id="liveCardBox" style="--p-primary: {{ current_school.primary_color }}; --p-secondary: {{ current_school.secondary_color }}; --p-text: {{ current_school.text_color or '#FFFFFF' }};">
+
+              <!-- ── FRONT SIDE VIEW ── -->
+              <div class="live-card-side" id="previewSideFront">
+                <!-- Header Banner -->
+                <div style="background: var(--p-primary); color: var(--p-text); height: 26%; padding: 6px 10px; display: flex; align-items: center; gap: 8px; position: relative;">
+                  <!-- Logo -->
+                  <div style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                    <img id="lpLogoImg" src="{{ url_for('static', filename='uploads/logos/' + current_school.logo_filename) if current_school.logo_filename else '' }}"
+                         style="max-height: 36px; max-width: 36px; object-fit: contain; {{ 'display:none;' if not current_school.logo_filename else '' }}">
+                    <div id="lpLogoEmblem" class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                         style="width: 34px; height: 34px; background: var(--p-secondary); color: var(--p-primary); border: 2px solid #fff; font-size: 13px; {{ 'display:none;' if current_school.logo_filename else '' }}">
+                      {{ (current_school.name[:2] or 'SC').upper() }}
+                    </div>
+                  </div>
+                  <!-- School Info in Header -->
+                  <div class="text-start overflow-hidden flex-grow-1" style="line-height: 1.15;">
+                    <div id="lpSchoolName" class="fw-bold text-truncate" style="font-size: 11.5px; letter-spacing: 0.3px;">
+                      {{ current_school.name.upper() }}
+                    </div>
+                    <div id="lpMotto" class="fst-italic text-truncate" style="font-size: 8px; color: #fef08a; opacity: 0.95;">
+                      "{{ current_school.motto }}"
+                    </div>
+                    <div id="lpAddress" class="text-truncate opacity-75" style="font-size: 7px;">
+                      {{ current_school.po_box }} • {{ current_school.town }}, {{ current_school.county }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Secondary Color Stripe -->
+                <div style="background: var(--p-secondary); height: 3px; width: 100%;"></div>
+
+                <!-- Badges Header Row -->
+                <div class="d-flex justify-content-end gap-1 px-2 pt-1" style="height: 16px;">
+                  <span id="lpYearBadge" class="badge rounded-1 py-0 px-1 d-inline-flex align-items-center" style="background: var(--p-secondary); color: #0f172a; font-size: 6.5px; font-weight: 700;">
+                    AY {{ current_school.academic_year }}
+                  </span>
+                  <span id="lpTitleBadge" class="badge rounded-1 text-white py-0 px-1 d-inline-flex align-items-center" style="background: var(--p-primary); font-size: 6.5px; font-weight: 700;">
+                    {{ current_school.get_card_title() }}
+                  </span>
+                </div>
+
+                <!-- Card Content: Photo & Student Info -->
+                <div class="d-flex align-items-center px-2 py-1 gap-2 flex-grow-1">
+                  <!-- Student Photo Frame -->
+                  <div class="rounded-1 overflow-hidden shadow-sm" style="width: 58px; height: 74px; border: 2px solid var(--p-secondary); flex-shrink: 0; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                    <img src="https://ui-avatars.com/api/?name=Mwangi+Daniel&background=1E3A8A&color=fff&size=128" style="width: 100%; height: 100%; object-fit: cover;">
+                  </div>
+
+                  <!-- Details Table -->
+                  <div class="text-start flex-grow-1" style="line-height: 1.3; font-size: 8px;">
+                    <div class="fw-bold text-dark text-truncate" style="font-size: 10px; margin-bottom: 2px;">
+                      MWANGI DANIEL KAMAU
+                    </div>
+                    <div>
+                      <span id="lpIdLabel" class="text-muted fw-bold">{{ current_school.get_id_label() }}:</span>
+                      <strong class="text-dark">ADM-0042</strong>
+                    </div>
+                    <div>
+                      <span id="lpClassLabel" class="text-muted fw-bold">{{ current_school.get_class_label() }}:</span>
+                      <strong class="text-dark">Grade 8 Red</strong>
+                    </div>
+                    <div>
+                      <span class="text-muted fw-bold">CARD NO:</span>
+                      <strong class="text-dark" id="lpCardNo">{{ current_school.card_prefix or 'ID-' }}0042</strong>
+                    </div>
+                    <div>
+                      <span class="text-muted fw-bold">EXPIRES:</span>
+                      <strong class="text-danger" id="lpExpiry">DEC {{ (current_school.academic_year | int if current_school.academic_year and current_school.academic_year.isdigit() else 2026) + (current_school.validity_years or 4) }}</strong>
+                    </div>
+
+                    <!-- Cardholder Signature -->
+                    <div class="d-flex align-items-center justify-content-end mt-1">
+                      <div class="text-center" style="width: 72px;">
+                        <div style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 11px; color: #1e3a8a; border-bottom: 1px solid #94a3b8; line-height: 1;">
+                          Mwangi D.
+                        </div>
+                        <span class="text-muted" style="font-size: 5.5px; display: block;">Cardholder Signature</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Footer Bar -->
+                <div style="background: var(--p-primary); color: #fff; height: 15px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 6px; font-weight: 700; width: 100%;">
+                  <span class="text-truncate">OFFICIAL CREDENTIAL</span>
+                  <span style="color: #fef08a;">SERIAL: ADM-0042</span>
+                </div>
+              </div>
+
+              <!-- ── BACK SIDE VIEW ── -->
+              <div class="live-card-side" id="previewSideBack" style="display: none;">
+                <!-- Subtle Watermark -->
+                <div class="watermark-pattern"></div>
+
+                <!-- Top Accent Line -->
+                <div style="background: var(--p-primary); height: 5px; width: 100%;"></div>
+
+                <div class="px-2 pt-2 text-start flex-grow-1 position-relative" style="z-index: 2;">
+                  <!-- Terms & Conditions Box -->
+                  <div class="p-1 rounded-1 mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0; font-size: 6.5px; line-height: 1.35; color: #334155;" id="lpDisclaimer">
+                    1. This card remains the property of the school.<br>
+                    2. If found, please return to the school administration or nearest police station.
+                  </div>
+
+                  <!-- Contacts Block -->
+                  <div class="mb-1" style="font-size: 6.8px; line-height: 1.3; color: #0f172a;">
+                    <div><strong>Hotline:</strong> <span id="lpPhone">{{ current_school.emergency_contact_phone or current_school.phone }}</span></div>
+                    <div><strong>Email:</strong> <span id="lpEmail">{{ current_school.email }}</span></div>
+                  </div>
+
+                  <!-- Authority & Verification Row -->
+                  <div class="d-flex align-items-center justify-content-between p-1 rounded-1 mt-1" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <!-- Official Stamp -->
+                    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      <img id="lpStampImg" src="{{ url_for('static', filename='uploads/stamps/' + current_school.stamp_filename) if current_school.stamp_filename else '' }}"
+                           style="max-height: 42px; max-width: 42px; object-fit: contain; transform: rotate(-8deg); {{ 'display:none;' if not current_school.stamp_filename else '' }}">
+                      <div id="lpStampFallback" class="rounded-circle d-flex flex-column align-items-center justify-content-center text-center"
+                           style="width: 40px; height: 40px; border: 1.5px dashed var(--p-primary); color: var(--p-primary); font-size: 5px; font-weight: 700; transform: rotate(-8deg); {{ 'display:none;' if current_school.stamp_filename else '' }}">
+                        <i class="fa-solid fa-stamp" style="font-size: 8px;"></i>
+                        SEAL
+                      </div>
+                    </div>
+
+                    <!-- Authority Signature & Title -->
+                    <div class="text-center px-1" style="flex-grow: 1;">
+                      <div style="height: 22px; display: flex; align-items: center; justify-content: center;">
+                        <img id="lpSigImg" src="{{ url_for('static', filename='uploads/signatures/' + current_school.principal_signature_filename) if current_school.principal_signature_filename else '' }}"
+                             style="max-height: 22px; max-width: 80px; object-fit: contain; {{ 'display:none;' if not current_school.principal_signature_filename else '' }}">
+                        <div id="lpSigFallback" style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 13px; color: #0f172a; border-bottom: 1px solid #94a3b8; width: 75px; {{ 'display:none;' if current_school.principal_signature_filename else '' }}">
+                          Principal
+                        </div>
+                      </div>
+                      <div id="lpAuthTitle" class="fw-bold text-muted text-uppercase" style="font-size: 6px; letter-spacing: 0.2px;">
+                        {{ current_school.principal_title or 'Principal / Head of Institution' }}
+                      </div>
+                      <div id="lpAuthName" class="text-muted" style="font-size: 5.5px;">
+                        {{ current_school.principal_name or '' }}
+                      </div>
+                    </div>
+
+                    <!-- Security QR Code -->
+                    <div class="p-1 border rounded bg-white" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      <i class="fa-solid fa-qrcode" style="font-size: 26px; color: var(--p-primary);"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Footer Bar -->
+                <div style="background: var(--p-primary); color: #fff; height: 15px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 6px; font-weight: 700; width: 100%;">
+                  <span>DIGITALLY VERIFIED</span>
+                  <span style="color: #fef08a;">CR80 PVC STANDARD</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hint text -->
+            <div class="mt-2 text-white-50 small" style="font-size: 11px;">
+              <i class="fa-solid fa-arrows-rotate me-1 text-info"></i> Updates in real-time as you edit colors, motto, names, and images.
+            </div>
+          </div>
+
+          <!-- Quick Actions & Links -->
+          <div class="card-footer bg-white border-top p-3">
+            <div class="d-flex flex-column gap-2">
+              <a href="{{ url_for('single_id.index') }}" class="btn btn-outline-primary btn-sm fw-semibold w-100 text-start d-flex align-items-center justify-content-between">
+                <span><i class="fa-solid fa-id-card me-2"></i>Single ID Generator</span>
+                <i class="fa-solid fa-arrow-right small text-muted"></i>
+              </a>
+              <a href="{{ url_for('bulk_generate.index') }}" class="btn btn-outline-secondary btn-sm fw-semibold w-100 text-start d-flex align-items-center justify-content-between">
+                <span><i class="fa-solid fa-layer-group me-2"></i>Bulk ID Card Generator</span>
+                <i class="fa-solid fa-arrow-right small text-muted"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -550,65 +809,335 @@
 
 {% block scripts %}
 <script>
-function syncHex(picker, hexId) {
-  document.getElementById(hexId).value = picker.value;
-}
-function syncPicker(hexInput, pickerId) {
-  const v = hexInput.value;
-  if (/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById(pickerId).value = v;
-}
+// ── Real-Time Card Preview Side Toggling ──────────────────────────────────────
+var currentCardSide = 'front';
 
-function onInstTypeChange(type) {
-  const map = {
-    school:   { badge:'School',   cls:'badge-inst-school', auth:'Principal' },
-    company:  { badge:'Company',  cls:'badge-inst-corp',   auth:'CEO' },
-    church:   { badge:'Church',   cls:'badge-inst-school', auth:'Bishop' },
-    hospital: { badge:'Hospital', cls:'badge-inst-corp',   auth:'Director' },
-    ngo:      { badge:'NGO',      cls:'badge-inst-corp',   auth:'Director' },
-    other:    { badge:'Other',    cls:'badge-inst-school', auth:'Authorised Signatory' }
-  };
-  const d = map[type] || map.other;
-  const badge = document.getElementById('instBadge');
-  badge.textContent = d.badge;
-  badge.className = 'ms-auto badge rounded-pill ' + d.cls;
-  const pt = document.getElementById('principalTitle');
-  if (!pt.value) {
-    pt.placeholder = d.auth;
-    document.getElementById('authTitlePreview').textContent = '—';
+function switchCardPreviewSide(side) {
+  currentCardSide = side;
+  var frontEl = document.getElementById('previewSideFront');
+  var backEl = document.getElementById('previewSideBack');
+  var btnF = document.getElementById('btnSideFront');
+  var btnB = document.getElementById('btnSideBack');
+
+  if (side === 'front') {
+    frontEl.style.display = 'flex';
+    backEl.style.display = 'none';
+    btnF.classList.add('active');
+    btnB.classList.remove('active');
+  } else {
+    frontEl.style.display = 'none';
+    backEl.style.display = 'flex';
+    btnF.classList.remove('active');
+    btnB.classList.add('active');
   }
 }
 
+function toggleCardPreviewSide() {
+  switchCardPreviewSide(currentCardSide === 'front' ? 'back' : 'front');
+}
+
+// ── Real-Time Color & Hex Synchronization ────────────────────────────────────
+function updatePreviewColorVars() {
+  var box = document.getElementById('liveCardBox');
+  if (!box) return;
+  var pri = document.getElementById('primary_color').value || '#1E3A8A';
+  var sec = document.getElementById('secondary_color').value || '#F59E0B';
+  var txt = document.getElementById('text_color').value || '#FFFFFF';
+
+  box.style.setProperty('--p-primary', pri);
+  box.style.setProperty('--p-secondary', sec);
+  box.style.setProperty('--p-text', txt);
+}
+
+function syncHex(picker, hexId) {
+  document.getElementById(hexId).value = picker.value;
+  updatePreviewColorVars();
+}
+
+function syncPicker(hexInput, pickerId) {
+  var v = hexInput.value;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    document.getElementById(pickerId).value = v;
+    updatePreviewColorVars();
+  }
+}
+
+// ── Real-Time Live Card Text & Field Bindings ────────────────────────────────
+function bindRealtimePreview() {
+  // Institution Name & Initials
+  var nameInp = document.getElementById('inputName');
+  if (nameInp) {
+    nameInp.addEventListener('input', function() {
+      var val = this.value.trim() || 'INSTITUTION NAME';
+      var nameEl = document.getElementById('lpSchoolName');
+      if (nameEl) nameEl.textContent = val.toUpperCase();
+      var emblemEl = document.getElementById('lpLogoEmblem');
+      if (emblemEl) {
+        var parts = val.split(' ');
+        var initials = parts.length > 1 ? (parts[0][0] + parts[1][0]) : val.slice(0, 2);
+        emblemEl.textContent = initials.toUpperCase();
+      }
+    });
+  }
+
+  // Motto
+  var mottoInp = document.getElementById('inputMotto');
+  if (mottoInp) {
+    mottoInp.addEventListener('input', function() {
+      var mottoEl = document.getElementById('lpMotto');
+      if (mottoEl) mottoEl.textContent = this.value.trim() ? '"' + this.value.trim() + '"' : '';
+    });
+  }
+
+  // Address (P.O. Box, Town, County)
+  function updateAddr() {
+    var box = (document.getElementById('inputPoBox')?.value || '').trim();
+    var town = (document.getElementById('inputTown')?.value || '').trim();
+    var county = (document.getElementById('inputCounty')?.value || '').trim();
+    var addrEl = document.getElementById('lpAddress');
+    if (addrEl) {
+      var parts = [];
+      if (box) parts.push(box);
+      if (town || county) parts.push((town ? town : '') + (town && county ? ', ' : '') + (county ? county : ''));
+      addrEl.textContent = parts.join(' • ') || 'P.O. Box • Town, County';
+    }
+  }
+  ['inputPoBox', 'inputTown', 'inputCounty'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateAddr);
+  });
+
+  // Card Title Override
+  var cardTitleInp = document.getElementById('inputCardTitle');
+  if (cardTitleInp) {
+    cardTitleInp.addEventListener('input', function() {
+      var titleEl = document.getElementById('lpTitleBadge');
+      if (titleEl) {
+        var instType = document.getElementById('institutionType')?.value || 'school';
+        var autoTitle = instType === 'company' ? 'STAFF IDENTIFICATION CARD' : 'STUDENT IDENTIFICATION CARD';
+        titleEl.textContent = this.value.trim() || autoTitle;
+      }
+    });
+  }
+
+  // Academic Year & Validity Expiry
+  function updateExpiry() {
+    var yrInp = document.getElementById('inputAcademicYear');
+    var valInp = document.getElementById('inputValidityYears');
+    var yr = parseInt(yrInp?.value) || 2026;
+    var val = parseInt(valInp?.value) || 4;
+    var yrBadge = document.getElementById('lpYearBadge');
+    if (yrBadge) yrBadge.textContent = 'AY ' + yr;
+    var expEl = document.getElementById('lpExpiry');
+    if (expEl) expEl.textContent = 'DEC ' + (yr + val);
+  }
+  ['inputAcademicYear', 'inputValidityYears'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateExpiry);
+  });
+
+  // Card Prefix
+  var prefixInp = document.getElementById('inputCardPrefix');
+  if (prefixInp) {
+    prefixInp.addEventListener('input', function() {
+      var cNoEl = document.getElementById('lpCardNo');
+      if (cNoEl) cNoEl.textContent = (this.value.trim() || 'ID-') + '0042';
+    });
+  }
+
+  // ID & Class Labels
+  var idLblInp = document.getElementById('inputIdLabel');
+  if (idLblInp) {
+    idLblInp.addEventListener('input', function() {
+      var el = document.getElementById('lpIdLabel');
+      if (el) el.textContent = (this.value.trim() || 'ADM NO') + ':';
+    });
+  }
+  var classLblInp = document.getElementById('inputClassLabel');
+  if (classLblInp) {
+    classLblInp.addEventListener('input', function() {
+      var el = document.getElementById('lpClassLabel');
+      if (el) el.textContent = (this.value.trim() || 'CLASS') + ':';
+    });
+  }
+
+  // Disclaimer / Terms text on back
+  var discInp = document.getElementById('inputDisclaimerText');
+  if (discInp) {
+    discInp.addEventListener('input', function() {
+      var discEl = document.getElementById('lpDisclaimer');
+      if (discEl) {
+        var lines = this.value.trim().split('\n').filter(Boolean);
+        if (lines.length > 0) {
+          discEl.innerHTML = lines.map(function(l) { return l.replace(/\r/, ''); }).join('<br>');
+        } else {
+          discEl.innerHTML = '1. This card remains the property of the school.<br>2. If found, please return to the school administration or nearest police station.';
+        }
+      }
+    });
+  }
+
+  // Phone / Hotline & Email on back
+  function updateContacts() {
+    var phone = (document.getElementById('inputEmergencyPhone')?.value || document.getElementById('inputPhone')?.value || '').trim();
+    var email = (document.getElementById('inputEmail')?.value || '').trim();
+    var phEl = document.getElementById('lpPhone');
+    if (phEl) phEl.textContent = phone || '+254 700 000000';
+    var emEl = document.getElementById('lpEmail');
+    if (emEl) emEl.textContent = email || 'info@school.ac.ke';
+  }
+  ['inputPhone', 'inputEmergencyPhone', 'inputEmail'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateContacts);
+  });
+
+  // Principal Title & Name on back
+  var pTitleInp = document.getElementById('principalTitle');
+  if (pTitleInp) {
+    pTitleInp.addEventListener('input', function() {
+      var el = document.getElementById('lpAuthTitle');
+      if (el) el.textContent = this.value.trim() || 'Principal / Head of Institution';
+    });
+  }
+  var pNameInp = document.getElementById('inputPrincipalName');
+  if (pNameInp) {
+    pNameInp.addEventListener('input', function() {
+      var el = document.getElementById('lpAuthName');
+      if (el) el.textContent = this.value.trim();
+    });
+  }
+
+  // ── Image Files Preview via FileReader (Logo, Stamp, Authority Signature) ──
+  var logoFileInp = document.getElementById('logo_file');
+  if (logoFileInp) {
+    logoFileInp.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = document.getElementById('lpLogoImg');
+          var emblem = document.getElementById('lpLogoEmblem');
+          if (img) {
+            img.src = e.target.result;
+            img.style.display = 'block';
+          }
+          if (emblem) emblem.style.display = 'none';
+        };
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+  }
+
+  var stampFileInp = document.getElementById('stamp_file');
+  if (stampFileInp) {
+    stampFileInp.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = document.getElementById('lpStampImg');
+          var fallback = document.getElementById('lpStampFallback');
+          if (img) {
+            img.src = e.target.result;
+            img.style.display = 'block';
+          }
+          if (fallback) fallback.style.display = 'none';
+          switchCardPreviewSide('back');
+        };
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+  }
+
+  var sigFileInp = document.getElementById('signature_file');
+  if (sigFileInp) {
+    sigFileInp.addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = document.getElementById('lpSigImg');
+          var fallback = document.getElementById('lpSigFallback');
+          if (img) {
+            img.src = e.target.result;
+            img.style.display = 'block';
+          }
+          if (fallback) fallback.style.display = 'none';
+          switchCardPreviewSide('back');
+        };
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+  }
+}
+
+function onInstTypeChange(type) {
+  var map = {
+    school:   { badge:'School',   cls:'badge-inst-school', auth:'Principal / Headteacher', title:'STUDENT IDENTIFICATION CARD', idLbl:'ADM NO', clsLbl:'CLASS / GRADE' },
+    company:  { badge:'Company',  cls:'badge-inst-corp',   auth:'CEO / Managing Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF ID', clsLbl:'DEPARTMENT' },
+    church:   { badge:'Church',   cls:'badge-inst-school', auth:'Bishop / Senior Pastor', title:'MEMBER IDENTIFICATION CARD', idLbl:'MEMBER NO', clsLbl:'FELLOWSHIP' },
+    hospital: { badge:'Hospital', cls:'badge-inst-corp',   auth:'Medical Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF NO', clsLbl:'WARD / DEPT' },
+    ngo:      { badge:'NGO',      cls:'badge-inst-corp',   auth:'Executive Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF ID', clsLbl:'PROGRAM / UNIT' },
+    other:    { badge:'Other',    cls:'badge-inst-school', auth:'Authorised Signatory', title:'IDENTIFICATION CARD', idLbl:'ID NO', clsLbl:'CATEGORY' }
+  };
+  var d = map[type] || map.other;
+  var badge = document.getElementById('instBadge');
+  if (badge) {
+    badge.textContent = d.badge;
+    badge.className = 'ms-auto badge rounded-pill ' + d.cls;
+  }
+  var pt = document.getElementById('principalTitle');
+  if (pt && !pt.value) {
+    pt.placeholder = d.auth;
+    var preview = document.getElementById('authTitlePreview');
+    if (preview) preview.textContent = '—';
+    var lpAuth = document.getElementById('lpAuthTitle');
+    if (lpAuth) lpAuth.textContent = d.auth;
+  }
+  var titleBadge = document.getElementById('lpTitleBadge');
+  var cardTitleInp = document.getElementById('inputCardTitle');
+  if (titleBadge && (!cardTitleInp || !cardTitleInp.value)) {
+    titleBadge.textContent = d.title;
+  }
+  var idLbl = document.getElementById('lpIdLabel');
+  var idInp = document.getElementById('inputIdLabel');
+  if (idLbl && (!idInp || !idInp.value)) idLbl.textContent = d.idLbl + ':';
+}
+
 function copyOnboardLink() {
-  const inp = document.getElementById('onboardLink');
+  var inp = document.getElementById('onboardLink');
   if (!inp) return;
-  navigator.clipboard.writeText(inp.value).then(() => {
-    const btn = inp.nextElementSibling;
+  navigator.clipboard.writeText(inp.value).then(function() {
+    var btn = inp.nextElementSibling;
     btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-    setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
+    setTimeout(function() { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 2000);
   });
 }
 
-// Sticky nav active link via IntersectionObserver
-const sections = document.querySelectorAll('[id^="sec-"]');
-const navLinks = document.querySelectorAll('.settings-nav .nav-link[href^="#"]');
-document.querySelectorAll('.settings-nav .nav-link[href^="#"]').forEach(link => {
-  link.addEventListener('click', e => {
+// ── Sticky nav active link via IntersectionObserver ──────────────────────────
+var sections = document.querySelectorAll('[id^="sec-"]');
+var navLinks = document.querySelectorAll('.settings-nav .nav-link[href^="#"]');
+document.querySelectorAll('.settings-nav .nav-link[href^="#"]').forEach(function(link) {
+  link.addEventListener('click', function(e) {
     e.preventDefault();
-    navLinks.forEach(l => l.classList.remove('active'));
+    navLinks.forEach(function(l) { l.classList.remove('active'); });
     link.classList.add('active');
-    const t = document.querySelector(link.getAttribute('href'));
+    var t = document.querySelector(link.getAttribute('href'));
     if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 });
-const obs = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
+var obs = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
     if (entry.isIntersecting) {
-      navLinks.forEach(l => l.classList.remove('active'));
-      const a = document.querySelector(`.settings-nav .nav-link[href="#${entry.target.id}"]`);
+      navLinks.forEach(function(l) { l.classList.remove('active'); });
+      var a = document.querySelector('.settings-nav .nav-link[href="#' + entry.target.id + '"]');
       if (a) a.classList.add('active');
     }
   });
 }, { threshold: 0.35 });
-sections.forEach(s => obs.observe(s));
+sections.forEach(function(s) { obs.observe(s); });
+
+// Initialize real-time bindings on DOM ready
+window.addEventListener('DOMContentLoaded', function() {
+  updatePreviewColorVars();
+  bindRealtimePreview();
+});
 </script>
 {% endblock %}

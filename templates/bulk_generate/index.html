@@ -4,12 +4,70 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
       <h4 class="fw-bold mb-1"><i class="fa-solid fa-layer-group text-primary me-2"></i> Bulk ID Card Generation Engine</h4>
-      <p class="text-muted small mb-0">Batch-process high-resolution ID cards with cryptographic QR codes and print-ready PDFs for <strong>{{ current_school.name }}</strong></p>
+      <p class="text-muted small mb-0">SuperOperational batch card rendering with cryptographic QR codes, direct PVC print-ready PDFs & 300 DPI image archives for <strong>{{ current_school.name }}</strong></p>
     </div>
-    <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm">{{ total_eligible }} Eligible Students</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-primary px-3 py-2 fs-6 shadow-sm"><i class="fa-solid fa-users me-1"></i> {{ total_eligible }} Total Students</span>
+    </div>
+  </div>
+
+  <!-- Real-Time Operational Telemetry Metrics -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-primary">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Total Students</div>
+            <div class="fs-4 fw-bold text-dark mt-1">{{ total_eligible }}</div>
+          </div>
+          <div class="bg-primary-subtle text-primary p-3 rounded-circle">
+            <i class="fa-solid fa-graduation-cap fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-success">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Active Cards Issued</div>
+            <div class="fs-4 fw-bold text-success mt-1">{{ active_cards_count }}</div>
+          </div>
+          <div class="bg-success-subtle text-success p-3 rounded-circle">
+            <i class="fa-solid fa-id-card-clip fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 border-warning">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Pending Generation</div>
+            <div class="fs-4 fw-bold text-warning mt-1">{{ pending_cards_count }}</div>
+          </div>
+          <div class="bg-warning-subtle text-warning p-3 rounded-circle">
+            <i class="fa-solid fa-clock fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100 border-start border-4 {% if missing_photos_count > 0 %}border-danger{% else %}border-secondary{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Missing Photo Alert</div>
+            <div class="fs-4 fw-bold {% if missing_photos_count > 0 %}text-danger{% else %}text-muted{% endif %} mt-1">{{ missing_photos_count }}</div>
+          </div>
+          <div class="{% if missing_photos_count > 0 %}bg-danger-subtle text-danger{% else %}bg-light text-secondary{% endif %} p-3 rounded-circle">
+            <i class="fa-solid fa-camera fa-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="row g-4">
@@ -20,14 +78,15 @@
           <h6 class="fw-bold mb-0"><i class="fa-solid fa-sliders text-primary me-2"></i> Configure Batch Generation</h6>
         </div>
         <div class="card-body p-4 pt-0">
-          <form method="POST" action="{{ url_for('bulk_generate.start_generation') }}" onsubmit="return confirm('Start generating cards for the selected students? This will compile a print-ready PDF.');">
+          <form method="POST" action="{{ url_for('bulk_generate.start_generation') }}" onsubmit="return confirm('Start generating cards for the selected students? This will compile a print-ready PDF and high-res 300 DPI ZIP archive.');">
             
             <!-- Scope Selection -->
             <div class="mb-3">
               <label class="form-label small fw-bold">Target Generation Scope</label>
               <select name="scope" id="scope_select" class="form-select" onchange="toggleScopeInputs(this.value)">
                 <option value="all">Entire School (All Registered Students)</option>
-                <option value="class">Specific Class / Form</option>
+                <option value="pending" {% if pending_cards_count > 0 %}selected{% endif %}>Unissued Cards Only ({{ pending_cards_count }} Pending Students) - Recommended</option>
+                <option value="class">Specific Class / Form / Department</option>
               </select>
             </div>
 
@@ -52,6 +111,24 @@
                   </select>
                 </div>
               </div>
+            </div>
+
+            <!-- Card Status Strategy -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Generation Strategy</label>
+              <select name="card_status_filter" class="form-select form-select-sm">
+                <option value="pending">Only generate for students without active cards (Fast & Efficient)</option>
+                <option value="all">Force regenerate all matching students (Overwrites / updates existing cards)</option>
+              </select>
+            </div>
+
+            <!-- Photo Policy Filter -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Photo Verification Policy</label>
+              <select name="photo_filter" class="form-select form-select-sm">
+                <option value="all">Include all students (uses official silhouette if photo missing)</option>
+                <option value="with_photo">Strict: Only generate cards for students with uploaded photos</option>
+              </select>
             </div>
 
             <!-- Print Format Selection -->
@@ -84,7 +161,7 @@
             </div>
 
             <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
-              <i class="fa-solid fa-play me-2"></i> Start Bulk Generation & Build PDF
+              <i class="fa-solid fa-play me-2"></i> Start SuperOperational Generation
             </button>
           </form>
         </div>
@@ -104,22 +181,26 @@
               <thead>
                 <tr>
                   <th>Batch ID</th>
-                  <th>Scope</th>
-                  <th>Total</th>
+                  <th>Target Scope</th>
+                  <th>Cards</th>
                   <th>Status</th>
                   <th>Date & Time</th>
-                  <th class="text-end">Download PDF</th>
+                  <th class="text-end">Download Outputs</th>
                 </tr>
               </thead>
               <tbody>
                 {% for j in jobs %}
                 <tr>
                   <td class="fw-bold font-monospace small">{{ j.id[:8] }}</td>
-                  <td><span class="badge bg-light text-dark border">{{ j.target_scope.replace(':', ' ') }}</span></td>
-                  <td class="fw-bold">{{ j.total_count }}</td>
+                  <td><span class="badge bg-light text-dark border">{{ j.target_scope }}</span></td>
+                  <td>
+                    <span class="fw-bold text-success">{{ j.success_count }}</span>
+                    {% if j.failed_count > 0 %}<span class="text-danger small">({{ j.failed_count }} err)</span>{% endif %}
+                    <span class="text-muted small">/ {{ j.total_count }}</span>
+                  </td>
                   <td>
                     {% if j.status == 'completed' %}
-                    <span class="badge bg-success"><i class="fa-solid fa-check"></i> Completed</span>
+                    <span class="badge bg-success"><i class="fa-solid fa-check"></i> Ready</span>
                     {% elif j.status == 'processing' %}
                     <span class="badge bg-warning text-dark"><i class="fa-solid fa-spinner fa-spin"></i> Processing</span>
                     {% else %}
@@ -129,9 +210,14 @@
                   <td class="small text-muted">{{ j.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                   <td class="text-end">
                     {% if j.pdf_filename %}
-                    <a href="{{ url_for('bulk_generate.download_batch_pdf', job_id=j.id) }}" class="btn btn-outline-success btn-sm py-1 px-3 fw-bold">
-                      <i class="fa-solid fa-download me-1"></i> PDF
-                    </a>
+                    <div class="btn-group btn-group-sm">
+                      <a href="{{ url_for('bulk_generate.download_batch_pdf', job_id=j.id) }}" class="btn btn-outline-success fw-bold" title="Download compiled PDF">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF
+                      </a>
+                      <a href="{{ url_for('bulk_generate.download_batch_zip', job_id=j.id) }}" class="btn btn-outline-primary fw-bold" title="Download 300 DPI PNG cards ZIP">
+                        <i class="fa-solid fa-file-zipper me-1"></i> ZIP (300 DPI)
+                      </a>
+                    </div>
                     {% else %}
                     <span class="text-muted small">Generating...</span>
                     {% endif %}

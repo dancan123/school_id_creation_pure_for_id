@@ -10,6 +10,8 @@ from models import School, User, IdTemplate
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
 
     # Initialize extensions
     db.init_app(app)

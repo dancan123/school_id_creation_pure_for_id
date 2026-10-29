@@ -9,7 +9,13 @@
       <h4 class="fw-bold mb-1"><i class="fa-solid fa-user-graduate text-primary me-2"></i> Student Register</h4>
       <p class="text-muted small mb-0">Active School: <strong>{{ current_school.name }}</strong> &bull; Total: {{ pagination.total }} students</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('students.export_excel', **request.args) }}" class="btn btn-outline-success btn-sm fw-semibold shadow-sm" title="Download filtered student records as styled Excel (.xlsx)">
+        <i class="fa-solid fa-file-excel me-1 text-success"></i> Export Excel
+      </a>
+      <a href="{{ url_for('students.export_pdf', **request.args) }}" class="btn btn-outline-danger btn-sm fw-semibold shadow-sm" title="Download official student register roster as printable PDF">
+        <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Export PDF Register
+      </a>
       <a href="{{ url_for('bulk_import.upload') }}" class="btn btn-outline-primary btn-sm">
         <i class="fa-solid fa-file-import me-1"></i> Bulk Import
       </a>

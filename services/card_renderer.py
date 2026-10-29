@@ -420,12 +420,12 @@ class CardRenderer:
         draw.text((col2_x, curr_y), exp_date_str, fill=(220, 38, 38), font=val_font)
 
         # ── Cardholder Signature Zone ──────────────────────────────────────────
-        # Lifted safely above the bottom footer margin (raised by 12px from initial -50)
-        # Guarantees a minimum 9px breathing space from the footer accent line
+        # Lifted safely above the bottom footer margin (raised by 20px from initial -50)
+        # Guarantees a comfortable ~18px breathing space above the footer accent line
         sig_w = 150
         sig_paste_x = w - sig_w - 28
-        sig_paste_y = h - footer_height - 62
-        sig_baseline_y = sig_paste_y + 35
+        sig_paste_y = h - footer_height - 70
+        sig_baseline_y = sig_paste_y + 32
 
         sig_drawn = False
         if getattr(student, "signature_filename", None):
@@ -433,7 +433,7 @@ class CardRenderer:
             if sig_p.exists():
                 try:
                     s_sig = Image.open(sig_p).convert("RGBA")
-                    s_sig.thumbnail((sig_w, 34), Image.Resampling.LANCZOS)
+                    s_sig.thumbnail((sig_w, 30), Image.Resampling.LANCZOS)
                     centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
                     centered_sig_y = sig_baseline_y - s_sig.height - 2
                     img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
@@ -444,7 +444,7 @@ class CardRenderer:
         # Cardholder signature baseline and label
         draw.line([sig_paste_x, sig_baseline_y, sig_paste_x + sig_w, sig_baseline_y], fill=(148, 163, 184), width=1)
         sig_lbl_font = get_font(11, bold=False)
-        draw.text((sig_paste_x + 20, sig_baseline_y + 4), "Cardholder Signature", fill=(100, 116, 139), font=sig_lbl_font)
+        draw.text((sig_paste_x + 20, sig_baseline_y + 3), "Cardholder Signature", fill=(100, 116, 139), font=sig_lbl_font)
 
         # Footer bar text
         foot_font = get_font(17, bold=True)
@@ -477,8 +477,8 @@ class CardRenderer:
         draw.text((35, 18), "CARD TERMS, OFFICIAL STAMP & VERIFICATION", fill=(255, 255, 255), font=top_font)
 
         # Left Column content area
-        # Left Column content area
-        left_w = int(w * 0.60)
+        # Left Column content area - widened to 70% width (~707px) for world-class spacious card layout
+        left_w = int(w * 0.70)
 
         # ── Authority Verification Block geometry (computed first to anchor vertical rhythm) ──
         bottom_h = int(h * 0.12)
@@ -490,10 +490,10 @@ class CardRenderer:
 
         # ── Harmonized Terms & Conditions Institutional Block ───────────────────
         # Matches the Auth Block geometry directly below it:
-        # Same x-boundaries ([35, left_w + 10]), same corner radius (8px),
+        # Same x-boundaries ([35, left_w + 8]), same corner radius (8px),
         # same subtle container styling with integrated header banner.
         t_box_x1 = 35
-        t_box_x2 = left_w + 10
+        t_box_x2 = left_w + 8
         t_box_y1 = top_h + 18
         t_box_y2 = auth_box_y - 16
 
@@ -509,52 +509,40 @@ class CardRenderer:
         terms_hdr_font = get_font(12, bold=True)
         draw.text((t_box_x1 + 16, t_box_y1 + 6), "● TERMS & CONDITIONS OF ISSUANCE ●", fill=(255, 255, 255), font=terms_hdr_font)
 
-        # Disclaimers / Terms text - cleanly wrapped to guarantee no truncated words
+        # Disclaimers / Terms text - Left-aligned block starting at the same uniform X position
         disclaimer = school.disclaimer_text or (
-            "1. This card remains the property of the institution.\n"
-            "2. If found, please return to the administration or nearest police station."
+            "1. This card remains the property of the school.\n"
+            "2. If found, please return to the school administration or nearest police station."
         )
-        import textwrap
-        raw_lines = [ln.strip() for ln in disclaimer.split("\n") if ln.strip()]
-        display_lines = []
-        for rl in raw_lines[:2]:
-            display_lines.extend(textwrap.wrap(rl, width=64))
+        raw_lines = [ln.strip() for ln in disclaimer.replace("\r", "").split("\n") if ln.strip()]
 
+        start_x = t_box_x1 + 18
         block_font = get_font(13, bold=True)
-        term_y = t_box_y1 + banner_h + 10
-        line_step = 21 if len(display_lines) > 2 else 24
-        for line in display_lines[:3]:
-            try:
-                bbox = block_font.getbbox(line) if hasattr(block_font, "getbbox") else (0, 0, len(line) * 7.5, 16)
-                line_w = bbox[2] - bbox[0]
-            except Exception:
-                line_w = len(line) * 7.5
-            center_x = t_box_x1 + (t_box_x2 - t_box_x1 - line_w) // 2
-            draw.text((max(t_box_x1 + 14, center_x), term_y), line, fill=(15, 23, 42), font=block_font)
+        term_y = t_box_y1 + banner_h + 12
+        line_step = 24
+        for line in raw_lines[:2]:
+            draw.text((start_x, term_y), line, fill=(15, 23, 42), font=block_font)
             term_y += line_step
 
         # Hairline divider inside block
-        term_div_y = term_y + 4
-        draw.line([t_box_x1 + 14, term_div_y, t_box_x2 - 14, term_div_y], fill=(226, 232, 240), width=1)
+        term_div_y = term_y + 6
+        draw.line([t_box_x1 + 16, term_div_y, t_box_x2 - 16, term_div_y], fill=(226, 232, 240), width=1)
 
-        # Contact Hotline & Email row
+        # Contact Hotline & Email — displayed on separate lines for clarity
         em_font = get_font(13, bold=False)
         em_school_phone = school.emergency_contact_phone or school.phone
-        contact_y = term_div_y + 8
-        contact_str = f"Hotline: {em_school_phone}  •  Email: {school.email or 'admin@school.ac.ke'}"
-        draw.text((t_box_x1 + 16, contact_y), contact_str, fill=(51, 65, 85), font=em_font)
+        contact_y = term_div_y + 10
+        draw.text((start_x, contact_y), f"Hotline: {em_school_phone}", fill=(51, 65, 85), font=em_font)
+        draw.text((start_x, contact_y + 20), f"Email: {school.email or 'admin@school.ac.ke'}", fill=(51, 65, 85), font=em_font)
 
-        # Verification / NEMIS / UPI / Blood Group badge row
-        meta_y = contact_y + 22
-        if student.blood_group or getattr(student, "nemis_upi", None):
-            bg_text = f"Blood Group: {student.blood_group}" if student.blood_group else ""
-            upi_lbl = getattr(school, "upi_label", "NEMIS / UPI") or "NEMIS / UPI"
-            upi_text = f"{upi_lbl}: {student.nemis_upi}" if getattr(student, "nemis_upi", None) else ""
-            meta_str = "  •  ".join([part for part in (upi_text, bg_text) if part])
-            draw.text((t_box_x1 + 16, meta_y), meta_str, fill=(185, 28, 28), font=get_font(13, bold=True))
+        # NEMIS / UPI row only (Blood Group removed from card back)
+        meta_y = contact_y + 48
+        upi_lbl = getattr(school, "upi_label", "NEMIS / UPI") or "NEMIS / UPI"
+        if getattr(student, "nemis_upi", None):
+            draw.text((start_x, meta_y), f"{upi_lbl}: {student.nemis_upi}", fill=(185, 28, 28), font=get_font(13, bold=True))
         else:
             notice_font = get_font(11, bold=False)
-            draw.text((t_box_x1 + 16, meta_y), "Official institutional credential. Unlawful possession is prohibited.", fill=(148, 163, 184), font=notice_font)
+            draw.text((start_x, meta_y), "Official institutional credential. Unlawful possession is prohibited.", fill=(148, 163, 184), font=notice_font)
 
         # ── Authority Verification Block: Official Stamp + Principal's Signature ────
         # Pin the block to a fixed margin ABOVE the bottom footer bar so it is always
@@ -568,7 +556,7 @@ class CardRenderer:
         auth_box_y2 = footer_top - sig_margin_above_footer
         auth_box_y = auth_box_y2 - auth_box_h
 
-        draw.rounded_rectangle([35, auth_box_y, left_w + 10, auth_box_y2], radius=8,
+        draw.rounded_rectangle([35, auth_box_y, left_w + 8, auth_box_y2], radius=8,
                                 fill=(248, 250, 252), outline=(226, 232, 240), width=1)
 
         # ── Official Stamp — left zone, vertically centred in auth block ────────

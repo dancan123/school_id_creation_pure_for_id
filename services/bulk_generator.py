@@ -133,7 +133,80 @@ class BulkGenerator:
             job.status = "failed"
             print(f"Failed to generate PDF for batch {job_id}: {e}")
 
+        # Generate High-Resolution 300 DPI Cards ZIP Archive for direct card printers
+        try:
+            import zipfile
+            zip_filename = f"batch_{school.id}_{job_id[:8]}_cards_300dpi.zip"
+            output_zip_path = Config.PDFS_DIR / zip_filename
+            with zipfile.ZipFile(str(output_zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
+                for f_img, b_img in card_image_pairs:
+                    if os.path.exists(f_img):
+                        zf.write(str(f_img), arcname=f"cards/{os.path.basename(f_img)}")
+                    if os.path.exists(b_img):
+                        zf.write(str(b_img), arcname=f"cards/{os.path.basename(b_img)}")
+                meta_txt = (
+                    f"BATCH ID CARD GENERATION REPORT\n"
+                    f"=================================\n"
+                    f"School / Organization: {school.name}\n"
+                    f"Batch ID: {job_id}\n"
+                    f"Print Format: {print_format}\n"
+                    f"Generated At: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+                    f"Total Students Processed: {len(students)}\n"
+                    f"Successfully Generated: {success_count}\n"
+                    f"Failed: {failed_count}\n\n"
+                    f"Image Specifications:\n"
+                    f"- Format: High-Definition PNG (300 DPI)\n"
+                    f"- Dimension: 1011 x 638 px (85.60 x 53.98 mm Standard CR80 PVC Card)\n"
+                    f"- Ready for direct feed into Zebra, Evolis, Fargo, Magicard, Datacard printers.\n"
+                )
+                zf.writestr("BATCH_INFO.txt", meta_txt)
+        except Exception as ze:
+            print(f"Warning: Failed to generate cards ZIP for batch {job_id}: {ze}")
+
         job.completed_at = datetime.datetime.utcnow()
         db.session.commit()
 
         return job
+
+    @staticmethod
+    def ensure_batch_zip(job_id):
+        """Ensures that a 300 DPI PNG cards ZIP exists for the given job_id. If missing, builds it dynamically."""
+        job = db.session.get(GenerationJob, job_id)
+        if not job:
+            return None
+        school = db.session.get(School, job.school_id)
+        zip_filename = f"batch_{school.id}_{job_id[:8]}_cards_300dpi.zip"
+        output_zip_path = Config.PDFS_DIR / zip_filename
+        if output_zip_path.exists():
+            return output_zip_path
+
+        # Dynamically build zip from associated cards
+        import zipfile
+        cards = CardRecord.query.filter_by(generation_batch_id=job_id).all()
+        if not cards:
+            cards = CardRecord.query.filter_by(school_id=school.id).all()
+
+        with zipfile.ZipFile(str(output_zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
+            added = 0
+            for c in cards:
+                if c.front_image_filename:
+                    f_p = Config.GENERATED_CARDS_DIR / c.front_image_filename
+                    if f_p.exists():
+                        zf.write(str(f_p), arcname=f"cards/{c.front_image_filename}")
+                        added += 1
+                if c.back_image_filename:
+                    b_p = Config.GENERATED_CARDS_DIR / c.back_image_filename
+                    if b_p.exists():
+                        zf.write(str(b_p), arcname=f"cards/{c.back_image_filename}")
+                        added += 1
+            meta_txt = (
+                f"BATCH ID CARD GENERATION REPORT (Archive)\n"
+                f"=========================================\n"
+                f"School / Organization: {school.name}\n"
+                f"Batch ID: {job_id}\n"
+                f"Total Image Files: {added}\n"
+                f"Resolution: 300 DPI Standard CR80 PVC Ready\n"
+            )
+            zf.writestr("BATCH_INFO.txt", meta_txt)
+
+        return output_zip_path
