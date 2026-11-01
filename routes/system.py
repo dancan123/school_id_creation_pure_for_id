@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
-from flask_login import login_required, current_user
-from extensions import db
+from flask_login import login_required
 from models import School, User, AuditLog
 from utils import get_current_school, log_audit
 from services.backup_service import BackupService

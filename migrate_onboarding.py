@@ -25,7 +25,14 @@ def run_migration(db_path=None, quiet=True):
         school_cols = {row[1] for row in cur.fetchall()}
         cur.execute("PRAGMA table_info(self_enrolments)")
         enrol_cols = {row[1] for row in cur.fetchall()}
-        if "enable_watermark" in school_cols and "submission_token" in enrol_cols:
+        cur.execute("PRAGMA table_info(students)")
+        student_cols = {row[1] for row in cur.fetchall()}
+        if ("enable_watermark" in school_cols and
+            "onboarding_base_url" in school_cols and
+                "submission_token" in enrol_cols and
+                "card_qr_token" in enrol_cols and
+            "resubmission_count" in enrol_cols and
+            "pending_card_qr_token" in student_cols):
             conn.close()
             return
     except Exception:
@@ -37,6 +44,7 @@ def run_migration(db_path=None, quiet=True):
             ("allow_self_onboarding", "BOOLEAN DEFAULT 1"),
             ("auto_approve_onboarding", "BOOLEAN DEFAULT 0"),
             ("onboarding_instructions", "TEXT"),
+            ("onboarding_base_url", "VARCHAR(255)"),
             ("institution_type", "VARCHAR(30) DEFAULT 'school'"),
             ("stamp_filename", "VARCHAR(255)"),
             ("principal_title", "VARCHAR(100) DEFAULT 'Principal / Head of Institution'"),
@@ -50,6 +58,7 @@ def run_migration(db_path=None, quiet=True):
         "students": [
             ("signature_filename", "TEXT"),
             ("nemis_upi", "TEXT"),
+            ("pending_card_qr_token", "VARCHAR(64)"),
         ],
         "card_records": [
             ("renewal_count", "INTEGER DEFAULT 0"),
@@ -63,6 +72,8 @@ def run_migration(db_path=None, quiet=True):
             ("medical_notes", "TEXT"),
             ("signature_filename", "TEXT"),
             ("submission_token", "TEXT"),
+            ("card_qr_token", "VARCHAR(64)"),
+            ("resubmission_count", "INTEGER DEFAULT 0"),
         ]
     }
 

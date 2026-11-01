@@ -1,5 +1,8 @@
 from flask import Blueprint, render_template, request, flash, Response
 from services.qr_service import QRService
+from extensions import db
+from models import QRVerificationToken, School
+from utils import build_public_url
 
 verification_bp = Blueprint("verification", __name__)
 
@@ -7,7 +10,9 @@ verification_bp = Blueprint("verification", __name__)
 @verification_bp.route("/verify/qr/<token>.png")
 def qr_code_image(token):
     """Dynamic offline endpoint returning high-contrast, scanner-ready QR code PNG."""
-    base_url = request.host_url
+    verification_token = QRVerificationToken.query.filter_by(token=token).first()
+    school = db.session.get(School, verification_token.school_id) if verification_token else None
+    base_url = build_public_url("", school) if school else request.host_url
     verify_url = f"{base_url.rstrip('/')}/verify/{token}"
     png_bytes = QRService.generate_qr_png_bytes(verify_url, size_px=260, add_shield=True)
     return Response(png_bytes, mimetype="image/png")

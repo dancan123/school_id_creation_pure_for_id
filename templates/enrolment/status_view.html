@@ -188,6 +188,13 @@
       <p style="font-size:0.8rem; color:#B91C1C; margin:0;">
         Reason: {{ enrolment.rejection_reason or 'Photo or information did not meet requirements.' }}
       </p>
+      {% if can_resubmit %}
+      <a href="{{ resubmit_url }}" style="display:inline-block;margin-top:12px;padding:10px 14px;border-radius:9px;background:#991B1B;color:white;text-decoration:none;font-size:.82rem;font-weight:700;">
+        <i class="fa-solid fa-rotate-right me-1"></i>Correct details and resubmit once
+      </a>
+      {% else %}
+      <p style="font-size:0.8rem;color:#991B1B;margin-top:10px;">For another attempt, contact the school administration.</p>
+      {% endif %}
     </div>
     {% else %}
     <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:12px; padding:16px; margin-bottom:20px; text-align:center;">

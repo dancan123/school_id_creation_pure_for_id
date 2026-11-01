@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Onboarding Closed — {{ school.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: Inter, sans-serif; color: #0F172A; background: radial-gradient(circle at 15% 15%, #1E3A8A, #0F172A 65%, #050B14); }
+    .notice { width: min(100%, 560px); padding: 38px 30px; border-radius: 20px; background: white; text-align: center; box-shadow: 0 20px 50px #0005; }
+    .notice-icon { color: #B45309; font-size: 42px; margin-bottom: 16px; }
+    h1 { margin: 0 0 10px; font-size: 1.45rem; }
+    p { margin: 0; color: #64748B; line-height: 1.6; font-size: .92rem; }
+    .school { display: inline-block; margin-bottom: 12px; color: #1E3A8A; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="notice" role="status">
+    <div class="notice-icon"><i class="fa-solid fa-link-slash" aria-hidden="true"></i></div>
+    <span class="school">{{ school.name }}</span>
+    <h1>Online onboarding is currently closed</h1>
+    <p>The school is not accepting online student ID submissions at this time. Please contact the school administration for assistance.</p>
+  </main>
+</body>
+</html>

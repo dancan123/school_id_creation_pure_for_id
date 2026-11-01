@@ -32,6 +32,7 @@ for folder in [PHOTOS_DIR, LOGOS_DIR, SIGNATURES_DIR, STAMPS_DIR, GENERATED_CARD
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "kenya-school-id-production-secret-key-2026-secure")
+    PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
     
     # Database: Default to persistent SQLite in STORAGE_DIR; support PostgreSQL via DATABASE_URL
     SQLALCHEMY_DATABASE_URI = os.environ.get(

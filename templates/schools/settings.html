@@ -420,34 +420,50 @@
           <div class="card-body p-4">
             <div class="row g-3">
               <div class="col-md-6">
-                <div class="form-check form-switch switch-lg mb-3">
-                  <input class="form-check-input" type="checkbox" name="allow_self_onboarding" id="allowSelfOnboarding" value="1"
-                         {% if current_school.allow_self_onboarding %}checked{% endif %}>
-                  <label class="form-check-label fw-bold" for="allowSelfOnboarding">Enable Self-Onboarding Link</label>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                  {% if current_school.allow_self_onboarding %}
+                  <span class="badge text-bg-success">ONBOARDING OPEN</span>
+                  {% else %}
+                  <span class="badge text-bg-secondary">ONBOARDING CLOSED</span>
+                  {% endif %}
+                  <span class="small text-muted">Public submissions are {% if current_school.allow_self_onboarding %}enabled{% else %}paused{% endif %}.</span>
                 </div>
-                <div class="form-check form-switch switch-lg">
+                {% if current_school.allow_self_onboarding %}
+                <button class="btn btn-outline-danger btn-sm" type="submit" name="onboarding_action" value="disable">
+                  <i class="fa-solid fa-link-slash me-1"></i> Deactivate Onboarding Link
+                </button>
+                {% else %}
+                <button class="btn btn-success btn-sm" type="submit" name="onboarding_action" value="enable">
+                  <i class="fa-solid fa-link me-1"></i> Activate Onboarding Link
+                </button>
+                {% endif %}
+                <div class="small text-muted mt-2">Closing the link blocks new online submissions and automatic ID creation. Previously submitted records remain in the review queue.</div>
+                <div class="form-check form-switch switch-lg mt-3">
                   <input class="form-check-input" type="checkbox" name="auto_approve_onboarding" id="autoApprove" value="1"
                          {% if current_school.auto_approve_onboarding %}checked{% endif %}>
                   <label class="form-check-label fw-bold" for="autoApprove">Auto-Approve Submissions</label>
                 </div>
               </div>
               <div class="col-md-6">
-                {% if current_school.allow_self_onboarding %}
+                <label class="form-label fw-bold small" for="onboardingBaseUrl">Public IP Address / Domain</label>
+                <input type="url" name="onboarding_base_url" id="onboardingBaseUrl" class="form-control font-monospace small mb-1"
+                       value="{{ current_school.onboarding_base_url or '' }}" placeholder="https://ids.example.org or http://203.0.113.20:5000">
+                <small class="text-muted d-block mb-3">Set this to the public address students use. Leave blank to use the system PUBLIC_BASE_URL or the current address. Configure DNS/firewall and HTTPS at your host as needed.</small>
                 <label class="form-label fw-bold small">Shareable Onboarding Link</label>
                 <div class="input-group">
                   <input type="text" id="onboardLink" class="form-control font-monospace small"
-                    value="{{ request.host_url }}onboard/{{ current_school.id }}" readonly>
+                    value="{{ onboard_url }}" readonly>
                   <button class="btn btn-outline-primary" type="button" onclick="copyOnboardLink()">
                     <i class="fa-solid fa-copy"></i>
                   </button>
                 </div>
-                <small class="text-muted mt-1 d-block">Share with students/staff to let them self-submit details and photos.</small>
-                {% else %}
-                <div class="alert alert-info small mb-0 rounded-3">
-                  <i class="fa-solid fa-circle-info me-1"></i>
-                  Enable self-onboarding above to generate a shareable link.
-                </div>
-                {% endif %}
+                <small class="text-muted mt-1 d-block">{% if current_school.allow_self_onboarding %}Share while onboarding is open.{% else %}The link remains closed until activated above.{% endif %}</small>
+              </div>
+              <div class="col-12">
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('enrolment.admission_allowlist') }}">
+                  <i class="fa-solid fa-list-check me-1"></i>Manage Eligible Admission Numbers
+                </a>
+                <small class="text-muted ms-2">Only authorized, unregistered admissions can start an online ID request.</small>
               </div>
               <div class="col-12">
                 <label class="form-label fw-bold small">Onboarding Instructions (shown to applicants)</label>

@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS schools (
     default_template_id INTEGER,
     disclaimer_text TEXT DEFAULT '1. This card remains the property of the school.\n2. If found, please return to the school administration or nearest police station.\n3. The card must be carried at all times within the school premises.',
     emergency_contact_phone VARCHAR(50),
+    allow_self_onboarding BOOLEAN DEFAULT 1,
+    auto_approve_onboarding BOOLEAN DEFAULT 0,
+    onboarding_instructions TEXT,
+    onboarding_base_url VARCHAR(255),
     is_active BOOLEAN DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

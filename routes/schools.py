@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 from flask_login import login_required
+from urllib.parse import urlsplit
 from extensions import db
 from models import School, Student, CardRecord
 from config import Config
-from utils import get_current_school, log_audit, save_uploaded_file
+from utils import get_current_school, log_audit, save_uploaded_file, build_public_url
 from services.card_renderer import CardRenderer
 import io
 
@@ -50,7 +51,7 @@ def preview_card(side):
         )
 
     card = CardRecord.query.filter_by(student_id=student.id, status="active").first() if student.id else None
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
 
     try:
         if side == "back":
@@ -186,6 +187,33 @@ def settings():
     all_schools = School.query.filter_by(is_active=True).all()
 
     if request.method == "POST":
+        onboarding_action = request.form.get("onboarding_action")
+        if onboarding_action in ("enable", "disable"):
+            school.allow_self_onboarding = onboarding_action == "enable"
+            db.session.commit()
+            state = "opened" if school.allow_self_onboarding else "closed"
+            flash(f"Self-onboarding link {state} for {school.name}.", "success")
+            log_audit("TOGGLE_SELF_ONBOARDING", f"Public onboarding link {state} for {school.name}", school_id=school.id)
+            return redirect(url_for("schools.settings"))
+
+        public_base_url = request.form.get("onboarding_base_url", "").strip().rstrip("/") or None
+        if public_base_url:
+            try:
+                parsed_url = urlsplit(public_base_url)
+                valid_url = (
+                    parsed_url.scheme in ("http", "https") and
+                    bool(parsed_url.hostname) and
+                    parsed_url.username is None and parsed_url.password is None and
+                    parsed_url.path in ("", "/") and
+                    not parsed_url.query and not parsed_url.fragment
+                )
+                parsed_url.port  # force invalid-port validation
+            except ValueError:
+                valid_url = False
+            if not valid_url:
+                flash("Enter a valid public base URL, such as https://ids.example.org or http://203.0.113.20:5000. Do not include a path.", "danger")
+                return redirect(url_for("schools.settings"))
+
         school.name = request.form.get("name", school.name).strip()
         school.code = request.form.get("code", school.code).strip() or None
         school.motto = request.form.get("motto", school.motto).strip()
@@ -208,9 +236,9 @@ def settings():
         school.validity_years = int(request.form.get("validity_years", school.validity_years))
         school.disclaimer_text = request.form.get("disclaimer_text", school.disclaimer_text).strip()
         school.emergency_contact_phone = request.form.get("emergency_contact_phone", "").strip()
-        school.allow_self_onboarding = request.form.get("allow_self_onboarding") == "1"
         school.auto_approve_onboarding = request.form.get("auto_approve_onboarding") == "1"
         school.onboarding_instructions = request.form.get("onboarding_instructions", "").strip()
+        school.onboarding_base_url = public_base_url
 
         # ── Institution / Corporate settings ─────────────────────────────
         school.institution_type = request.form.get("institution_type", school.institution_type or "school").strip()
@@ -249,7 +277,7 @@ def settings():
         sync_existing = request.form.get("sync_existing_cards") == "1"
         if sync_existing:
             active_cards = CardRecord.query.filter_by(school_id=school.id, status="active").all()
-            base_url = request.host_url.rstrip("/")
+            base_url = build_public_url("", school).rstrip("/")
             synced_count = 0
             for c in active_cards:
                 if c.student:
@@ -266,4 +294,6 @@ def settings():
         log_audit("UPDATE_SCHOOL_SETTINGS", f"Updated settings for {school.name}")
         return redirect(url_for("schools.settings"))
 
-    return render_template("schools/settings.html", current_school=school, all_schools=all_schools)
+    onboard_path = url_for("enrolment.self_enrol", school_code=school.code or school.id)
+    onboard_url = build_public_url(onboard_path, school)
+    return render_template("schools/settings.html", current_school=school, all_schools=all_schools, onboard_url=onboard_url)

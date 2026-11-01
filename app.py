@@ -1,11 +1,11 @@
 import os
-from pathlib import Path
-from flask import Flask, send_from_directory, abort, session
+from flask import Flask, send_from_directory, abort
 from flask_login import current_user
+from sqlalchemy import inspect, text
 from config import Config
 from extensions import db, login_manager
 from routes import register_blueprints
-from models import School, User, IdTemplate
+from models import School, User
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -69,6 +69,25 @@ def create_app(config_class=Config):
         with app.app_context():
             db.create_all()
             try:
+                required_columns = {
+                    "schools": {"onboarding_base_url": "VARCHAR(255)"},
+                    "self_enrolments": {
+                        "card_qr_token": "VARCHAR(64)",
+                        "resubmission_count": "INTEGER NOT NULL DEFAULT 0"
+                    },
+                    "students": {"pending_card_qr_token": "VARCHAR(64)"}
+                }
+                with db.engine.begin() as connection:
+                    for table, columns in required_columns.items():
+                        existing = {column["name"] for column in inspect(db.engine).get_columns(table)}
+                        for column_name, column_type in columns.items():
+                            if column_name not in existing:
+                                connection.execute(text(
+                                    f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"
+                                ))
+            except Exception as e:
+                app.logger.warning(f"Onboarding schema migration notice: {e}")
+            try:
                 from migrate_onboarding import run_migration
                 run_migration(quiet=True)
             except Exception as e:
@@ -120,11 +139,21 @@ app = create_app()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    cert_file = os.environ.get("APP_TLS_CERT")
+    key_file = os.environ.get("APP_TLS_KEY")
+    if bool(cert_file) != bool(key_file):
+        raise RuntimeError("Set both APP_TLS_CERT and APP_TLS_KEY to enable HTTPS.")
+    if cert_file and (not os.path.isfile(cert_file) or not os.path.isfile(key_file)):
+        raise RuntimeError("APP_TLS_CERT and APP_TLS_KEY must point to existing certificate and key files.")
+    tls_context = (cert_file, key_file) if cert_file and key_file else None
+    protocol = "https" if tls_context else "http"
     # Quick launch: enable debug without the heavy multi-second directory reloader by default
     debug_env = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true")
     print("=" * 65)
     print("  EduID Kenya — School ID Card Generation System")
-    print(f"  Server URL: http://127.0.0.1:{port}")
+    print(f"  Server URL: {protocol}://127.0.0.1:{port}")
+    if tls_context:
+        print("  HTTPS enabled; use a certificate trusted by each device and valid for its URL host.")
     print("  Ready for ID generation, student onboarding & printing")
     print("=" * 65)
-    app.run(host="0.0.0.0", port=port, debug=debug_env, use_reloader=debug_env)
+    app.run(host="0.0.0.0", port=port, debug=debug_env, use_reloader=debug_env, ssl_context=tls_context)

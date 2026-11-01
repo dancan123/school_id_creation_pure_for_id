@@ -1,12 +1,10 @@
 import uuid
-import datetime
-from pathlib import Path
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required
 from extensions import db
 from models import School, Student, GenerationJob
 from config import Config
-from utils import get_current_school, log_audit
+from utils import get_current_school, log_audit, build_public_url
 from services.bulk_generator import BulkGenerator
 
 bulk_generate_bp = Blueprint("bulk_generate", __name__)
@@ -99,7 +97,7 @@ def start_generation():
     db.session.add(job)
     db.session.commit()
 
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
 
     # Execute generation
     BulkGenerator.run_generation(
@@ -157,5 +155,5 @@ def download_batch_zip(job_id):
         str(zip_path),
         mimetype="application/zip",
         as_attachment=True,
-        download_name=f"{clean_school}_Batch_{job_id[:8]}_Cards_300DPI.zip"
+        download_name=f"{clean_school}_Batch_{job.id[:8]}_Cards_300DPI.zip"
     )

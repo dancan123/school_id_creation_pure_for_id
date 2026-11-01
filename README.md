@@ -97,6 +97,26 @@ Open your browser at:
 http://127.0.0.1:5000/
 ```
 
+### Camera access from another device (LAN HTTPS)
+Browsers block camera access on plain HTTP LAN addresses such as `http://192.168.0.105:5000`. To use the camera from a phone or another computer, start the development server with a locally trusted certificate that includes the server's LAN IP address. On Windows, install [mkcert](https://github.com/FiloSottile/mkcert), then run these commands in PowerShell from the project directory (replace the IP if the server address changes):
+
+```powershell
+mkcert -install
+mkcert -cert-file dev-cert.pem -key-file dev-key.pem 192.168.0.105 localhost 127.0.0.1
+$env:APP_TLS_CERT = "$PWD\dev-cert.pem"
+$env:APP_TLS_KEY = "$PWD\dev-key.pem"
+python app.py
+```
+
+Open `https://192.168.0.105:5000/` on the server computer. For a phone or other device, install and trust the mkcert local root certificate on that device as well; camera access will not work if the certificate is untrusted or does not match the URL. The certificate and key are local development credentials and must not be shared or committed. Clear `APP_TLS_CERT` and `APP_TLS_KEY` in PowerShell to return to HTTP.
+
+### Public onboarding address and enrollment period
+In **School Settings → Self-Onboarding & Shared Link**, set each school's **Public IP Address / Domain** to the public origin students should use (for example `https://ids.example.org` or `https://203.0.113.20`). The generated share link, QR code, and onboarding poster use this mapping. Leave it blank to use the system-wide `PUBLIC_BASE_URL` environment variable, or the current request address if no system value is configured. The server must also be reachable at that address; configure DNS, hosting/proxy routing, firewall rules, and trusted HTTPS separately. Do not use a private LAN address for an internet-facing link.
+
+Use **Activate/Deactivate Onboarding Link** to open or close submissions at the end of the enrollment period. When closed, both the public form and its submission endpoint reject requests; saved submissions remain available to administrators. Automatic approval only applies while the public link is open.
+
+Before opening the form, use **School Settings → Manage Eligible Admission Numbers** to add the school's approved admission numbers. Public applicants must use an active listed number. Each admission is limited to one submission and one correction after a rejection; further attempts receive a school-administrator contact message. Rejected corrections update the original application instead of creating duplicate records. The public card preview uses the same CR80 image renderer as the print PDF, including the reserved verification QR token and Code-128 admission barcode. The status tracker requires the private submission reference rather than an admission number.
+
 ### 3. Default Login Credentials
 - **Username**: `admin`
 - **Password**: `admin123`

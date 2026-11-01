@@ -47,3 +47,5 @@ storage/backups/*
 # Environment
 .env
 instance/
+dev-cert.pem
+dev-key.pem

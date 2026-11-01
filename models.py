@@ -1,5 +1,4 @@
 import datetime
-import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from extensions import db
@@ -57,6 +56,7 @@ class School(db.Model):
     allow_self_onboarding = db.Column(db.Boolean, default=True)
     auto_approve_onboarding = db.Column(db.Boolean, default=False)
     onboarding_instructions = db.Column(db.Text, nullable=True)
+    onboarding_base_url = db.Column(db.String(255), nullable=True)
     
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -199,6 +199,7 @@ class Student(db.Model):
     # ── Card & Enrolment Status ─────────────────────────────────────────────────
     card_status = db.Column(db.String(30), nullable=False, default="pending")
     card_number = db.Column(db.String(50), nullable=True)
+    pending_card_qr_token = db.Column(db.String(64), nullable=True, unique=True)
     issue_date = db.Column(db.Date, nullable=True)
     expiry_date = db.Column(db.Date, nullable=True)
 
@@ -259,6 +260,8 @@ class SelfEnrolment(db.Model):
     photo_filename = db.Column(db.String(255), nullable=True)
     signature_filename = db.Column(db.String(255), nullable=True)
     submission_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
+    card_qr_token = db.Column(db.String(64), nullable=True, unique=True)
+    resubmission_count = db.Column(db.Integer, nullable=False, default=0)
 
     # Pipeline state
     status = db.Column(db.String(20), nullable=False, default="pending", index=True)  # pending | approved | rejected
@@ -271,6 +274,27 @@ class SelfEnrolment(db.Model):
 
     submitted_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     ip_address = db.Column(db.String(50), nullable=True)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class AdmissionAllowlist(db.Model):
+    """School-approved admission numbers permitted to use public onboarding once."""
+    __tablename__ = "admission_allowlist"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
+    admission_number = db.Column(db.String(50), nullable=False)
+    qr_token = db.Column(db.String(64), nullable=False, unique=True)
+    current_enrolment_id = db.Column(db.Integer, db.ForeignKey("self_enrolments.id", ondelete="SET NULL"), nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "admission_number", name="uq_school_allowlist_admission"),
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -25,17 +25,22 @@ Features:
 """
 import datetime
 import secrets
-from pathlib import Path
+import base64
+import binascii
+import io
+import re
+from types import SimpleNamespace
+from PIL import Image
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, abort, jsonify, send_file, Response
+    url_for, flash, abort, jsonify, Response
 )
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import School, Student, SelfEnrolment, CardRecord
+from models import School, Student, SelfEnrolment, CardRecord, AdmissionAllowlist
 from config import Config
-from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image
+from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url
 from services.card_renderer import CardRenderer
 from services.qr_service import QRService
 
@@ -74,7 +79,7 @@ BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 def onboard_hub():
     """Universal Public Landing Hub for students & parents to find their school."""
     search = request.args.get("q", "").strip()
-    query = School.query.filter_by(is_active=True)
+    query = School.query.filter_by(is_active=True, allow_self_onboarding=True)
     if search:
         query = query.filter(
             (School.name.ilike(f"%{search}%")) |
@@ -88,7 +93,7 @@ def onboard_hub():
         "enrolment/onboard_hub.html",
         schools=schools,
         search=search,
-        total_schools=School.query.filter_by(is_active=True).count()
+        total_schools=School.query.filter_by(is_active=True, allow_self_onboarding=True).count()
     )
 
 
@@ -128,7 +133,7 @@ def self_enrol(school_code):
     school = _find_school_by_code_or_id(school_code)
     if not school:
         # Suggest available schools
-        all_schools = School.query.filter_by(is_active=True).order_by(School.name).all()
+        all_schools = School.query.filter_by(is_active=True, allow_self_onboarding=True).order_by(School.name).all()
         return render_template(
             "enrolment/school_not_found.html",
             searched_code=school_code,
@@ -160,7 +165,7 @@ def self_enrol(school_code):
         parent_phone    = request.form.get("parent_phone", "").strip() or None
         emergency_rel   = request.form.get("emergency_relationship", "").strip() or None
 
-        # Validation
+        # Admission eligibility and duplicate protection
         errors = []
         if not full_name:
             errors.append("Student full name is required.")
@@ -169,24 +174,46 @@ def self_enrol(school_code):
         if not class_name:
             errors.append("Class / Grade is required.")
 
-        # Duplicate check within this school
-        duplicate_pending = SelfEnrolment.query.filter_by(
-            school_id=school.id, admission_number=admission_no, status="pending"
-        ).first()
-        if duplicate_pending:
-            errors.append(
-                f"An enrolment submission for admission number '{admission_no}' is already pending review "
-                f"(Reference: {duplicate_pending.submission_token or '#' + str(duplicate_pending.id)}). "
-                "Please contact the school administration or check your status."
-            )
+        eligibility = AdmissionAllowlist.query.filter_by(
+            school_id=school.id, admission_number=admission_no
+        ).with_for_update().first() if admission_no else None
+        retry_submission = None
+        if not eligibility or not eligibility.is_active:
+            errors.append(f"Admission number '{admission_no}' is not authorized for online ID onboarding. Contact the school administration.")
+        else:
+            existing_submission = None
+            if eligibility.current_enrolment_id:
+                existing_submission = db.session.get(SelfEnrolment, eligibility.current_enrolment_id)
+            if not existing_submission:
+                existing_submission = SelfEnrolment.query.filter_by(
+                    school_id=school.id, admission_number=admission_no
+                ).order_by(SelfEnrolment.submitted_at.desc()).first()
 
-        already_registered = Student.query.filter_by(
-            school_id=school.id, admission_number=admission_no, is_archived=False
-        ).first()
-        if already_registered and already_registered.card_status == "active":
-            errors.append(
-                f"Admission number '{admission_no}' is already registered with an active student ID card "
-                f"({already_registered.card_number or 'Active'}). Please collect your card from the administration office."
+            if existing_submission and existing_submission.status == "pending":
+                errors.append(f"An application for admission '{admission_no}' is already under review. Check reference {existing_submission.submission_token} or contact the school administration.")
+            elif existing_submission and existing_submission.status == "approved":
+                errors.append(f"Admission '{admission_no}' has already been processed. Contact the school administration if you need help.")
+            elif existing_submission and existing_submission.status == "rejected":
+                if existing_submission.resubmission_count >= 1:
+                    errors.append(f"The one permitted correction for admission '{admission_no}' has already been used. Contact the school administration.")
+                else:
+                    retry_submission = existing_submission
+
+            already_registered = Student.query.filter_by(
+                school_id=school.id, admission_number=admission_no, is_archived=False
+            ).first()
+            if already_registered:
+                errors.append(f"Admission '{admission_no}' is already present in the student register. Contact the school administration.")
+
+        if errors:
+            return render_template(
+                "enrolment/self_enrol.html",
+                school=school,
+                cbc_classes=CBC_CLASSES,
+                old_classes=OLD_844_CLASSES,
+                blood_groups=BLOOD_GROUPS,
+                errors=errors,
+                form=request.form
             )
 
         # Handle Passport Photo: Supports File Upload OR Base64 Cropped/Webcam Data
@@ -243,34 +270,47 @@ def self_enrol(school_code):
                 form=request.form
             )
 
-        # Generate unique submission reference tracking token
-        sub_token = f"ENR-{datetime.date.today().year}-{secrets.token_hex(3).upper()}"
+        # Reuse a rejected application once, rather than creating duplicate records.
+        if retry_submission:
+            enrolment = retry_submission
+            enrolment.resubmission_count += 1
+            enrolment.reviewed_by_user_id = None
+            enrolment.reviewed_at = None
+            enrolment.rejection_reason = None
+            enrolment.submitted_at = datetime.datetime.utcnow()
+        else:
+            sub_token = f"ENR-{datetime.date.today().year}-{secrets.token_hex(3).upper()}"
+            enrolment = SelfEnrolment(
+                school_id=school.id,
+                submission_token=sub_token,
+                resubmission_count=0,
+                status="pending"
+            )
+            db.session.add(enrolment)
 
-        enrolment = SelfEnrolment(
-            school_id=school.id,
-            full_name=full_name,
-            admission_number=admission_no,
-            curriculum_type=curriculum_type,
-            class_name=class_name,
-            stream_name=stream_name,
-            academic_year=academic_year,
-            gender=gender,
-            dob=dob,
-            nemis_upi=nemis_upi,
-            parent_name=parent_name,
-            parent_phone=parent_phone,
-            emergency_relationship=emergency_rel,
-            blood_group=blood_group,
-            house_or_dorm=house_or_dorm,
-            medical_notes=medical_notes,
-            photo_filename=photo_fn,
-            signature_filename=signature_fn,
-            submission_token=sub_token,
-            status="pending",
-            ip_address=request.remote_addr
-        )
-        db.session.add(enrolment)
+        enrolment.full_name = full_name
+        enrolment.admission_number = admission_no
+        enrolment.curriculum_type = curriculum_type
+        enrolment.class_name = class_name
+        enrolment.stream_name = stream_name
+        enrolment.academic_year = academic_year
+        enrolment.gender = gender
+        enrolment.dob = dob
+        enrolment.nemis_upi = nemis_upi
+        enrolment.parent_name = parent_name
+        enrolment.parent_phone = parent_phone
+        enrolment.emergency_relationship = emergency_rel
+        enrolment.blood_group = blood_group
+        enrolment.house_or_dorm = house_or_dorm
+        enrolment.medical_notes = medical_notes
+        enrolment.photo_filename = photo_fn or (retry_submission.photo_filename if retry_submission else None)
+        enrolment.signature_filename = signature_fn or (retry_submission.signature_filename if retry_submission else None)
+        enrolment.card_qr_token = eligibility.qr_token
+        enrolment.status = "pending"
+        enrolment.ip_address = request.remote_addr
         db.session.flush()
+        eligibility.current_enrolment_id = enrolment.id
+        sub_token = enrolment.submission_token
 
         # ── Auto-Approval Check ──────────────────────────────────────────────
         generated_card = None
@@ -296,13 +336,14 @@ def self_enrol(school_code):
                 signature_filename=signature_fn,
                 card_status="pending",
                 enrolment_status="verified",
+                pending_card_qr_token=enrolment.card_qr_token,
             )
             db.session.add(student)
             db.session.flush()
 
             # Generate ID Card now
-            base_url = request.host_url.rstrip("/")
-            generated_card = CardRenderer.generate_card_for_student(school, student, base_url)
+            base_url = build_public_url("", school).rstrip("/")
+            generated_card = CardRenderer.generate_card_for_student(school, student, base_url, qr_token=enrolment.card_qr_token)
 
             enrolment.status = "approved"
             enrolment.student_id = student.id
@@ -315,7 +356,7 @@ def self_enrol(school_code):
             school=school,
             enrolment=enrolment,
             generated_card=generated_card,
-            tracking_url=url_for("enrolment.track_status", token=sub_token, _external=True)
+            tracking_url=build_public_url(url_for("enrolment.track_status", token=sub_token), school)
         )
 
     return render_template(
@@ -325,8 +366,172 @@ def self_enrol(school_code):
         old_classes=OLD_844_CLASSES,
         blood_groups=BLOOD_GROUPS,
         errors=[],
-        form={}
+        form={"admission_number": request.args.get("admission_number", "").strip().upper()}
     )
+
+
+@enrolment_bp.route("/onboard/<school_code>/preview", methods=["POST"])
+@enrolment_bp.route("/enrol/<school_code>/preview", methods=["POST"])
+def preview_public_card(school_code):
+    """Render applicant data using the exact same artwork pipeline as CR80 print files."""
+    school = _find_school_by_code_or_id(school_code)
+    if not school or not school.allow_self_onboarding:
+        return jsonify({"error": "Online onboarding is currently closed."}), 403
+    if request.content_length and request.content_length > 2_500_000:
+        return jsonify({"error": "Preview request is too large."}), 413
+
+    data = request.get_json(silent=True) or {}
+    admission_number = str(data.get("admission_number", "")).strip().upper()[:50]
+    eligibility = AdmissionAllowlist.query.filter_by(
+        school_id=school.id, admission_number=admission_number, is_active=True
+    ).first()
+    if not eligibility:
+        return jsonify({"error": "This admission number is not on the school's eligible list. Contact the school administration."}), 403
+
+    previous = db.session.get(SelfEnrolment, eligibility.current_enrolment_id) if eligibility.current_enrolment_id else None
+    if previous and (previous.status != "rejected" or previous.resubmission_count >= 1):
+        return jsonify({"error": "This admission number has already used its online submission. Contact the school administration."}), 409
+    if Student.query.filter_by(school_id=school.id, admission_number=admission_number, is_archived=False).first():
+        return jsonify({"error": "This admission number is already in the student register. Contact the school administration."}), 409
+
+    full_name = str(data.get("full_name", "")).strip()[:150]
+    class_name = str(data.get("class_name", "")).strip()[:50]
+    if not admission_number or not full_name or not class_name:
+        return jsonify({"error": "Enter the student's name, eligible admission number, and class to preview the card."}), 400
+    academic_year = str(data.get("academic_year") or school.academic_year or datetime.date.today().year).strip()[:4]
+    if not academic_year.isdigit():
+        academic_year = str(datetime.date.today().year)
+
+    def decode_image(data_url, label):
+        if not data_url:
+            return None
+        match = re.fullmatch(r"data:image/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=]+)", str(data_url))
+        if not match or len(match.group(1)) > 1_800_000:
+            raise ValueError(f"{label} image is not a supported image or exceeds the preview limit.")
+        try:
+            raw = base64.b64decode(match.group(1), validate=True)
+            image = Image.open(io.BytesIO(raw))
+            if image.width * image.height > 10_000_000:
+                raise ValueError(f"{label} image dimensions are too large.")
+            image.load()
+            return image.copy()
+        except (binascii.Error, OSError, Image.DecompressionBombError) as exc:
+            raise ValueError(f"{label} image could not be read.") from exc
+
+    try:
+        photo = decode_image(data.get("photo_data"), "Passport photo")
+        signature = decode_image(data.get("signature_data"), "Signature")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    student = SimpleNamespace(
+        full_name=full_name,
+        admission_number=admission_number,
+        class_name=class_name,
+        stream_name=str(data.get("stream_name", "")).strip()[:50] or None,
+        academic_year=academic_year,
+        blood_group=str(data.get("blood_group", "")).strip()[:10] or None,
+        house_or_dorm=str(data.get("house_or_dorm", "")).strip()[:60] or None,
+        parent_phone=str(data.get("parent_phone", "")).strip()[:50] or None,
+        nemis_upi=str(data.get("nemis_upi", "")).strip()[:50] or None,
+        photo_cropped_filename=None,
+        photo_filename=None,
+        signature_filename=None,
+        preview_photo=photo,
+        preview_signature=signature
+    )
+    expiry_date = datetime.date(int(academic_year) + (school.validity_years or 4), 12, 31)
+    card = SimpleNamespace(
+        card_number=f"{school.card_prefix or 'ID-'}{admission_number}",
+        qr_token=eligibility.qr_token,
+        expiry_date=expiry_date,
+        renewal_count=0
+    )
+
+    def png_data_url(image):
+        output = io.BytesIO()
+        image.save(output, format="PNG", optimize=True)
+        return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode("ascii")
+
+    try:
+        verify_base = build_public_url("", school)
+        front = CardRenderer.render_front(school, student, card)
+        back = CardRenderer.render_back(school, student, card, verify_base_url=verify_base)
+    except Exception:
+        return jsonify({"error": "Card preview could not be rendered. Please contact the school administration."}), 500
+    response = jsonify({"front": png_data_url(front), "back": png_data_url(back), "card_number": card.card_number})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@enrolment_bp.route("/enrolment/admission-allowlist", methods=["GET", "POST"])
+@login_required
+def admission_allowlist():
+    """School-admin tool for managing admission numbers eligible for public intake."""
+    if current_user.role not in ("admin", "superadmin"):
+        abort(403)
+
+    school = get_current_school()
+    if request.method == "POST":
+        raw_numbers = request.form.get("admission_numbers", "")
+        numbers = {line.strip().upper() for line in raw_numbers.replace(",", "\n").replace(";", "\n").splitlines() if line.strip()}
+        added = 0
+        skipped = 0
+        for admission_number in sorted(numbers):
+            if len(admission_number) > 50:
+                skipped += 1
+                continue
+            existing_student = Student.query.filter_by(
+                school_id=school.id,
+                admission_number=admission_number,
+                is_archived=False
+            ).first()
+            if existing_student:
+                skipped += 1
+                continue
+
+            entry = AdmissionAllowlist.query.filter_by(
+                school_id=school.id, admission_number=admission_number
+            ).first()
+            if entry:
+                if not entry.is_active:
+                    entry.is_active = True
+                    added += 1
+                else:
+                    skipped += 1
+                continue
+
+            db.session.add(AdmissionAllowlist(
+                school_id=school.id,
+                admission_number=admission_number,
+                qr_token=QRService.generate_unique_token(),
+                created_by_user_id=current_user.id,
+                is_active=True
+            ))
+            added += 1
+
+        db.session.commit()
+        flash(f"Added or reactivated {added} admission number(s); skipped {skipped} duplicate, registered, or invalid number(s).", "success" if added else "warning")
+        log_audit("UPDATE_ADMISSION_ALLOWLIST", f"Added/reactivated {added}; skipped {skipped} admissions", school_id=school.id)
+        return redirect(url_for("enrolment.admission_allowlist"))
+
+    entries = AdmissionAllowlist.query.filter_by(school_id=school.id).order_by(AdmissionAllowlist.admission_number).all()
+    entry_rows = [(entry, db.session.get(SelfEnrolment, entry.current_enrolment_id) if entry.current_enrolment_id else None) for entry in entries]
+    return render_template("enrolment/admission_allowlist.html", current_school=school, entries=entry_rows)
+
+
+@enrolment_bp.route("/enrolment/admission-allowlist/<int:entry_id>/deactivate", methods=["POST"])
+@login_required
+def deactivate_admission(entry_id):
+    if current_user.role not in ("admin", "superadmin"):
+        abort(403)
+    school = get_current_school()
+    entry = AdmissionAllowlist.query.filter_by(id=entry_id, school_id=school.id).first_or_404()
+    entry.is_active = False
+    db.session.commit()
+    log_audit("DEACTIVATE_ALLOWLIST_ADMISSION", f"Deactivated admission {entry.admission_number}", school_id=school.id)
+    flash(f"Admission {entry.admission_number} is no longer authorized for public onboarding.", "info")
+    return redirect(url_for("enrolment.admission_allowlist"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -337,10 +542,7 @@ def self_enrol(school_code):
 @enrolment_bp.route("/enrol/status/<token>", methods=["GET"])
 def track_status(token):
     """Students and parents can track their ID card creation status anytime."""
-    enrolment = SelfEnrolment.query.filter(
-        (SelfEnrolment.submission_token == token) |
-        (SelfEnrolment.admission_number == token)
-    ).first()
+    enrolment = SelfEnrolment.query.filter_by(submission_token=token).first()
 
     if not enrolment:
         return render_template(
@@ -351,13 +553,22 @@ def track_status(token):
     school = db.session.get(School, enrolment.school_id)
     student = db.session.get(Student, enrolment.student_id) if enrolment.student_id else None
     card = CardRecord.query.filter_by(student_id=student.id, status="active").first() if student else None
+    eligibility = AdmissionAllowlist.query.filter_by(
+        school_id=enrolment.school_id, admission_number=enrolment.admission_number, is_active=True
+    ).first()
+    can_resubmit = bool(
+        school and school.allow_self_onboarding and enrolment.status == "rejected" and
+        enrolment.resubmission_count < 1 and eligibility
+    )
 
     return render_template(
         "enrolment/status_view.html",
         school=school,
         enrolment=enrolment,
         student=student,
-        card=card
+        card=card,
+        can_resubmit=can_resubmit,
+        resubmit_url=url_for("enrolment.self_enrol", school_code=school.code or school.id, admission_number=enrolment.admission_number) if can_resubmit else None
     )
 
 
@@ -373,7 +584,8 @@ def get_school_qr(school_code):
     if not school:
         abort(404)
 
-    target_url = url_for("enrolment.self_enrol", school_code=school.code or school.id, _external=True)
+    target_path = url_for("enrolment.self_enrol", school_code=school.code or school.id)
+    target_url = build_public_url(target_path, school)
     png_bytes = QRService.generate_qr_png_bytes(target_url, size_px=400, add_shield=True)
 
     return Response(
@@ -391,7 +603,8 @@ def print_poster(school_code):
     if not school:
         abort(404)
 
-    onboard_url = url_for("enrolment.self_enrol", school_code=school.code or school.id, _external=True)
+    onboard_path = url_for("enrolment.self_enrol", school_code=school.code or school.id)
+    onboard_url = build_public_url(onboard_path, school)
     return render_template(
         "enrolment/poster.html",
         school=school,
@@ -412,16 +625,27 @@ def check_admission():
     if not school_id or not adm_no:
         return jsonify({"valid": False, "message": "Missing parameters."})
 
-    # Check pending
-    pending = SelfEnrolment.query.filter_by(
-        school_id=school_id, admission_number=adm_no, status="pending"
+    school = School.query.filter_by(id=school_id, is_active=True).first()
+    if not school or not school.allow_self_onboarding:
+        return jsonify({"available": False, "status": "closed", "message": "Online onboarding is currently closed."}), 403
+
+    eligibility = AdmissionAllowlist.query.filter_by(
+        school_id=school.id, admission_number=adm_no, is_active=True
     ).first()
-    if pending:
+    if not eligibility:
         return jsonify({
             "available": False,
-            "status": "pending",
-            "message": f"Admission '{adm_no}' has a pending enrolment under review."
+            "status": "not_authorized",
+            "message": "This admission number is not on the eligible list. Contact the school administration."
         })
+
+    previous = db.session.get(SelfEnrolment, eligibility.current_enrolment_id) if eligibility.current_enrolment_id else None
+    if previous and previous.status == "pending":
+        return jsonify({"available": False, "status": "pending", "message": "Your request is already under review. Contact the school administration if you need help."})
+    if previous and previous.status == "approved":
+        return jsonify({"available": False, "status": "registered", "message": "This admission has already been processed. Contact the school administration."})
+    if previous and previous.status == "rejected" and previous.resubmission_count >= 1:
+        return jsonify({"available": False, "status": "retry_used", "message": "The permitted correction has already been used. Contact the school administration."})
 
     # Check already registered
     student = Student.query.filter_by(
@@ -436,8 +660,8 @@ def check_admission():
 
     return jsonify({
         "available": True,
-        "status": "available",
-        "message": f"Admission '{adm_no}' is available."
+        "status": "resubmit" if previous and previous.status == "rejected" else "available",
+        "message": "Your rejected application may be corrected and resubmitted once." if previous and previous.status == "rejected" else f"Admission '{adm_no}' is available."
     })
 
 
@@ -470,7 +694,8 @@ def queue():
     approved_count = SelfEnrolment.query.filter_by(school_id=school.id, status="approved").count()
     rejected_count = SelfEnrolment.query.filter_by(school_id=school.id, status="rejected").count()
 
-    onboard_url = url_for("enrolment.self_enrol", school_code=school.code or school.id, _external=True)
+    onboard_path = url_for("enrolment.self_enrol", school_code=school.code or school.id)
+    onboard_url = build_public_url(onboard_path, school)
 
     return render_template(
         "enrolment/queue.html",
@@ -539,6 +764,7 @@ def approve(enrolment_id):
         signature_filename=enrolment.signature_filename,
         card_status="pending",
         enrolment_status="verified",
+        pending_card_qr_token=enrolment.card_qr_token,
     )
     db.session.add(student)
     db.session.flush()
@@ -551,8 +777,8 @@ def approve(enrolment_id):
     # If admin selected "Generate ID Card Now"
     generate_now = request.form.get("generate_now") == "1" or "generate_card" in request.form
     if generate_now:
-        base_url = request.host_url.rstrip("/")
-        card = CardRenderer.generate_card_for_student(school, student, base_url)
+        base_url = build_public_url("", school).rstrip("/")
+        card = CardRenderer.generate_card_for_student(school, student, base_url, qr_token=enrolment.card_qr_token)
         db.session.commit()
         flash(
             f"✅ '{student.full_name}' approved and ID Card #{card.card_number} generated successfully!",
@@ -581,7 +807,7 @@ def batch_approve():
 
     approved_count = 0
     cards_generated_count = 0
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
 
     for sid in submission_ids:
         enrolment = SelfEnrolment.query.filter_by(id=int(sid), school_id=school.id, status="pending").first()
@@ -612,6 +838,7 @@ def batch_approve():
             signature_filename=enrolment.signature_filename,
             card_status="pending",
             enrolment_status="verified",
+            pending_card_qr_token=enrolment.card_qr_token,
         )
         db.session.add(student)
         db.session.flush()
@@ -624,7 +851,7 @@ def batch_approve():
 
         if generate_cards:
             try:
-                CardRenderer.generate_card_for_student(school, student, base_url)
+                CardRenderer.generate_card_for_student(school, student, base_url, qr_token=enrolment.card_qr_token)
                 cards_generated_count += 1
             except Exception as e:
                 print(f"Failed to generate card for student {student.id}: {e}")
@@ -762,7 +989,7 @@ def quick_add_student():
         log_audit("QUICK_ADD_STUDENT", f"Staff added student {admission_no} via Quick-Add")
 
         if "generate_now" in request.form:
-            base_url = request.host_url.rstrip("/")
+            base_url = build_public_url("", school).rstrip("/")
             CardRenderer.generate_card_for_student(school, student, base_url)
             return redirect(url_for("single_id.index", student_id=student.id))
 

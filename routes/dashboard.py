@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request
+from flask import Blueprint, render_template, url_for
 from flask_login import login_required
 from extensions import db
 from models import School, Student, CardRecord, GenerationJob, SelfEnrolment

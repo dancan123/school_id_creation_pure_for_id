@@ -1,13 +1,11 @@
-import datetime
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, Response
 from flask_login import login_required
 from extensions import db
-from models import Student, School, CardRecord, QRVerificationToken, IdTemplate
+from models import Student, School, CardRecord, IdTemplate
 from config import Config
-from utils import get_current_school, log_audit
+from utils import get_current_school, log_audit, build_public_url
 from services.card_renderer import CardRenderer
-from services.qr_service import QRService
 
 single_id_bp = Blueprint("single_id", __name__)
 
@@ -21,7 +19,6 @@ def preview_front(student_id):
     school = get_current_school()
     student = Student.query.filter_by(id=student_id, school_id=school.id).first_or_404()
     card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
-    base_url = request.host_url.rstrip("/")
     try:
         img = CardRenderer.render_front(school, student, card)
         buf = io.BytesIO()
@@ -40,7 +37,7 @@ def preview_back(student_id):
     school = get_current_school()
     student = Student.query.filter_by(id=student_id, school_id=school.id).first_or_404()
     card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
     try:
         img = CardRenderer.render_back(school, student, card, verify_base_url=base_url)
         buf = io.BytesIO()
@@ -102,7 +99,7 @@ def generate_card():
         existing_card.reprint_reason = reprint_reason or "Card Replacement"
         db.session.commit()
 
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
     card = CardRenderer.generate_card_for_student(school, student, base_url, template_id=template_id)
 
     flash(f"ID Card for {student.full_name} ({student.admission_number}) generated successfully!", "success")
@@ -119,7 +116,7 @@ def renew_card(student_id):
     student = Student.query.filter_by(id=student_id, school_id=school.id).first_or_404()
     renewal_notes = request.form.get("renewal_notes", "").strip()
 
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
     card = CardRenderer.renew_card_for_student(school, student, base_url, renewal_notes=renewal_notes)
 
     flash(f"ID Card renewed for {student.full_name} ({student.admission_number}). New expiry: {card.expiry_date}", "success")
@@ -152,14 +149,14 @@ def renew_bulk():
         flash("No students matched the criteria for bulk renewal.", "warning")
         return redirect(url_for("single_id.index"))
 
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
     renewed = 0
     failed = 0
     for student in students:
         try:
             CardRenderer.renew_card_for_student(school, student, base_url, renewal_notes=renewal_notes)
             renewed += 1
-        except Exception as e:
+        except Exception:
             failed += 1
 
     flash(f"Bulk Renewal Complete: {renewed} cards renewed" + (f", {failed} failed." if failed else "."), "success")
@@ -196,7 +193,7 @@ def download_card_pdf(card_id):
 
     # Re-generate card images and PDF so the downloaded file ALWAYS reflects
     # the latest template styling, signature placement, and terms layout in 100% parity with live preview
-    base_url = request.host_url.rstrip("/")
+    base_url = build_public_url("", school).rstrip("/")
     front_path, back_path = CardRenderer.save_card_images(school, card.student, card, base_url)
 
     pdf_filename = card.single_pdf_filename or f"card_{school.id}_{card.student.admission_number}_{card.qr_token[:6]}.pdf"

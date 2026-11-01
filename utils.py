@@ -1,11 +1,16 @@
-import os
 import secrets
 from pathlib import Path
-from flask import session, request
+from flask import session, request, current_app
 from flask_login import current_user
 from extensions import db
 from models import School, AuditLog
-from config import Config
+
+def build_public_url(path, school=None):
+    """Build a canonical public link, preferring school/system URL settings."""
+    base_url = (getattr(school, "onboarding_base_url", None) or
+                current_app.config.get("PUBLIC_BASE_URL") or
+                request.host_url).strip().rstrip("/")
+    return f"{base_url}/{path.lstrip('/')}"
 
 def get_current_school():
     """Returns currently selected School in session or first available school, creating one if empty."""
@@ -144,7 +149,7 @@ def build_whatsapp_link(phone=None, message=""):
     
     if clean_phone:
         return f"https://wa.me/{clean_phone}" + (f"?text={encoded}" if encoded else "")
-    return f"https://wa.me/" + (f"?text={encoded}" if encoded else "")
+    return "https://wa.me/" + (f"?text={encoded}" if encoded else "")
 
 def get_whatsapp_onboarding_share_url(school, onboard_url):
     """Generates standard WhatsApp broadcast invitation for school student onboarding."""

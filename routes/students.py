@@ -1,12 +1,11 @@
+import secrets
 import base64
 import io
 import datetime
-import os
-from pathlib import Path
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required
 from extensions import db
-from models import Student, School, CardRecord
+from models import Student, School
 from config import Config
 from utils import get_current_school, log_audit, save_uploaded_file
 
@@ -478,7 +477,7 @@ def edit_student(student_id):
                 student.photo_filename = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
 
         db.session.commit()
-        flash(f"Student details updated successfully!", "success")
+        flash("Student details updated successfully!", "success")
         log_audit("EDIT_STUDENT", f"Updated student {adm_no}")
         return redirect(url_for("students.index"))
 

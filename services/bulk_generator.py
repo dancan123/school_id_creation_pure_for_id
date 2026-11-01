@@ -1,7 +1,5 @@
 import os
-import uuid
 import datetime
-from pathlib import Path
 from config import Config
 from extensions import db
 from models import School, Student, CardRecord, GenerationJob, QRVerificationToken
@@ -51,7 +49,7 @@ class BulkGenerator:
                 card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
                 if not card:
                     card_number = f"{school.card_prefix or 'ID-'}{student.admission_number}"
-                    token_str = secrets_token = QRService.generate_unique_token()
+                    token_str = QRService.generate_unique_token()
                     
                     card = CardRecord(
                         school_id=school.id,

@@ -327,9 +327,52 @@
       text-align: center;
     }
     .camera-box.active { display: block; }
+    .camera-start-panel {
+      min-height: 280px;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: white;
+      background: radial-gradient(ellipse at center, #334155 0%, #0F172A 72%);
+    }
+    .camera-start-panel p { margin: 0; color: #CBD5E1; font-size: 0.8rem; }
+    .camera-message {
+      display: none;
+      padding: 9px 12px;
+      color: #7F1D1D;
+      background: #FEF2F2;
+      font-size: 0.78rem;
+      text-align: left;
+    }
+    .camera-message.visible { display: block; }
+    .btn-start-camera {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      color: white;
+      background: #2563EB;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .camera-live-content {
+      display: none;
+      position: relative;
+      width: min(100%, 360px);
+      aspect-ratio: 3 / 4;
+      margin: 0 auto;
+      background: #000;
+    }
+    .camera-live-content.active { display: block; }
     #cameraVideo {
+      position: absolute;
+      inset: 0;
       width: 100%;
-      height: 280px;
+      height: 100%;
       object-fit: cover;
       transform: scaleX(-1); /* mirror selfie view */
     }
@@ -339,8 +382,8 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 150px;
-      height: 200px;
+      width: 62%;
+      height: 66%;
       border: 2px dashed rgba(245, 158, 11, 0.85);
       border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
       pointer-events: none;
@@ -348,7 +391,7 @@
     }
     .face-guide-text {
       position: absolute;
-      bottom: 12px;
+      bottom: 76px;
       left: 0;
       right: 0;
       color: white;
@@ -358,6 +401,10 @@
       pointer-events: none;
     }
     .camera-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
       display: flex;
       justify-content: center;
       gap: 12px;
@@ -481,6 +528,12 @@
       font-size: 0.75rem;
       font-weight: 700;
       cursor: pointer;
+    }
+
+    @media (max-width: 560px) {
+      .photo-tabs { flex-direction: column; }
+      .photo-tab-btn { justify-content: center; }
+      .camera-controls { padding: 10px; }
     }
 
     /* Digital Signature Pad */
@@ -630,6 +683,35 @@
       background: white;
       color: #0F172A;
     }
+
+    .print-preview-stage {
+      padding: 10px;
+      background: #020617;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      box-shadow: 0 16px 36px rgba(0,0,0,.32);
+    }
+    .print-preview-face { width: 100%; }
+    .print-preview-face img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1011 / 638;
+      object-fit: contain;
+      border-radius: 8px;
+      background: white;
+    }
+    .preview-status {
+      min-height: 38px;
+      margin-top: 10px;
+      padding: 9px 11px;
+      border-radius: 9px;
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.82);
+      font-size: .75rem;
+      line-height: 1.4;
+    }
+    .preview-status.error { color: #FECACA; background: rgba(127,29,29,.45); }
 
     /* ── CR80 Live Card Visual Simulator (Exact CR80 Ratio: 85.60 x 53.98) ── */
     .card-simulator {
@@ -956,6 +1038,7 @@
                      class="input-monospace"
                      value="{{ form.get('admission_number', '') }}"
                      oninput="handleAdmissionInput()">
+              <small class="text-muted">Online ID requests are accepted only for admission numbers authorized by the school.</small>
               <div id="admFeedback" class="admission-feedback"></div>
             </div>
 
@@ -1016,7 +1099,8 @@
             <input type="text" name="nemis_upi" id="inputNemis"
                    placeholder="e.g. NEMIS UPI or Assessment Code"
                    class="input-monospace"
-                   value="{{ form.get('nemis_upi', '') }}">
+                   value="{{ form.get('nemis_upi', '') }}"
+                   oninput="updateCardPreview()">
           </div>
 
           <!-- 2. PASSPORT PHOTO TOOLS (WEBCAM & CROPPER) -->
@@ -1036,18 +1120,28 @@
 
             <!-- Tab 1: Live Webcam Viewfinder -->
             <div class="camera-box active" id="cameraBox">
-              <video id="cameraVideo" autoplay playsinline muted></video>
-              <div class="face-oval-guide"></div>
-              <div class="face-guide-text">Align face inside the oval &bull; Look straight</div>
-
-              <div class="camera-controls">
-                <button type="button" class="btn-camera-flip" title="Flip Camera" onclick="toggleCameraFacing()">
-                  <i class="fa-solid fa-camera-rotate"></i>
-                </button>
-                <button type="button" class="btn-snap" title="Snap Photo" onclick="snapWebcamPhoto()">
-                  <i class="fa-solid fa-camera"></i>
+              <div class="camera-start-panel" id="cameraStartPanel">
+                <i class="fa-solid fa-camera fa-2x" aria-hidden="true"></i>
+                <strong>Take a passport photo</strong>
+                <p>Allow camera access, then align the face inside the oval.</p>
+                <button type="button" class="btn-start-camera" onclick="startCamera()">
+                  <i class="fa-solid fa-video me-1"></i> Open Camera
                 </button>
               </div>
+              <div class="camera-live-content" id="cameraLiveContent">
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <div class="face-oval-guide"></div>
+                <div class="face-guide-text">Move closer until your face fills the oval &bull; Look straight</div>
+                <div class="camera-controls">
+                  <button type="button" class="btn-camera-flip" title="Switch camera" aria-label="Switch camera" onclick="toggleCameraFacing()">
+                    <i class="fa-solid fa-camera-rotate"></i>
+                  </button>
+                  <button type="button" class="btn-snap" title="Capture photo" aria-label="Capture photo" onclick="snapWebcamPhoto()">
+                    <i class="fa-solid fa-camera"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="camera-message" id="cameraMessage" role="status" aria-live="polite"></div>
             </div>
 
             <!-- Tab 2: Upload & Interactive Cropper -->
@@ -1157,7 +1251,7 @@
 
               <div class="form-group">
                 <label>House / Dormitory / Club</label>
-                <input type="text" name="house_or_dorm" placeholder="e.g. Kilimanjaro House">
+                <input type="text" name="house_or_dorm" placeholder="e.g. Kilimanjaro House" oninput="updateCardPreview()">
               </div>
             </div>
 
@@ -1175,93 +1269,36 @@
       </div>
     </div>
 
-    <!-- Right Side: Live Card ID Review Simulator -->
+    <!-- Right Side: Production-Renderer Card Preview -->
     <div class="review-panel">
       <div class="review-card">
         <div class="review-header">
-          <h3><i class="fa-solid fa-eye text-warning"></i> Card ID Live Review</h3>
-          <span class="live-badge"><i class="fa-solid fa-circle"></i> LIVE PREVIEW</span>
+          <h3><i class="fa-solid fa-eye text-warning"></i> Print-Ready ID Preview</h3>
+          <span class="live-badge"><i class="fa-solid fa-circle"></i> LIVE</span>
         </div>
 
         <div class="flip-tabs">
           <button type="button" class="flip-btn active" id="flipFrontBtn" onclick="showCardSide('front')">
-            <i class="fa-solid fa-id-card me-1"></i> Front Side
+            <i class="fa-solid fa-id-card me-1"></i> Front
           </button>
           <button type="button" class="flip-btn" id="flipBackBtn" onclick="showCardSide('back')">
-            <i class="fa-solid fa-shield-halved me-1"></i> Back Side (Security)
+            <i class="fa-solid fa-shield-halved me-1"></i> Back / QR / Barcode
           </button>
         </div>
 
-        <!-- Interactive Simulator Card Container -->
-        <div class="card-simulator" id="cardSim">
-          <!-- FRONT SIDE -->
-          <div id="simFrontWrap" style="height:100%; display:flex; flex-direction:column;">
-            <div class="sim-front-header">
-              {% if school.logo_filename %}
-              <img src="/media/logos/{{ school.logo_filename }}" class="sim-logo" alt="Logo">
-              {% else %}
-              <div class="sim-logo-alt">{{ school.name[:2].upper() }}</div>
-              {% endif %}
-              <div class="sim-header-text">
-                <div class="sim-sch-name">{{ school.name }}</div>
-                <div class="sim-sch-motto">"{{ school.motto or 'Strive to Excel' }}"</div>
-                <div class="sim-sch-loc">{{ school.po_box }} &bull; {{ school.town }}</div>
-              </div>
-            </div>
-            <div class="sim-stripe"></div>
-
-            <div class="sim-front-body">
-              <div class="sim-photo-box" id="simPhotoBox">
-                <i class="fa-solid fa-user text-muted" style="font-size:24px;"></i>
-              </div>
-              <div class="sim-details">
-                <span class="sim-id-badge">STUDENT IDENTITY CARD</span>
-                <div class="sim-stud-name" id="simName">STUDENT FULL NAME</div>
-                <div class="sim-row"><span class="sim-label">Adm No:</span><span class="sim-val" id="simAdm">ADM-0000</span></div>
-                <div class="sim-row"><span class="sim-label">Class:</span><span class="sim-val" id="simClass">Grade 7</span></div>
-                <div class="sim-row"><span class="sim-label">Card No:</span><span class="sim-val" id="simCardNo">{{ school.card_prefix or 'ID-' }}0000</span></div>
-                <div class="sim-row"><span class="sim-label">Expires:</span><span class="sim-val" style="color:#DC2626;" id="simExpiry">DEC 2030</span></div>
-              </div>
-            </div>
-
-            <div class="sim-front-footer">
-              <span>OFFICIAL STUDENT IDENTIFICATION</span>
-              <span style="color:#FEF08A;" id="simYear">AY {{ school.academic_year }}</span>
-            </div>
+        <div class="print-preview-stage">
+          <div class="print-preview-face" id="previewFrontWrap">
+            <img id="printPreviewFront" alt="Rendered card front, matching the production CR80 artwork">
           </div>
-
-          <!-- BACK SIDE -->
-          <div id="simBackWrap" style="height:100%; display:none; flex-direction:column;">
-            <div class="sim-back-header">
-              <span>TERMS & EMERGENCY VERIFICATION</span>
-            </div>
-            <div class="sim-back-body">
-              <div class="sim-terms-col">
-                <strong>TERMS:</strong><br>
-                1. Property of {{ school.name }}.<br>
-                2. If found, return to school office or police.<br>
-                3. Non-transferable.<br><br>
-                <strong>HOTLINE:</strong> <span id="simHotline">{{ school.emergency_contact_phone or school.phone }}</span><br>
-                <div id="simBloodWrap" style="margin-top:2px; color:#DC2626; font-weight:700;">Blood: <span id="simBlood">--</span></div>
-              </div>
-              <div class="sim-qr-col">
-                <div class="sim-qr-box">
-                  <i class="fa-solid fa-qrcode"></i>
-                </div>
-                <span class="sim-qr-text">ISO 18004 AUTH</span>
-                <span style="font-size:0.42rem; color:#64748B;">SCAN TO VERIFY</span>
-              </div>
-            </div>
-            <div class="sim-back-footer">
-              <span>{{ school.name.upper() }}</span>
-              <span style="color:#FEF08A;">SECURITY SECURED</span>
-            </div>
+          <div class="print-preview-face" id="previewBackWrap" style="display:none;">
+            <img id="printPreviewBack" alt="Rendered card back with verification QR and admission barcode">
           </div>
         </div>
+        <div id="printPreviewStatus" class="preview-status" role="status" aria-live="polite">Enter a school-authorized admission number, name, and class to see the production card design.</div>
 
         <p class="review-note">
           <i class="fa-solid fa-circle-check"></i>
-          This live simulation shows how your physical PVC CR80 card will be printed upon approval.
+          Both sides use the same CR80 renderer as the printed card. The displayed QR token is reserved for this eligible admission and is activated when the school issues the card.
         </p>
       </div>
     </div>
@@ -1290,37 +1327,67 @@ function toggleOptionalSection() {
   chev.classList.toggle('fa-chevron-down');
 }
 
-// Card Simulator Side Switching
+// Printed-card preview side switching
 function showCardSide(side) {
-  document.getElementById('simFrontWrap').style.display = side === 'front' ? 'flex' : 'none';
-  document.getElementById('simBackWrap').style.display = side === 'back' ? 'flex' : 'none';
+  document.getElementById('previewFrontWrap').style.display = side === 'front' ? 'block' : 'none';
+  document.getElementById('previewBackWrap').style.display = side === 'back' ? 'block' : 'none';
   document.getElementById('flipFrontBtn').classList.toggle('active', side === 'front');
   document.getElementById('flipBackBtn').classList.toggle('active', side === 'back');
 }
 
-// Live Card Preview Synchronization
+// Production card renderer preview (same renderer as the CR80 PDF)
+var previewDebounceTimer;
+var previewRequestController = null;
 function updateCardPreview() {
-  var name = document.getElementById('inputFullName').value.trim();
-  var adm = document.getElementById('inputAdmNo').value.trim();
-  var cls = document.getElementById('classSelect').value;
-  var stream = document.getElementById('inputStream').value.trim();
-  var yr = document.getElementById('inputYear').value;
-  var blood = document.getElementById('inputBlood').value;
-  var parentPhone = document.getElementById('inputParentPhone').value.trim();
-
-  document.getElementById('simName').textContent = name ? name.toUpperCase() : 'STUDENT FULL NAME';
-  document.getElementById('simAdm').textContent = adm ? adm.toUpperCase() : 'ADM-0000';
-  document.getElementById('simClass').textContent = cls ? (cls + (stream ? ' ' + stream : '')) : 'Grade 7';
-  document.getElementById('simCardNo').textContent = '{{ school.card_prefix or "ID-" }}' + (adm ? adm.toUpperCase() : '0000');
-  document.getElementById('simYear').textContent = 'AY ' + yr;
-  document.getElementById('simExpiry').textContent = 'DEC ' + (parseInt(yr) + {{ school.validity_years or 4 }});
-
-  if (blood) {
-    document.getElementById('simBlood').textContent = blood;
-    document.getElementById('simBloodWrap').style.display = 'block';
-  } else {
-    document.getElementById('simBloodWrap').style.display = 'none';
+  clearTimeout(previewDebounceTimer);
+  var status = document.getElementById('printPreviewStatus');
+  var payload = {
+    full_name: document.getElementById('inputFullName').value.trim(),
+    admission_number: document.getElementById('inputAdmNo').value.trim().toUpperCase(),
+    class_name: document.getElementById('classSelect').value,
+    stream_name: document.getElementById('inputStream').value.trim(),
+    academic_year: document.getElementById('inputYear').value,
+    blood_group: document.getElementById('inputBlood').value,
+    house_or_dorm: document.querySelector('[name="house_or_dorm"]').value.trim(),
+    parent_phone: document.getElementById('inputParentPhone').value.trim(),
+    nemis_upi: document.getElementById('inputNemis').value.trim(),
+    photo_data: document.getElementById('photoCroppedData').value,
+    signature_data: document.getElementById('signatureData').value
+  };
+  if (!payload.full_name || !payload.admission_number || !payload.class_name) {
+    status.textContent = 'Enter a school-authorized admission number, name, and class to see the production card design.';
+    status.classList.remove('error');
+    document.getElementById('printPreviewFront').removeAttribute('src');
+    document.getElementById('printPreviewBack').removeAttribute('src');
+    return;
   }
+  status.textContent = 'Rendering the production card, QR code, and barcode…';
+  status.classList.remove('error');
+  previewDebounceTimer = setTimeout(function() {
+    if (previewRequestController) previewRequestController.abort();
+    previewRequestController = new AbortController();
+    fetch('{{ url_for("enrolment.preview_public_card", school_code=school.code or school.id) }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: previewRequestController.signal
+    }).then(function(response) {
+      return response.json().then(function(data) {
+        if (!response.ok) throw new Error(data.error || 'Card preview unavailable.');
+        return data;
+      });
+    }).then(function(data) {
+      document.getElementById('printPreviewFront').src = data.front;
+      document.getElementById('printPreviewBack').src = data.back;
+      status.textContent = 'Production preview ready · ' + data.card_number + ' · includes the reserved verification QR and admission barcode.';
+    }).catch(function(error) {
+      if (error.name === 'AbortError') return;
+      document.getElementById('printPreviewFront').removeAttribute('src');
+      document.getElementById('printPreviewBack').removeAttribute('src');
+      status.textContent = error.message;
+      status.classList.add('error');
+    });
+  }, 500);
 }
 
 // Admission Live Availability Check (Debounced)
@@ -1341,11 +1408,12 @@ function handleAdmissionInput() {
       .then(function(data) {
         if (data.available) {
           fb.className = 'admission-feedback valid';
-          fb.innerHTML = '<i class="fa-solid fa-check-circle me-1"></i> Admission number is available';
+          fb.textContent = data.message;
         } else {
           fb.className = 'admission-feedback invalid';
-          fb.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> ' + data.message;
+          fb.textContent = data.message;
         }
+        updateCardPreview();
       });
   }, 450);
 }
@@ -1361,6 +1429,7 @@ var isDragging = false;
 var dragStartX = 0;
 var dragStartY = 0;
 var cropRotation = 0;
+var cameraStarting = false;
 
 function switchPhotoTab(tab) {
   document.getElementById('tabCameraBtn').classList.toggle('active', tab === 'camera');
@@ -1375,19 +1444,67 @@ function switchPhotoTab(tab) {
   }
 }
 
-function startCamera() {
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facingMode, width: { ideal: 640 }, height: { ideal: 480 } }
-    }).then(function(stream) {
-      cameraStream = stream;
-      var video = document.getElementById('cameraVideo');
-      video.srcObject = stream;
-    }).catch(function(err) {
-      console.warn("Camera access denied or unavailable: ", err);
-      switchPhotoTab('upload');
-    });
+function showCameraMessage(text, offerLocalLink) {
+  var message = document.getElementById('cameraMessage');
+  message.textContent = text;
+  if (offerLocalLink) {
+    message.appendChild(document.createElement('br'));
+    var localLink = document.createElement('a');
+    localLink.href = 'http://localhost:' + (window.location.port || '5000') + window.location.pathname + window.location.search + window.location.hash;
+    localLink.textContent = 'Open this page on the server computer using localhost';
+    localLink.style.cssText = 'display:inline-block;margin-top:6px;color:#1D4ED8;font-weight:700;';
+    message.appendChild(localLink);
   }
+  message.classList.add('visible');
+}
+
+function startCamera() {
+  if (cameraStarting || cameraStream) return;
+  var message = document.getElementById('cameraMessage');
+  var startPanel = document.getElementById('cameraStartPanel');
+  var liveContent = document.getElementById('cameraLiveContent');
+  message.classList.remove('visible');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!window.isSecureContext) {
+      showCameraMessage('This LAN address is not a secure browser context, so camera access is blocked. On the computer running this app, localhost may be used without HTTPS. On a phone or another computer, trusted HTTPS is required. You can also use the Upload & Passport Cropper tab.', true);
+    } else {
+      showCameraMessage('This browser does not provide camera access. Try a current version of Chrome, Edge, or Firefox, or use the Upload & Passport Cropper tab.', false);
+    }
+    return;
+  }
+  cameraStarting = true;
+  message.textContent = 'Requesting camera permission…';
+  message.classList.add('visible');
+  function requestCamera(constraints) {
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
+  requestCamera({
+    video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 960 } },
+    audio: false
+  }).catch(function(firstError) {
+    if (firstError.name === 'OverconstrainedError' || firstError.name === 'NotFoundError') {
+      return requestCamera({ video: true, audio: false });
+    }
+    throw firstError;
+  }).then(function(stream) {
+    cameraStream = stream;
+    var video = document.getElementById('cameraVideo');
+    video.srcObject = stream;
+    return video.play().then(function() {
+      startPanel.style.display = 'none';
+      liveContent.classList.add('active');
+      message.classList.remove('visible');
+    });
+  }).catch(function(err) {
+    console.warn('Camera access denied or unavailable:', err);
+    var reason = err.name === 'NotAllowedError' ? 'Camera permission was denied. Allow camera access in your browser settings, or use the upload tab.' :
+      err.name === 'NotFoundError' ? 'No camera was found. Use the upload and cropper tab instead.' :
+      'Unable to open the camera. Check that it is connected and not being used by another app, or use the upload tab.';
+    showCameraMessage(reason, false);
+    stopCamera();
+  }).finally(function() {
+    cameraStarting = false;
+  });
 }
 
 function stopCamera() {
@@ -1395,6 +1512,12 @@ function stopCamera() {
     cameraStream.getTracks().forEach(function(t) { t.stop(); });
     cameraStream = null;
   }
+  var video = document.getElementById('cameraVideo');
+  if (video) video.srcObject = null;
+  var startPanel = document.getElementById('cameraStartPanel');
+  var liveContent = document.getElementById('cameraLiveContent');
+  if (startPanel) startPanel.style.display = 'flex';
+  if (liveContent) liveContent.classList.remove('active');
 }
 
 function toggleCameraFacing() {
@@ -1405,7 +1528,12 @@ function toggleCameraFacing() {
 
 function snapWebcamPhoto() {
   var video = document.getElementById('cameraVideo');
-  if (!video) return;
+  if (!video || !cameraStream || video.videoWidth < 1 || video.videoHeight < 1) {
+    var message = document.getElementById('cameraMessage');
+    message.textContent = 'The camera is still starting. Wait for the live preview, then capture the photo.';
+    message.classList.add('visible');
+    return;
+  }
 
   var canvas = document.createElement('canvas');
   canvas.width = 480;
@@ -1475,7 +1603,10 @@ function drawCropper() {
   ctx.rotate((cropRotation * Math.PI) / 180);
 
   var zoom = parseFloat(document.getElementById('zoomSlider').value);
-  var baseScale = Math.max(cw / rawImageObj.width, ch / rawImageObj.height);
+  var swapped = Math.abs(cropRotation % 180) === 90;
+  var rotatedWidth = swapped ? rawImageObj.height : rawImageObj.width;
+  var rotatedHeight = swapped ? rawImageObj.width : rawImageObj.height;
+  var baseScale = Math.max(cw / rotatedWidth, ch / rotatedHeight);
   var s = baseScale * zoom;
 
   ctx.drawImage(
@@ -1543,7 +1674,10 @@ function confirmCrop() {
   octx.translate(outCanvas.width / 2 + cropOffsetX * ratio, outCanvas.height / 2 + cropOffsetY * ratio);
   octx.rotate((cropRotation * Math.PI) / 180);
 
-  var baseScale = Math.max(outCanvas.width / rawImageObj.width, outCanvas.height / rawImageObj.height);
+  var swapped = Math.abs(cropRotation % 180) === 90;
+  var rotatedWidth = swapped ? rawImageObj.height : rawImageObj.width;
+  var rotatedHeight = swapped ? rawImageObj.width : rawImageObj.height;
+  var baseScale = Math.max(outCanvas.width / rotatedWidth, outCanvas.height / rotatedHeight);
   var s = baseScale * zoom;
 
   octx.drawImage(
@@ -1561,22 +1695,26 @@ function confirmCrop() {
 
 function applyFinalPhoto(dataUrl) {
   document.getElementById('photoCroppedData').value = dataUrl;
+  document.getElementById('webcamImageData').value = dataUrl;
   document.getElementById('photoReadyImg').src = dataUrl;
+  stopCamera();
 
   document.getElementById('cameraBox').classList.remove('active');
   document.getElementById('uploadCropperBox').classList.remove('active');
   document.getElementById('photoReadyBox').style.display = 'flex';
 
-  // Update Simulator Photo
-  var simBox = document.getElementById('simPhotoBox');
-  simBox.innerHTML = '<img src="' + dataUrl + '" alt="Passport">';
+  updateCardPreview();
 }
 
 function retakePhoto() {
   document.getElementById('photoReadyBox').style.display = 'none';
   document.getElementById('photoCroppedData').value = '';
+  document.getElementById('webcamImageData').value = '';
   document.getElementById('dropZone').style.display = 'block';
   document.getElementById('cropCanvasWrap').style.display = 'none';
+  document.getElementById('cameraStartPanel').style.display = 'flex';
+  document.getElementById('cameraLiveContent').classList.remove('active');
+  document.getElementById('cameraMessage').classList.remove('visible');
   switchPhotoTab('camera');
 }
 
@@ -1620,6 +1758,7 @@ window.addEventListener('mouseup', function() {
   if (isSigning) {
     isSigning = false;
     document.getElementById('signatureData').value = sigCanvas.toDataURL('image/png');
+    updateCardPreview();
   }
 });
 
@@ -1642,12 +1781,14 @@ sigCanvas.addEventListener('touchend', function() {
   if (isSigning) {
     isSigning = false;
     document.getElementById('signatureData').value = sigCanvas.toDataURL('image/png');
+    updateCardPreview();
   }
 });
 
 function clearSignature() {
   sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
   document.getElementById('signatureData').value = '';
+  updateCardPreview();
 }
 
 // Copy Portal Link
@@ -1662,7 +1803,12 @@ function copyPortalLink() {
 document.getElementById('enrolForm').addEventListener('submit', function(e) {
   var photoVal = document.getElementById('photoCroppedData').value;
   var filePicker = document.getElementById('filePicker');
-  if (!photoVal && (!filePicker.files || filePicker.files.length === 0)) {
+  if (!photoVal && filePicker.files && filePicker.files.length > 0) {
+    e.preventDefault();
+    alert('Please adjust the passport photo and press Apply before submitting.');
+    return;
+  }
+  if (!photoVal) {
     // If camera active, snap now
     if (cameraStream) {
       snapWebcamPhoto();
@@ -1682,7 +1828,6 @@ document.getElementById('enrolForm').addEventListener('submit', function(e) {
 
 // Init
 window.addEventListener('DOMContentLoaded', function() {
-  startCamera();
   updateCardPreview();
 });
 </script>

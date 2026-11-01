@@ -1,6 +1,6 @@
 import io
 import csv
-from flask import Blueprint, render_template, request, Response
+from flask import Blueprint, render_template, Response
 from flask_login import login_required
 from extensions import db
 from models import School, Student, CardRecord, AuditLog

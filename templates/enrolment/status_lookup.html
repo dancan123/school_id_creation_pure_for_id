@@ -66,14 +66,14 @@
 <div class="lookup-card">
   <i class="fa-solid fa-magnifying-glass-location fa-3x text-primary mb-3"></i>
   <h2>Track Your ID Card Status</h2>
-  <p>Enter your Submission Reference (e.g. ENR-2026-XXXX) or Admission Number.</p>
+  <p>Enter the private Submission Reference shown after you submitted your application. For privacy, admission numbers cannot be used to view status.</p>
 
   {% if error %}
   <div class="error-box"><i class="fa-solid fa-circle-exclamation me-1"></i> {{ error }}</div>
   {% endif %}
 
   <form onsubmit="event.preventDefault(); var t = document.getElementById('refInput').value.trim(); if(t) window.location.href='/onboard/status/' + encodeURIComponent(t);">
-    <input type="text" id="refInput" class="lookup-input" placeholder="e.g. ENR-2026-A1B2 or 2024001" required autofocus>
+    <input type="text" id="refInput" class="lookup-input" placeholder="e.g. ENR-2026-A1B2" required autofocus>
     <button type="submit" class="btn-track"><i class="fa-solid fa-arrow-right me-1"></i> Look Up Status</button>
   </form>
 

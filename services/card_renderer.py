@@ -4,7 +4,6 @@ import math
 import datetime
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-import qrcode
 try:
     import barcode
     from barcode.writer import ImageWriter
@@ -379,8 +378,16 @@ class CardRenderer:
 
         # Paste Photo
         photo_pasted = False
+        preview_photo = getattr(student, "preview_photo", None)
+        if preview_photo is not None:
+            try:
+                s_photo = ImageOps.fit(preview_photo.convert("RGB"), (photo_w, photo_h), Image.Resampling.LANCZOS)
+                img.paste(s_photo, (photo_x, photo_y))
+                photo_pasted = True
+            except Exception:
+                photo_pasted = False
         target_photo_fn = student.photo_cropped_filename or student.photo_filename
-        if target_photo_fn:
+        if not photo_pasted and target_photo_fn:
             photo_path = Config.PHOTOS_DIR / target_photo_fn
             if photo_path.exists():
                 try:
@@ -421,7 +428,6 @@ class CardRenderer:
 
         lbl_font = get_font(18, bold=False)
         val_font = get_font(21, bold=True)
-        name_val_font = get_font(25, bold=True)
 
         id_lbl_text = f"{getattr(school, 'get_id_label', lambda: 'ADM NO')()}:"
         class_lbl_text = f"{getattr(school, 'get_class_label', lambda: 'CLASS / GRADE')()}:"
@@ -458,7 +464,8 @@ class CardRenderer:
         # Valid Until / Expiry
         curr_y += line_spacing
         draw.text((info_x, curr_y), "EXPIRES:", fill=(100, 116, 139), font=lbl_font)
-        exp_date_str = str(card_record.expiry_date) if card_record and card_record.expiry_date else f"DEC {int(student.academic_year) + (school.validity_years or 4)}"
+        exp_year = card_record.expiry_date.year if card_record and card_record.expiry_date else int(student.academic_year) + (school.validity_years or 4)
+        exp_date_str = f"DEC {exp_year}"
         draw.text((col2_x, curr_y), exp_date_str, fill=(220, 38, 38), font=val_font)
 
         # ── Badges beneath photo (Photo sits at photo_x=40, photo_y=199, photo_w=283, photo_h=325) ──
@@ -510,8 +517,17 @@ class CardRenderer:
         sig_paste_y = h - footer_height - 70
         sig_baseline_y = sig_paste_y + 32
 
-        sig_drawn = False
-        if getattr(student, "signature_filename", None):
+        preview_signature = getattr(student, "preview_signature", None)
+        if preview_signature is not None:
+            try:
+                s_sig = preview_signature.convert("RGBA")
+                s_sig.thumbnail((sig_w, 30), Image.Resampling.LANCZOS)
+                centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
+                centered_sig_y = sig_baseline_y - s_sig.height - 2
+                img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
+            except Exception:
+                pass
+        elif getattr(student, "signature_filename", None):
             sig_p = Config.SIGNATURES_DIR / student.signature_filename
             if sig_p.exists():
                 try:
@@ -520,9 +536,8 @@ class CardRenderer:
                     centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
                     centered_sig_y = sig_baseline_y - s_sig.height - 2
                     img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
-                    sig_drawn = True
                 except Exception:
-                    sig_drawn = False
+                    pass
 
         # Cardholder signature baseline and label
         draw.line([sig_paste_x, sig_baseline_y, sig_paste_x + sig_w, sig_baseline_y], fill=(148, 163, 184), width=1)
@@ -605,7 +620,6 @@ class CardRenderer:
         raw_lines = [ln.strip() for ln in disclaimer.replace("\r", "").split("\n") if ln.strip()]
 
         start_x = t_box_x1 + 18
-        block_font = get_font(12, bold=True)
         term_y = t_box_y1 + banner_h + 10
         line_step = 22
         # Display up to 3 terms lines cleanly
@@ -1006,7 +1020,7 @@ class CardRenderer:
         return output_pdf_path
 
     @staticmethod
-    def generate_card_for_student(school, student, base_url="http://localhost:5000", template_id=None):
+    def generate_card_for_student(school, student, base_url="http://localhost:5000", template_id=None, qr_token=None):
         """Creates or updates an active CardRecord, renders 300 DPI images,
         generates the print-ready PDF, registers QR token, and marks student active.
         Returns the card record.
@@ -1019,7 +1033,7 @@ class CardRenderer:
         existing_card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
         if not existing_card:
             card_number = f"{school.card_prefix or 'ID-'}{student.admission_number}"
-            qr_token = QRService.generate_unique_token()
+            qr_token = qr_token or getattr(student, "pending_card_qr_token", None) or QRService.generate_unique_token()
             exp_year = int(student.academic_year) + (school.validity_years or 4)
             expiry_date = datetime.date(exp_year, 12, 31)
 
@@ -1060,6 +1074,7 @@ class CardRenderer:
         student.card_number = card.card_number
         student.issue_date = card.issue_date
         student.expiry_date = card.expiry_date
+        student.pending_card_qr_token = None
 
         db.session.commit()
         return card

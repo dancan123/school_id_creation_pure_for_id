@@ -5,7 +5,7 @@ from app import create_app
 from config import TestConfig, Config
 from extensions import db
 from models import School, Student, CardRecord
-from services.card_renderer import CardRenderer, LANDSCAPE_W, LANDSCAPE_H
+from services.card_renderer import CardRenderer, LANDSCAPE_W, LANDSCAPE_H, generate_barcode_img
 
 @pytest.fixture
 def app():
@@ -79,3 +79,8 @@ def test_card_render_dimensions_and_images(app, tmp_path):
         CardRenderer.generate_a4_sheet_pdf([(f_path, b_path), (f_path, b_path)], a4_pdf_path)
         assert a4_pdf_path.exists()
         assert a4_pdf_path.stat().st_size > 2000
+
+def test_code128_barcode_is_generated():
+    barcode_image = generate_barcode_img("ADM-2026-001")
+    assert barcode_image is not None
+    assert barcode_image.size == (224, 58)
