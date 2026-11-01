@@ -57,6 +57,8 @@ class School(db.Model):
     auto_approve_onboarding = db.Column(db.Boolean, default=False)
     onboarding_instructions = db.Column(db.Text, nullable=True)
     onboarding_base_url = db.Column(db.String(255), nullable=True)
+    admission_number_prefix = db.Column(db.String(20), nullable=True)
+    admission_number_length = db.Column(db.Integer, nullable=True)
     
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -287,6 +289,8 @@ class AdmissionAllowlist(db.Model):
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
     admission_number = db.Column(db.String(50), nullable=False)
     qr_token = db.Column(db.String(64), nullable=False, unique=True)
+    source = db.Column(db.String(20), nullable=False, default="manual")
+    allocation_batch_id = db.Column(db.String(36), nullable=True, index=True)
     current_enrolment_id = db.Column(db.Integer, db.ForeignKey("self_enrolments.id", ondelete="SET NULL"), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

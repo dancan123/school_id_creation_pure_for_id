@@ -27,12 +27,18 @@ def run_migration(db_path=None, quiet=True):
         enrol_cols = {row[1] for row in cur.fetchall()}
         cur.execute("PRAGMA table_info(students)")
         student_cols = {row[1] for row in cur.fetchall()}
+        cur.execute("PRAGMA table_info(admission_allowlist)")
+        allowlist_cols = {row[1] for row in cur.fetchall()}
         if ("enable_watermark" in school_cols and
             "onboarding_base_url" in school_cols and
+                "admission_number_prefix" in school_cols and
+                "admission_number_length" in school_cols and
                 "submission_token" in enrol_cols and
                 "card_qr_token" in enrol_cols and
             "resubmission_count" in enrol_cols and
-            "pending_card_qr_token" in student_cols):
+                "pending_card_qr_token" in student_cols and
+            "source" in allowlist_cols and
+            "allocation_batch_id" in allowlist_cols):
             conn.close()
             return
     except Exception:
@@ -45,6 +51,8 @@ def run_migration(db_path=None, quiet=True):
             ("auto_approve_onboarding", "BOOLEAN DEFAULT 0"),
             ("onboarding_instructions", "TEXT"),
             ("onboarding_base_url", "VARCHAR(255)"),
+            ("admission_number_prefix", "VARCHAR(20)"),
+            ("admission_number_length", "INTEGER"),
             ("institution_type", "VARCHAR(30) DEFAULT 'school'"),
             ("stamp_filename", "VARCHAR(255)"),
             ("principal_title", "VARCHAR(100) DEFAULT 'Principal / Head of Institution'"),
@@ -74,6 +82,10 @@ def run_migration(db_path=None, quiet=True):
             ("submission_token", "TEXT"),
             ("card_qr_token", "VARCHAR(64)"),
             ("resubmission_count", "INTEGER DEFAULT 0"),
+        ],
+        "admission_allowlist": [
+            ("source", "VARCHAR(20) NOT NULL DEFAULT 'manual'"),
+            ("allocation_batch_id", "VARCHAR(36)"),
         ]
     }
 

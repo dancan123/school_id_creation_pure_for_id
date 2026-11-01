@@ -29,13 +29,19 @@ import base64
 import binascii
 import io
 import re
+import uuid
 from types import SimpleNamespace
 from PIL import Image
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, abort, jsonify, Response
+    url_for, flash, abort, jsonify, Response, send_file
 )
 from flask_login import login_required, current_user
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from extensions import db
 from models import School, Student, SelfEnrolment, CardRecord, AdmissionAllowlist
@@ -370,35 +376,43 @@ def self_enrol(school_code):
     )
 
 
-@enrolment_bp.route("/onboard/<school_code>/preview", methods=["POST"])
-@enrolment_bp.route("/enrol/<school_code>/preview", methods=["POST"])
+@enrolment_bp.route("/onboard/<school_code>/preview", methods=["GET", "POST"])
+@enrolment_bp.route("/enrol/<school_code>/preview", methods=["GET", "POST"])
 def preview_public_card(school_code):
-    """Render applicant data using the exact same artwork pipeline as CR80 print files."""
+    """Render the sample or applicant card using the production CR80 artwork pipeline."""
     school = _find_school_by_code_or_id(school_code)
     if not school or not school.allow_self_onboarding:
         return jsonify({"error": "Online onboarding is currently closed."}), 403
     if request.content_length and request.content_length > 2_500_000:
         return jsonify({"error": "Preview request is too large."}), 413
 
+    sample_preview = request.method == "GET"
     data = request.get_json(silent=True) or {}
-    admission_number = str(data.get("admission_number", "")).strip().upper()[:50]
-    eligibility = AdmissionAllowlist.query.filter_by(
-        school_id=school.id, admission_number=admission_number, is_active=True
-    ).first()
-    if not eligibility:
-        return jsonify({"error": "This admission number is not on the school's eligible list. Contact the school administration."}), 403
+    eligibility = None
+    if sample_preview:
+        admission_number = "SAMPLE-0001"
+        full_name = "SAMPLE STUDENT NAME"
+        class_name = "Grade 8"
+        academic_year = str(school.academic_year or datetime.date.today().year)[:4]
+    else:
+        admission_number = str(data.get("admission_number", "")).strip().upper()[:50]
+        eligibility = AdmissionAllowlist.query.filter_by(
+            school_id=school.id, admission_number=admission_number, is_active=True
+        ).first()
+        if not eligibility:
+            return jsonify({"error": "This admission number is not on the school's eligible list. Contact the school administration."}), 403
 
-    previous = db.session.get(SelfEnrolment, eligibility.current_enrolment_id) if eligibility.current_enrolment_id else None
-    if previous and (previous.status != "rejected" or previous.resubmission_count >= 1):
-        return jsonify({"error": "This admission number has already used its online submission. Contact the school administration."}), 409
-    if Student.query.filter_by(school_id=school.id, admission_number=admission_number, is_archived=False).first():
-        return jsonify({"error": "This admission number is already in the student register. Contact the school administration."}), 409
+        previous = db.session.get(SelfEnrolment, eligibility.current_enrolment_id) if eligibility.current_enrolment_id else None
+        if previous and (previous.status != "rejected" or previous.resubmission_count >= 1):
+            return jsonify({"error": "This admission number has already used its online submission. Contact the school administration."}), 409
+        if Student.query.filter_by(school_id=school.id, admission_number=admission_number, is_archived=False).first():
+            return jsonify({"error": "This admission number is already in the student register. Contact the school administration."}), 409
 
-    full_name = str(data.get("full_name", "")).strip()[:150]
-    class_name = str(data.get("class_name", "")).strip()[:50]
-    if not admission_number or not full_name or not class_name:
-        return jsonify({"error": "Enter the student's name, eligible admission number, and class to preview the card."}), 400
-    academic_year = str(data.get("academic_year") or school.academic_year or datetime.date.today().year).strip()[:4]
+        full_name = str(data.get("full_name", "")).strip()[:150]
+        class_name = str(data.get("class_name", "")).strip()[:50]
+        if not admission_number or not full_name or not class_name:
+            return jsonify({"error": "Enter the student's name, eligible admission number, and class to preview the card."}), 400
+        academic_year = str(data.get("academic_year") or school.academic_year or datetime.date.today().year).strip()[:4]
     if not academic_year.isdigit():
         academic_year = str(datetime.date.today().year)
 
@@ -419,8 +433,8 @@ def preview_public_card(school_code):
             raise ValueError(f"{label} image could not be read.") from exc
 
     try:
-        photo = decode_image(data.get("photo_data"), "Passport photo")
-        signature = decode_image(data.get("signature_data"), "Signature")
+        photo = None if sample_preview else decode_image(data.get("photo_data"), "Passport photo")
+        signature = None if sample_preview else decode_image(data.get("signature_data"), "Signature")
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
@@ -430,10 +444,10 @@ def preview_public_card(school_code):
         class_name=class_name,
         stream_name=str(data.get("stream_name", "")).strip()[:50] or None,
         academic_year=academic_year,
-        blood_group=str(data.get("blood_group", "")).strip()[:10] or None,
-        house_or_dorm=str(data.get("house_or_dorm", "")).strip()[:60] or None,
-        parent_phone=str(data.get("parent_phone", "")).strip()[:50] or None,
-        nemis_upi=str(data.get("nemis_upi", "")).strip()[:50] or None,
+        blood_group=None if sample_preview else str(data.get("blood_group", "")).strip()[:10] or None,
+        house_or_dorm=None if sample_preview else str(data.get("house_or_dorm", "")).strip()[:60] or None,
+        parent_phone=None if sample_preview else str(data.get("parent_phone", "")).strip()[:50] or None,
+        nemis_upi=None if sample_preview else str(data.get("nemis_upi", "")).strip()[:50] or None,
         photo_cropped_filename=None,
         photo_filename=None,
         signature_filename=None,
@@ -443,7 +457,7 @@ def preview_public_card(school_code):
     expiry_date = datetime.date(int(academic_year) + (school.validity_years or 4), 12, 31)
     card = SimpleNamespace(
         card_number=f"{school.card_prefix or 'ID-'}{admission_number}",
-        qr_token=eligibility.qr_token,
+        qr_token=eligibility.qr_token if eligibility else "SAMPLE-NOT-ACTIVE",
         expiry_date=expiry_date,
         renewal_count=0
     )
@@ -459,7 +473,7 @@ def preview_public_card(school_code):
         back = CardRenderer.render_back(school, student, card, verify_base_url=verify_base)
     except Exception:
         return jsonify({"error": "Card preview could not be rendered. Please contact the school administration."}), 500
-    response = jsonify({"front": png_data_url(front), "back": png_data_url(back), "card_number": card.card_number})
+    response = jsonify({"front": png_data_url(front), "back": png_data_url(back), "card_number": card.card_number, "sample": sample_preview})
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -473,6 +487,69 @@ def admission_allowlist():
 
     school = get_current_school()
     if request.method == "POST":
+        action = request.form.get("action", "add")
+        newly_generated = []
+        if action == "generate":
+            try:
+                quantity = int(request.form.get("quantity", "0"))
+            except ValueError:
+                quantity = 0
+            prefix = (school.admission_number_prefix or "").strip().upper()
+            digits = school.admission_number_length
+            if not digits or not 4 <= digits <= 10:
+                flash("Set the random admission-number digit length in School Settings first. A prefix is optional.", "danger")
+                return redirect(url_for("enrolment.admission_allowlist"))
+            if not 1 <= quantity <= 500:
+                flash("Choose a quantity between 1 and 500.", "danger")
+                return redirect(url_for("enrolment.admission_allowlist"))
+
+            max_value = 10 ** digits
+            batch_id = str(uuid.uuid4())
+            for _ in range(quantity):
+                candidate = None
+                for _attempt in range(250):
+                    number = f"{prefix}{secrets.randbelow(max_value):0{digits}d}"
+                    allocated = AdmissionAllowlist.query.filter_by(school_id=school.id, admission_number=number).first()
+                    registered = Student.query.filter_by(school_id=school.id, admission_number=number).first()
+                    submitted = SelfEnrolment.query.filter_by(school_id=school.id, admission_number=number).first()
+                    if not allocated and not registered and not submitted:
+                        candidate = number
+                        break
+                if candidate is None:
+                    db.session.rollback()
+                    flash("Could not find enough unused admission numbers. Increase the digit length or reduce the quantity.", "danger")
+                    return redirect(url_for("enrolment.admission_allowlist"))
+                db.session.add(AdmissionAllowlist(
+                    school_id=school.id,
+                    admission_number=candidate,
+                    qr_token=QRService.generate_unique_token(),
+                    source="random",
+                    allocation_batch_id=batch_id,
+                    created_by_user_id=current_user.id,
+                    is_active=True
+                ))
+                newly_generated.append(candidate)
+
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                flash("An admission number was allocated concurrently. Please retry; no partial batch was saved.", "danger")
+                return redirect(url_for("enrolment.admission_allowlist"))
+
+            log_audit("GENERATE_ADMISSION_NUMBERS", f"Randomly allocated {len(newly_generated)} admission numbers", school_id=school.id)
+            entries = AdmissionAllowlist.query.filter_by(school_id=school.id).order_by(AdmissionAllowlist.admission_number).all()
+            entry_rows = [(entry, db.session.get(SelfEnrolment, entry.current_enrolment_id) if entry.current_enrolment_id else None) for entry in entries]
+            batches = db.session.query(
+                AdmissionAllowlist.allocation_batch_id,
+                db.func.count(AdmissionAllowlist.id),
+                db.func.min(AdmissionAllowlist.created_at)
+            ).filter(
+                AdmissionAllowlist.school_id == school.id,
+                AdmissionAllowlist.allocation_batch_id.isnot(None)
+            ).group_by(AdmissionAllowlist.allocation_batch_id).order_by(db.func.min(AdmissionAllowlist.created_at).desc()).all()
+            return render_template("enrolment/admission_allowlist.html", current_school=school, entries=entry_rows, newly_generated=newly_generated, latest_batch_id=batch_id, batches=batches)
+
         raw_numbers = request.form.get("admission_numbers", "")
         numbers = {line.strip().upper() for line in raw_numbers.replace(",", "\n").replace(";", "\n").splitlines() if line.strip()}
         added = 0
@@ -505,6 +582,7 @@ def admission_allowlist():
                 school_id=school.id,
                 admission_number=admission_number,
                 qr_token=QRService.generate_unique_token(),
+                source="manual",
                 created_by_user_id=current_user.id,
                 is_active=True
             ))
@@ -517,7 +595,65 @@ def admission_allowlist():
 
     entries = AdmissionAllowlist.query.filter_by(school_id=school.id).order_by(AdmissionAllowlist.admission_number).all()
     entry_rows = [(entry, db.session.get(SelfEnrolment, entry.current_enrolment_id) if entry.current_enrolment_id else None) for entry in entries]
-    return render_template("enrolment/admission_allowlist.html", current_school=school, entries=entry_rows)
+    batches = db.session.query(
+        AdmissionAllowlist.allocation_batch_id,
+        db.func.count(AdmissionAllowlist.id),
+        db.func.min(AdmissionAllowlist.created_at)
+    ).filter(
+        AdmissionAllowlist.school_id == school.id,
+        AdmissionAllowlist.allocation_batch_id.isnot(None)
+    ).group_by(AdmissionAllowlist.allocation_batch_id).order_by(db.func.min(AdmissionAllowlist.created_at).desc()).all()
+    return render_template("enrolment/admission_allowlist.html", current_school=school, entries=entry_rows, batches=batches)
+
+
+@enrolment_bp.route("/enrolment/admission-allowlist/batch/<batch_id>/pdf")
+@login_required
+def admission_batch_pdf(batch_id):
+    """Download a printable, school-scoped assignment register for an allocated batch."""
+    if current_user.role not in ("admin", "superadmin"):
+        abort(403)
+    school = get_current_school()
+    query = AdmissionAllowlist.query.filter_by(school_id=school.id, source="random")
+    if batch_id != "all":
+        query = query.filter_by(allocation_batch_id=batch_id)
+    entries = query.order_by(AdmissionAllowlist.admission_number).all()
+    if not entries:
+        abort(404)
+
+    buffer = io.BytesIO()
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="SchoolTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=16, leading=20, textColor=colors.HexColor(school.primary_color or "#1E3A8A"), alignment=1, spaceAfter=4))
+    styles.add(ParagraphStyle(name="RegisterSubtitle", parent=styles["Normal"], fontSize=10, leading=14, alignment=1, textColor=colors.HexColor("#475569")))
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=18 * mm, bottomMargin=18 * mm, title="Admission Number Assignment Register")
+    story = [
+        Paragraph(school.name, styles["SchoolTitle"]),
+        Paragraph("ADMISSION NUMBER ASSIGNMENT REGISTER", styles["Heading2"]),
+        Paragraph(f"Allocation batch: {'ALL RANDOM ALLOCATIONS' if batch_id == 'all' else batch_id[:8].upper()} &nbsp; | &nbsp; Generated: {datetime.date.today().strftime('%d %B %Y')} &nbsp; | &nbsp; Numbers: {len(entries)}", styles["RegisterSubtitle"]),
+        Spacer(1, 8 * mm),
+        Paragraph("Assign each number to one student using an official school letter. Once approved in the ID system, the admission number becomes permanent and must not be reassigned.", styles["BodyText"]),
+        Spacer(1, 5 * mm)
+    ]
+    rows = [["No.", "Admission number", "Assigned student / letter reference"]]
+    rows.extend([[str(index), entry.admission_number, ""] for index, entry in enumerate(entries, start=1)])
+    table = Table(rows, colWidths=[15 * mm, 48 * mm, 115 * mm], repeatRows=1, rowHeights=[10 * mm] + [12 * mm] * len(entries))
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(school.primary_color or "#1E3A8A")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+    ]))
+    story.append(table)
+    doc.build(story)
+    buffer.seek(0)
+    safe_school = re.sub(r"[^A-Za-z0-9_-]+", "_", school.code or school.name).strip("_")
+    filename_batch = "all" if batch_id == "all" else batch_id[:8]
+    return send_file(buffer, mimetype="application/pdf", as_attachment=True, download_name=f"{safe_school}_admission_assignments_{filename_batch}.pdf")
 
 
 @enrolment_bp.route("/enrolment/admission-allowlist/<int:entry_id>/deactivate", methods=["POST"])

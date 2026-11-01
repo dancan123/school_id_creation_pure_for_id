@@ -468,47 +468,6 @@ class CardRenderer:
         exp_date_str = f"DEC {exp_year}"
         draw.text((col2_x, curr_y), exp_date_str, fill=(220, 38, 38), font=val_font)
 
-        # ── Badges beneath photo (Photo sits at photo_x=40, photo_y=199, photo_w=283, photo_h=325) ──
-        # Bottom of photo: photo_y + photo_h = 524. Footer starts at h - footer_height = 575.
-        badge_row_y = photo_y + photo_h + 8
-        badge_row_h = 32
-
-        has_blood = bool(getattr(student, "blood_group", None) and student.blood_group.strip())
-        has_house = bool(getattr(student, "house_or_dorm", None) and student.house_or_dorm.strip())
-
-        if has_blood and has_house:
-            pill1_w = 110
-            draw.rounded_rectangle([photo_x, badge_row_y, photo_x + pill1_w, badge_row_y + badge_row_h],
-                                   radius=6, fill=(254, 242, 242), outline=(239, 68, 68), width=1)
-            b_font = get_font(12, bold=True)
-            draw.text((photo_x + 8, badge_row_y + 8), f"BLOOD: {student.blood_group.strip().upper()}", fill=(185, 28, 28), font=b_font)
-
-            pill2_x = photo_x + pill1_w + 6
-            pill2_w = photo_w - pill1_w - 6
-            draw.rounded_rectangle([pill2_x, badge_row_y, pill2_x + pill2_w, badge_row_y + badge_row_h],
-                                   radius=6, fill=(240, 249, 255), outline=pri_rgb, width=1)
-            house_str = f"HOUSE: {student.house_or_dorm.strip().upper()}"
-            h_font, _ = fit_font_size(draw, house_str, pill2_w - 14, initial_size=11, min_size=9, bold=True)
-            draw.text((pill2_x + 6, badge_row_y + 8), house_str, fill=pri_rgb, font=h_font)
-        elif has_blood:
-            draw.rounded_rectangle([photo_x, badge_row_y, photo_x + photo_w, badge_row_y + badge_row_h],
-                                   radius=6, fill=(254, 242, 242), outline=(239, 68, 68), width=1)
-            b_font = get_font(13, bold=True)
-            b_text = f"EMERGENCY BLOOD GROUP: {student.blood_group.strip().upper()}"
-            draw.text((photo_x + 16, badge_row_y + 8), b_text, fill=(185, 28, 28), font=b_font)
-        elif has_house:
-            draw.rounded_rectangle([photo_x, badge_row_y, photo_x + photo_w, badge_row_y + badge_row_h],
-                                   radius=6, fill=(240, 249, 255), outline=pri_rgb, width=1)
-            h_font = get_font(12, bold=True)
-            h_text = f"DORMITORY / HOUSE: {student.house_or_dorm.strip().upper()}"
-            draw.text((photo_x + 14, badge_row_y + 8), h_text, fill=pri_rgb, font=h_font)
-        else:
-            draw.rounded_rectangle([photo_x, badge_row_y, photo_x + photo_w, badge_row_y + badge_row_h],
-                                   radius=6, fill=(248, 250, 252), outline=(203, 213, 225), width=1)
-            c_font = get_font(11, bold=True)
-            c_text = "★ OFFICIAL VERIFIED CREDENTIAL ★"
-            draw.text((photo_x + 28, badge_row_y + 9), c_text, fill=(100, 116, 139), font=c_font)
-
         # ── Cardholder Signature Zone ──────────────────────────────────────────
         # Lifted safely above the bottom footer margin (raised by 20px from initial -50)
         # Guarantees a comfortable ~18px breathing space above the footer accent line
@@ -633,21 +592,22 @@ class CardRenderer:
         term_div_y = max(term_y + 4, t_box_y1 + banner_h + 78)
         draw.line([t_box_x1 + 16, term_div_y, t_box_x2 - 16, term_div_y], fill=(226, 232, 240), width=1)
 
-        # Contact Hotline, Email & Emergency Phone
-        em_font = get_font(12, bold=False)
-        em_bold_font = get_font(12, bold=True)
+        # Dedicated school contact block; parent/guardian phone numbers stay private.
         em_school_phone = school.emergency_contact_phone or school.phone or "N/A"
         contact_y = term_div_y + 8
-
-        draw.text((start_x, contact_y), f"Hotline: {em_school_phone}  •  Email: {school.email or 'info@institution.ke'}", fill=(51, 65, 85), font=em_font)
-
-        # Emergency Parent / Guardian Phone if available
-        guardian_phone = getattr(student, "parent_phone", None) or getattr(student, "emergency_contact", None)
-        if guardian_phone and guardian_phone.strip():
-            draw.text((start_x, contact_y + 19), f"Parent/Guardian: {guardian_phone.strip()}", fill=(30, 41, 59), font=em_bold_font)
-            meta_y = contact_y + 38
-        else:
-            meta_y = contact_y + 24
+        contact_width = t_box_x2 - start_x - 16
+        contact_heading_font = get_font(11, bold=True)
+        contact_font = get_font(11, bold=False)
+        draw.text((start_x, contact_y), "SCHOOL CONTACT", fill=pri_rgb, font=contact_heading_font)
+        contact_lines = [
+            f"Hotline: {em_school_phone}",
+            f"Email: {school.email or 'Not provided'}",
+            f"Website: {school.website or 'Not provided'}"
+        ]
+        for line_index, contact_line in enumerate(contact_lines):
+            line_font, _ = fit_font_size(draw, contact_line, contact_width, initial_size=11, min_size=9, bold=False)
+            draw.text((start_x, contact_y + 16 + line_index * 16), contact_line, fill=(51, 65, 85), font=line_font)
+        meta_y = contact_y + 68
 
         # NEMIS / UPI row
         upi_lbl = getattr(school, "upi_label", "NEMIS / UPI") or "NEMIS / UPI"
@@ -866,9 +826,16 @@ class CardRenderer:
         draw.rectangle([0, h - bottom_h - 4, w, h - bottom_h], fill=sec_rgb)
 
         foot_left_str = f"{school.name.upper()} • {school.town.upper()}"
-        foot_font, _ = fit_font_size(draw, foot_left_str, max_width=w - 320, initial_size=16, min_size=11, bold=True)
-        draw.text((35, h - bottom_h + 18), foot_left_str, fill=(255, 255, 255), font=foot_font)
-        draw.text((w - 290, h - bottom_h + 18), "OFFICIAL SYSTEM ISSUED & DIGITALLY VERIFIED", fill=(254, 240, 138), font=get_font(16, bold=True))
+        foot_right_str = "OFFICIAL SYSTEM ISSUED & DIGITALLY VERIFIED"
+        foot_right_font, _ = fit_font_size(draw, foot_right_str, max_width=int(w * 0.40), initial_size=16, min_size=10, bold=True)
+        try:
+            foot_right_width = int(draw.textlength(foot_right_str, font=foot_right_font))
+        except Exception:
+            foot_right_width = min(int(w * 0.40), len(foot_right_str) * 9)
+        foot_right_x = w - 35 - foot_right_width
+        foot_left_font, _ = fit_font_size(draw, foot_left_str, max_width=max(100, foot_right_x - 55), initial_size=16, min_size=10, bold=True)
+        draw.text((35, h - bottom_h + 18), foot_left_str, fill=(255, 255, 255), font=foot_left_font)
+        draw.text((foot_right_x, h - bottom_h + 18), foot_right_str, fill=(254, 240, 138), font=foot_right_font)
 
         return img
 

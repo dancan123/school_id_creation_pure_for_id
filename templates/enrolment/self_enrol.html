@@ -613,6 +613,12 @@
       transform: translateY(-2px);
       box-shadow: 0 14px 32px rgba(30, 58, 138, 0.45);
     }
+    .btn-submit-enrol:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+      box-shadow: none;
+    }
 
     /* ── Right Column: Interactive Live Card ID Review ── */
     .review-panel {
@@ -1034,11 +1040,14 @@
             <div class="form-group">
               <label>Admission Number <span class="req-star">*</span></label>
               <input type="text" name="admission_number" id="inputAdmNo" required
-                     placeholder="e.g. 2024001 or 1234"
+                placeholder="Enter the number from your school letter"
                      class="input-monospace"
                      value="{{ form.get('admission_number', '') }}"
                      oninput="handleAdmissionInput()">
-              <small class="text-muted">Online ID requests are accepted only for admission numbers authorized by the school.</small>
+              <small class="text-muted">Enter the admission number assigned to you by the school, then verify it before continuing.</small>
+              <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="verifyAdmissionBtn" onclick="verifyAdmissionNow()">
+                <i class="fa-solid fa-shield-check me-1"></i>Verify admission number
+              </button>
               <div id="admFeedback" class="admission-feedback"></div>
             </div>
 
@@ -1262,7 +1271,7 @@
           </div>
 
           <!-- Submit Button -->
-          <button type="submit" class="btn-submit-enrol" id="submitBtn">
+          <button type="submit" class="btn-submit-enrol" id="submitBtn" disabled>
             <i class="fa-solid fa-paper-plane"></i> Review & Submit Student Onboarding
           </button>
         </form>
@@ -1294,7 +1303,7 @@
             <img id="printPreviewBack" alt="Rendered card back with verification QR and admission barcode">
           </div>
         </div>
-        <div id="printPreviewStatus" class="preview-status" role="status" aria-live="polite">Enter a school-authorized admission number, name, and class to see the production card design.</div>
+        <div id="printPreviewStatus" class="preview-status" role="status" aria-live="polite">Loading sample card preview…</div>
 
         <p class="review-note">
           <i class="fa-solid fa-circle-check"></i>
@@ -1355,10 +1364,8 @@ function updateCardPreview() {
     signature_data: document.getElementById('signatureData').value
   };
   if (!payload.full_name || !payload.admission_number || !payload.class_name) {
-    status.textContent = 'Enter a school-authorized admission number, name, and class to see the production card design.';
+    status.textContent = 'Sample card preview · enter your name, eligible admission number, and class to personalize it.';
     status.classList.remove('error');
-    document.getElementById('printPreviewFront').removeAttribute('src');
-    document.getElementById('printPreviewBack').removeAttribute('src');
     return;
   }
   status.textContent = 'Rendering the production card, QR code, and barcode…';
@@ -1379,11 +1386,11 @@ function updateCardPreview() {
     }).then(function(data) {
       document.getElementById('printPreviewFront').src = data.front;
       document.getElementById('printPreviewBack').src = data.back;
-      status.textContent = 'Production preview ready · ' + data.card_number + ' · includes the reserved verification QR and admission barcode.';
+      status.textContent = data.sample ?
+        'Sample card preview · sample QR is inactive. Verify an eligible admission number to see your card.' :
+        'Production preview ready · ' + data.card_number + ' · includes the reserved verification QR and admission barcode.';
     }).catch(function(error) {
       if (error.name === 'AbortError') return;
-      document.getElementById('printPreviewFront').removeAttribute('src');
-      document.getElementById('printPreviewBack').removeAttribute('src');
       status.textContent = error.message;
       status.classList.add('error');
     });
@@ -1392,29 +1399,62 @@ function updateCardPreview() {
 
 // Admission Live Availability Check (Debounced)
 var admDebounceTimer;
+var admissionVerified = false;
+var admissionCheckSequence = 0;
+function setAdmissionVerification(allowed, message) {
+  admissionVerified = allowed;
+  var submitButton = document.getElementById('submitBtn');
+  var feedback = document.getElementById('admFeedback');
+  submitButton.disabled = !allowed;
+  feedback.className = 'admission-feedback ' + (allowed ? 'valid' : 'invalid');
+  feedback.textContent = message;
+}
+
+function verifyAdmissionNow() {
+  clearTimeout(admDebounceTimer);
+  var admission = document.getElementById('inputAdmNo').value.trim().toUpperCase();
+  var feedback = document.getElementById('admFeedback');
+  if (!admission) {
+    setAdmissionVerification(false, 'Enter the admission number printed on your official school letter.');
+    return;
+  }
+  var sequence = ++admissionCheckSequence;
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('verifyAdmissionBtn').disabled = true;
+  feedback.className = 'admission-feedback';
+  feedback.textContent = 'Checking with the school admission register…';
+  fetch('/api/check-admission?school_id={{ school.id }}&admission_number=' + encodeURIComponent(admission))
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (sequence !== admissionCheckSequence || admission !== document.getElementById('inputAdmNo').value.trim().toUpperCase()) return;
+      var explanation = data.message || 'Admission number could not be verified. Contact the school administration.';
+      if (!data.available && !/contact the school administration/i.test(explanation)) {
+        explanation += ' Contact the school administration for assistance.';
+      }
+      setAdmissionVerification(Boolean(data.available), explanation);
+      updateCardPreview();
+    })
+    .catch(function() {
+      if (sequence !== admissionCheckSequence) return;
+      setAdmissionVerification(false, 'Could not check the school register. Retry, or contact the school administration.');
+    })
+    .finally(function() {
+      document.getElementById('verifyAdmissionBtn').disabled = false;
+    });
+}
+
 function handleAdmissionInput() {
+  admissionVerified = false;
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('admFeedback').className = 'admission-feedback';
+  document.getElementById('admFeedback').textContent = '';
   updateCardPreview();
   clearTimeout(admDebounceTimer);
   var adm = document.getElementById('inputAdmNo').value.trim();
-  var fb = document.getElementById('admFeedback');
-  if (adm.length < 2) {
-    fb.className = 'admission-feedback';
-    fb.textContent = '';
-    return;
-  }
+  admissionCheckSequence++;
+  if (!adm) return;
   admDebounceTimer = setTimeout(function() {
-    fetch('/api/check-admission?school_id={{ school.id }}&admission_number=' + encodeURIComponent(adm))
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (data.available) {
-          fb.className = 'admission-feedback valid';
-          fb.textContent = data.message;
-        } else {
-          fb.className = 'admission-feedback invalid';
-          fb.textContent = data.message;
-        }
-        updateCardPreview();
-      });
+    verifyAdmissionNow();
   }, 450);
 }
 
@@ -1444,14 +1484,18 @@ function switchPhotoTab(tab) {
   }
 }
 
-function showCameraMessage(text, offerLocalLink) {
+var configuredSecurePortalBase = {{ (school.onboarding_base_url or '')|tojson }};
+
+function showCameraMessage(text, securePortalUrl) {
   var message = document.getElementById('cameraMessage');
   message.textContent = text;
-  if (offerLocalLink) {
+  if (securePortalUrl) {
     message.appendChild(document.createElement('br'));
     var localLink = document.createElement('a');
-    localLink.href = 'http://localhost:' + (window.location.port || '5000') + window.location.pathname + window.location.search + window.location.hash;
-    localLink.textContent = 'Open this page on the server computer using localhost';
+    localLink.href = securePortalUrl;
+    localLink.target = '_blank';
+    localLink.rel = 'noopener';
+    localLink.textContent = 'Open the secure school portal';
     localLink.style.cssText = 'display:inline-block;margin-top:6px;color:#1D4ED8;font-weight:700;';
     message.appendChild(localLink);
   }
@@ -1466,7 +1510,13 @@ function startCamera() {
   message.classList.remove('visible');
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     if (!window.isSecureContext) {
-      showCameraMessage('This LAN address is not a secure browser context, so camera access is blocked. On the computer running this app, localhost may be used without HTTPS. On a phone or another computer, trusted HTTPS is required. You can also use the Upload & Passport Cropper tab.', true);
+      var securePortalUrl = /^https:\/\//i.test(configuredSecurePortalBase)
+        ? configuredSecurePortalBase.replace(/\/$/, '') + window.location.pathname + window.location.search + window.location.hash
+        : null;
+      var guidance = securePortalUrl
+        ? 'Camera access is blocked on this LAN address. Open the school’s configured HTTPS portal below, then allow camera permission.'
+        : 'Camera access is blocked on this LAN address. The school has not configured a public HTTPS portal yet. Ask the school administrator to set it in School Settings → Self-Onboarding & Shared Link. You can use Upload & Passport Cropper meanwhile.';
+      showCameraMessage(guidance, securePortalUrl);
     } else {
       showCameraMessage('This browser does not provide camera access. Try a current version of Chrome, Edge, or Firefox, or use the Upload & Passport Cropper tab.', false);
     }
@@ -1801,6 +1851,11 @@ function copyPortalLink() {
 
 // Form Submission handling
 document.getElementById('enrolForm').addEventListener('submit', function(e) {
+  if (!admissionVerified) {
+    e.preventDefault();
+    setAdmissionVerification(false, 'Verify your school-issued admission number before submitting. If it is not authorized or has already been used, contact the school administration.');
+    return;
+  }
   var photoVal = document.getElementById('photoCroppedData').value;
   var filePicker = document.getElementById('filePicker');
   if (!photoVal && filePicker.files && filePicker.files.length > 0) {
@@ -1828,7 +1883,27 @@ document.getElementById('enrolForm').addEventListener('submit', function(e) {
 
 // Init
 window.addEventListener('DOMContentLoaded', function() {
+  var hasPrefilledDetails = document.getElementById('inputFullName').value.trim() &&
+    document.getElementById('inputAdmNo').value.trim() && document.getElementById('classSelect').value;
+  if (!hasPrefilledDetails) {
+    fetch('{{ url_for("enrolment.preview_public_card", school_code=school.code or school.id) }}')
+      .then(function(response) {
+        return response.json().then(function(data) {
+          if (!response.ok) throw new Error(data.error || 'Sample preview unavailable.');
+          return data;
+        });
+      })
+      .then(function(data) {
+        document.getElementById('printPreviewFront').src = data.front;
+        document.getElementById('printPreviewBack').src = data.back;
+        document.getElementById('printPreviewStatus').textContent = 'Sample card preview · sample QR is inactive. Verify an eligible admission number to see your card.';
+      })
+      .catch(function() {
+        document.getElementById('printPreviewStatus').textContent = 'Sample preview could not be loaded. Enter your details to try the personalized preview.';
+      });
+  }
   updateCardPreview();
+  if (document.getElementById('inputAdmNo').value.trim()) verifyAdmissionNow();
 });
 </script>
 </body>

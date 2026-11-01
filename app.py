@@ -52,12 +52,14 @@ def create_app(config_class=Config):
     from utils import (
         clean_kenyan_phone_for_whatsapp,
         build_whatsapp_link,
+        build_public_url,
         get_whatsapp_onboarding_share_url,
         get_whatsapp_parent_card_notice_url
     )
     app.jinja_env.filters["whatsapp_phone"] = clean_kenyan_phone_for_whatsapp
     app.jinja_env.filters["whatsapp_link"] = build_whatsapp_link
     app.jinja_env.globals["build_whatsapp_link"] = build_whatsapp_link
+    app.jinja_env.globals["build_public_url"] = build_public_url
     app.jinja_env.globals["clean_whatsapp_phone"] = clean_kenyan_phone_for_whatsapp
     app.jinja_env.globals["get_whatsapp_onboarding_share_url"] = get_whatsapp_onboarding_share_url
     app.jinja_env.globals["get_whatsapp_parent_card_notice_url"] = get_whatsapp_parent_card_notice_url
@@ -70,7 +72,15 @@ def create_app(config_class=Config):
             db.create_all()
             try:
                 required_columns = {
-                    "schools": {"onboarding_base_url": "VARCHAR(255)"},
+                    "schools": {
+                        "onboarding_base_url": "VARCHAR(255)",
+                        "admission_number_prefix": "VARCHAR(20)",
+                        "admission_number_length": "INTEGER"
+                    },
+                    "admission_allowlist": {
+                        "source": "VARCHAR(20) NOT NULL DEFAULT 'manual'",
+                        "allocation_batch_id": "VARCHAR(36)"
+                    },
                     "self_enrolments": {
                         "card_qr_token": "VARCHAR(64)",
                         "resubmission_count": "INTEGER NOT NULL DEFAULT 0"

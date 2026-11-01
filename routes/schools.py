@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 from flask_login import login_required
 from urllib.parse import urlsplit
+import re
 from extensions import db
 from models import School, Student, CardRecord
 from config import Config
@@ -239,6 +240,20 @@ def settings():
         school.auto_approve_onboarding = request.form.get("auto_approve_onboarding") == "1"
         school.onboarding_instructions = request.form.get("onboarding_instructions", "").strip()
         school.onboarding_base_url = public_base_url
+        admission_prefix = request.form.get("admission_number_prefix", "").strip().upper()
+        if admission_prefix and not re.fullmatch(r"[A-Z0-9._/-]{1,20}", admission_prefix):
+            flash("Generated admission prefix may contain letters, numbers, dot, underscore, slash, or hyphen only (maximum 20 characters).", "danger")
+            return redirect(url_for("schools.settings"))
+        school.admission_number_prefix = admission_prefix or None
+        digits_raw = request.form.get("admission_number_length", "").strip()
+        try:
+            digits = int(digits_raw) if digits_raw else None
+        except ValueError:
+            digits = None
+        if digits is not None and not 4 <= digits <= 10:
+            flash("Generated admission-number length must be between 4 and 10 digits.", "danger")
+            return redirect(url_for("schools.settings"))
+        school.admission_number_length = digits
 
         # ── Institution / Corporate settings ─────────────────────────────
         school.institution_type = request.form.get("institution_type", school.institution_type or "school").strip()
@@ -273,8 +288,11 @@ def settings():
 
         db.session.commit()
 
-        # Re-render active card images if requested or automatic
-        sync_existing = request.form.get("sync_existing_cards") == "1"
+        # Re-render active card artwork only when explicitly requested.
+        sync_existing = (
+            request.form.get("apply_to_existing_cards") == "1" or
+            request.form.get("sync_existing_cards") == "1"
+        )
         if sync_existing:
             active_cards = CardRecord.query.filter_by(school_id=school.id, status="active").all()
             base_url = build_public_url("", school).rstrip("/")
@@ -282,12 +300,16 @@ def settings():
             for c in active_cards:
                 if c.student:
                     try:
-                        CardRenderer.save_card_images(school, c.student, c, base_url)
+                        front_path, back_path = CardRenderer.save_card_images(school, c.student, c, base_url)
+                        pdf_filename = c.single_pdf_filename or f"card_{school.id}_{c.student.admission_number}_{c.qr_token[:6]}.pdf"
+                        pdf_path = Config.PDFS_DIR / pdf_filename
+                        CardRenderer.generate_single_cr80_pdf(front_path, back_path, pdf_path)
+                        c.single_pdf_filename = pdf_filename
                         synced_count += 1
                     except Exception:
                         pass
             db.session.commit()
-            flash(f"✅ Settings for '{school.name}' saved! Successfully updated {synced_count} active cards with new branding.", "success")
+            flash(f"✅ Settings for '{school.name}' saved! Updated front, back, and printable PDF for {synced_count} active card(s).", "success")
         else:
             flash(f"✅ Settings for '{school.name}' updated successfully! All new card generations and live previews immediately reflect your changes.", "success")
 

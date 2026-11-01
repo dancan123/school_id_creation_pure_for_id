@@ -104,16 +104,18 @@
 
                   <!-- File Upload Input -->
                   <div class="mb-2">
-                    <input type="file" name="photo_file" id="photo_file" class="form-control form-control-sm" accept="image/*" onchange="previewFile(this)">
+                    <label class="form-label small fw-semibold" for="photo_file">Upload passport photo</label>
+                    <input type="file" name="photo_file" id="photo_file" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp" onchange="previewFile(this)">
                   </div>
 
                   <!-- Live Webcam Button -->
                   <div class="mt-2">
-                    <button type="button" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#webcamModal">
+                    <button type="button" id="openWebcamButton" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#webcamModal">
                       <i class="fa-solid fa-camera me-1"></i> Capture Using Webcam
                     </button>
                   </div>
                   <input type="hidden" name="webcam_image_data" id="webcam_image_data">
+                  <small class="text-muted d-block mt-2">This computer: use localhost. Other phones/computers: the site must use trusted HTTPS.</small>
                 </div>
               </div>
             </div>
@@ -142,16 +144,20 @@
     <div class="modal-content border-0 shadow-lg rounded-4">
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title fw-bold"><i class="fa-solid fa-camera me-2 text-primary"></i> Take Student Photo</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopWebcam()"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close camera"></button>
       </div>
       <div class="modal-body text-center p-4">
-        <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black mb-3" style="width: 320px; height: 240px;">
-          <video id="webcam-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-          <canvas id="webcam-canvas" class="d-none" width="320" height="240"></canvas>
+        <div class="position-relative mx-auto rounded-3 overflow-hidden bg-black mb-3" style="width:min(100%, 300px); aspect-ratio:3/4;">
+          <video id="webcam-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform:scaleX(-1);"></video>
+          <div class="position-absolute top-50 start-50 translate-middle rounded-pill border border-2 border-warning border-dashed" style="width:62%; height:66%; pointer-events:none; box-shadow:0 0 0 999px #0005;"></div>
+          <canvas id="webcam-canvas" class="d-none" width="480" height="640"></canvas>
         </div>
-        <button type="button" class="btn btn-primary px-4 py-2 rounded-pill fw-bold" onclick="capturePhoto()">
+        <div id="webcamStatus" class="alert alert-info py-2 small text-start" role="status" aria-live="polite">Opening camera…</div>
+        <button type="button" id="capturePhotoButton" class="btn btn-primary px-4 py-2 rounded-pill fw-bold" onclick="capturePhoto()" disabled>
           <i class="fa-solid fa-camera-retro me-1"></i> Snap Photo
         </button>
+        <button type="button" id="retryWebcamButton" class="btn btn-outline-secondary btn-sm ms-2 d-none" onclick="startWebcam()">Try again</button>
+        <p class="small text-muted mt-2 mb-0">Center the face in the guide, look straight, then snap.</p>
       </div>
     </div>
   </div>
@@ -160,6 +166,7 @@
 <script>
 function previewFile(input) {
   if (input.files && input.files[0]) {
+    document.getElementById('webcam_image_data').value = '';
     const reader = new FileReader();
     reader.onload = function(e) {
       const img = document.getElementById('preview-photo');
@@ -169,6 +176,24 @@ function previewFile(input) {
       if (placeholder) placeholder.classList.add('d-none');
     }
     reader.readAsDataURL(input.files[0]);
+  }
+}
+
+var configuredSecurePortalBase = {{ (current_school.onboarding_base_url or '')|tojson }};
+
+function showWebcamStatus(message, type, securePortalUrl) {
+  const status = document.getElementById('webcamStatus');
+  status.className = 'alert alert-' + type + ' py-2 small text-start';
+  status.textContent = message;
+  if (securePortalUrl) {
+    status.appendChild(document.createElement('br'));
+    const link = document.createElement('a');
+    link.href = securePortalUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'Open the secure school portal';
+    link.style.cssText = 'display:inline-block;margin-top:6px;font-weight:700;';
+    status.appendChild(link);
   }
 }
 
@@ -185,16 +210,50 @@ if (webcamModal) {
 
 function startWebcam() {
   const video = document.getElementById('webcam-video');
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-      .then(function(stream) {
-        videoStream = stream;
-        video.srcObject = stream;
-      })
-      .catch(function(err) {
-        alert("Camera access denied or not available: " + err.message);
-      });
+  const retry = document.getElementById('retryWebcamButton');
+  const snap = document.getElementById('capturePhotoButton');
+  stopWebcam();
+  snap.disabled = true;
+  retry.classList.add('d-none');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!window.isSecureContext) {
+      const securePortalUrl = /^https:\/\//i.test(configuredSecurePortalBase)
+        ? configuredSecurePortalBase.replace(/\/$/, '') + window.location.pathname + window.location.search + window.location.hash
+        : null;
+      const guidance = securePortalUrl
+        ? 'Camera access is blocked on this LAN address. Open the school’s configured HTTPS portal below, then allow camera permission.'
+        : 'Camera access is blocked on this LAN address. Configure a public HTTPS portal in School Settings → Self-Onboarding & Shared Link. You can upload a photo instead.';
+      showWebcamStatus(guidance, 'warning', securePortalUrl);
+    } else {
+      showWebcamStatus('This browser does not provide camera access. Try an up-to-date Chrome, Edge, or Firefox, or upload a photo.', 'warning', false);
+    }
+    retry.classList.remove('d-none');
+    return;
   }
+  showWebcamStatus('Requesting camera permission…', 'info', false);
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 960 } },
+    audio: false
+  }).catch(function() {
+    return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  }).then(function(stream) {
+    videoStream = stream;
+    video.srcObject = stream;
+    return video.play();
+  }).then(function() {
+    showWebcamStatus('Camera ready. Center the face in the guide and snap the passport photo.', 'success', false);
+    snap.disabled = false;
+  }).catch(function(err) {
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      showWebcamStatus('Camera permission is blocked. Allow camera access in the browser site settings, then try again.', 'danger', false);
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      showWebcamStatus('No camera was found. Connect a camera or upload a passport photo.', 'danger', false);
+    } else {
+      showWebcamStatus('Camera could not start. Check that it is connected and not being used by another app, or upload a photo. (' + (err.message || err.name) + ')', 'danger', false);
+    }
+    retry.classList.remove('d-none');
+    stopWebcam();
+  });
 }
 
 function stopWebcam() {
@@ -202,16 +261,43 @@ function stopWebcam() {
     videoStream.getTracks().forEach(track => track.stop());
     videoStream = null;
   }
+  const video = document.getElementById('webcam-video');
+  if (video) video.srcObject = null;
+  const snap = document.getElementById('capturePhotoButton');
+  if (snap) snap.disabled = true;
 }
 
 function capturePhoto() {
   const video = document.getElementById('webcam-video');
   const canvas = document.getElementById('webcam-canvas');
   const context = canvas.getContext('2d');
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (!videoStream || !video.videoWidth || !video.videoHeight) {
+    showWebcamStatus('Wait for the camera preview to become ready before taking the photo.', 'warning', false);
+    return;
+  }
+  const targetRatio = canvas.width / canvas.height;
+  const sourceRatio = video.videoWidth / video.videoHeight;
+  let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+  if (sourceRatio > targetRatio) {
+    sw = video.videoHeight * targetRatio;
+    sx = (video.videoWidth - sw) / 2;
+  } else {
+    sh = video.videoWidth / targetRatio;
+    sy = (video.videoHeight - sh) / 2;
+  }
+  context.save();
+  const activeTrack = videoStream.getVideoTracks()[0];
+  const activeFacingMode = activeTrack && activeTrack.getSettings ? activeTrack.getSettings().facingMode : null;
+  if (!activeFacingMode || activeFacingMode === 'user') {
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+  }
+  context.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  context.restore();
   const dataURL = canvas.toDataURL('image/jpeg', 0.95);
 
   document.getElementById('webcam_image_data').value = dataURL;
+  document.getElementById('photo_file').value = '';
   const img = document.getElementById('preview-photo');
   img.src = dataURL;
   img.classList.remove('d-none');

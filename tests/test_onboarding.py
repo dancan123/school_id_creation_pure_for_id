@@ -1,6 +1,7 @@
 import io
 import base64
 import datetime
+from pathlib import Path
 import pytest
 from PIL import Image
 from app import create_app
@@ -8,6 +9,8 @@ from config import TestConfig, Config
 from extensions import db
 from models import School, Student, User, SelfEnrolment, CardRecord, AdmissionAllowlist
 from services.qr_service import QRService
+from services.card_renderer import CardRenderer
+from services.card_renderer import CardRenderer
 
 @pytest.fixture
 def app():
@@ -66,6 +69,7 @@ def setup_multi_schools(app):
             (school_a.id, "ADM-PREVIEW"),
             (school_a.id, "ADM-RETRY"),
             (school_a.id, "ADM-LATER"),
+            (school_a.id, "ADM-WEBCAM"),
             (school_b.id, "MSA-5001"),
         ]:
             if not AdmissionAllowlist.query.filter_by(school_id=school_id, admission_number=admission_number).first():
@@ -122,6 +126,8 @@ def test_school_specific_onboarding_page(client, setup_multi_schools):
     assert res_code.status_code == 200
     assert b"Alliance High School" in res_code.data
     assert b"Student ID Onboarding" in res_code.data
+    assert b"Verify admission number" in res_code.data
+    assert b"Verify your school-issued admission number before submitting" in res_code.data
 
     # Case-insensitive code
     res_lower = client.get("/onboard/ahs-001")
@@ -144,6 +150,25 @@ def test_api_check_admission(client, setup_multi_schools):
     data = res.get_json()
     assert data["available"] is True
     assert data["status"] == "available"
+
+    unlisted = client.get(f"/api/check-admission?school_id={school_a_id}&admission_number=NOT-ON-LIST")
+    assert unlisted.status_code == 200
+    assert unlisted.get_json()["available"] is False
+    assert "contact the school administration" in unlisted.get_json()["message"].lower()
+
+def test_unlisted_admission_cannot_submit_public_id_application(client, setup_multi_schools, app):
+    school_a_id, _, _ = setup_multi_schools
+    response = client.post("/onboard/AHS-001", data={
+        "full_name": "Unlisted Person",
+        "admission_number": "NOT-ON-LIST",
+        "class_name": "Grade 7",
+        "academic_year": "2026"
+    })
+    assert response.status_code == 200
+    assert b"not authorized for online ID onboarding" in response.data
+    assert b"Contact the school administration" in response.data
+    with app.app_context():
+        assert SelfEnrolment.query.filter_by(school_id=school_a_id, admission_number="NOT-ON-LIST").first() is None
 
 def test_student_self_onboarding_submission_workflow(client, setup_multi_schools, app):
     """Student submits onboarding with photo and details, receives tracking token."""
@@ -289,6 +314,81 @@ def test_onboarding_public_host_mapping_in_settings_and_qr(client, setup_multi_s
     assert qr_res.content_type == "image/png"
     assert captured["url"].startswith("https://ids.example.org/")
 
+def test_whatsapp_onboarding_share_uses_public_https_mapping(client, setup_multi_schools, app):
+    with app.app_context():
+        school = School.query.filter_by(code="AHS-001").first()
+        school.onboarding_base_url = "https://ids.example.org"
+        db.session.commit()
+    response = client.get("/onboard")
+    assert response.status_code == 200
+    assert b"https%3A//ids.example.org/enrol/AHS-001" in response.data
+    assert b"192.168.0.105" not in response.data
+
+def test_settings_apply_button_refreshes_existing_card_artwork(client, setup_multi_schools, app, monkeypatch, tmp_path):
+    school_a_id, _, _ = setup_multi_schools
+    with app.app_context():
+        student = Student(
+            school_id=school_a_id,
+            admission_number="SYNC-001",
+            full_name="Branding Sync Student",
+            class_name="Grade 8",
+            academic_year="2026"
+        )
+        db.session.add(student)
+        db.session.flush()
+        card = CardRecord(
+            school_id=school_a_id,
+            student_id=student.id,
+            card_number="AHS-SYNC-001",
+            qr_token="sync_test_qr_token_1234567890",
+            issue_date=datetime.date.today(),
+            expiry_date=datetime.date(2030, 12, 31),
+            status="active",
+            single_pdf_filename="existing_sync.pdf"
+        )
+        db.session.add(card)
+        db.session.commit()
+        card_id = card.id
+
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+    calls = {"images": 0, "pdf": 0}
+    front_path = tmp_path / "front.png"
+    back_path = tmp_path / "back.png"
+    front_path.write_bytes(b"front")
+    back_path.write_bytes(b"back")
+
+    def fake_save_images(school, student, card, base_url):
+        calls["images"] += 1
+        return front_path, back_path
+
+    def fake_generate_pdf(front, back, output_path):
+        calls["pdf"] += 1
+        Path(output_path).write_bytes(b"refreshed-pdf")
+        return output_path
+
+    monkeypatch.setattr(CardRenderer, "save_card_images", fake_save_images)
+    monkeypatch.setattr(CardRenderer, "generate_single_cr80_pdf", fake_generate_pdf)
+    settings_data = {
+        "name": "Alliance High School", "code": "AHS-001", "motto": "Updated Motto", "po_box": "",
+        "town": "Kikuyu", "county": "Kiambu", "phone": "+254700000000", "email": "info@example.org", "website": "https://example.org",
+        "primary_color": "#1E3A8A", "secondary_color": "#F59E0B", "accent_color": "#10B981",
+        "text_color": "#0F172A", "principal_name": "Principal", "card_prefix": "AHS-",
+        "academic_year": "2026", "validity_years": "4", "disclaimer_text": "",
+        "emergency_contact_phone": "", "auto_approve_onboarding": "0",
+        "onboarding_instructions": "", "onboarding_base_url": "",
+        "admission_number_prefix": "", "admission_number_length": "",
+        "institution_type": "school", "principal_title": "Principal", "card_title": "",
+        "id_label": "", "class_label": "", "stream_label": "", "upi_label": "",
+        "enable_watermark": "1", "apply_to_existing_cards": "1"
+    }
+    response = client.post("/schools/settings", data=settings_data, follow_redirects=True)
+    assert response.status_code == 200
+    assert calls == {"images": 1, "pdf": 1}
+    assert b"Updated front, back, and printable PDF for 1 active card" in response.data
+    with app.app_context():
+        card = db.session.get(CardRecord, card_id)
+        assert card.single_pdf_filename == "existing_sync.pdf"
+
 def test_public_preview_uses_print_renderer_and_reserved_qr(client, setup_multi_schools, app):
     with app.app_context():
         school = School.query.filter_by(code="AHS-001").first()
@@ -321,6 +421,15 @@ def test_public_preview_uses_print_renderer_and_reserved_qr(client, setup_multi_
         db.session.add(submission)
         db.session.commit()
         assert submission.card_qr_token == reserved_token
+
+def test_public_preview_initially_shows_sample_card(client, setup_multi_schools):
+    response = client.get("/onboard/AHS-001/preview")
+    assert response.status_code == 200
+    preview = response.get_json()
+    assert preview["sample"] is True
+    assert preview["card_number"].endswith("SAMPLE-0001")
+    assert preview["front"].startswith("data:image/png;base64,")
+    assert preview["back"].startswith("data:image/png;base64,")
 
 def test_allowlisted_admission_can_submit_once_and_retry_rejection_once(client, setup_multi_schools, app):
     school_a_id, _, _ = setup_multi_schools
@@ -368,6 +477,96 @@ def test_allowlisted_admission_can_submit_once_and_retry_rejection_once(client, 
     assert exhausted.status_code == 200
     assert b"one permitted correction" in exhausted.data
     assert b"Contact the school administration" in exhausted.data
+
+def test_self_onboarding_saves_captured_camera_photo(client, setup_multi_schools, app, monkeypatch, tmp_path):
+    school_a_id, _, _ = setup_multi_schools
+    monkeypatch.setattr(Config, "PHOTOS_DIR", tmp_path)
+    image_buffer = io.BytesIO()
+    Image.new("RGB", (480, 640), color=(30, 80, 140)).save(image_buffer, format="JPEG")
+    camera_data = "data:image/jpeg;base64," + base64.b64encode(image_buffer.getvalue()).decode("ascii")
+
+    response = client.post("/onboard/AHS-001", data={
+        "full_name": "Camera Intake Student",
+        "admission_number": "ADM-WEBCAM",
+        "class_name": "Grade 8",
+        "academic_year": "2026",
+        "webcam_image_data": camera_data
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    with app.app_context():
+        submission = SelfEnrolment.query.filter_by(school_id=school_a_id, admission_number="ADM-WEBCAM").first()
+        assert submission and submission.photo_filename
+        assert (tmp_path / submission.photo_filename).is_file()
+
+def test_admin_student_form_saves_captured_camera_photo(client, setup_multi_schools, app, monkeypatch, tmp_path):
+    school_a_id, _, _ = setup_multi_schools
+    monkeypatch.setattr(Config, "PHOTOS_DIR", tmp_path)
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+    form_page = client.get("/students/new")
+    assert form_page.status_code == 200
+    assert b"Capture Using Webcam" in form_page.data
+    assert b"webcamStatus" in form_page.data
+    image_buffer = io.BytesIO()
+    Image.new("RGB", (480, 640), color=(20, 120, 80)).save(image_buffer, format="JPEG")
+    camera_data = "data:image/jpeg;base64," + base64.b64encode(image_buffer.getvalue()).decode("ascii")
+
+    response = client.post("/students/new", data={
+        "admission_number": "ADM-ADMIN-CAM",
+        "full_name": "Admin Camera Student",
+        "class_name": "Grade 7",
+        "academic_year": "2026",
+        "webcam_image_data": camera_data,
+        "save_only": "1"
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    with app.app_context():
+        student = Student.query.filter_by(school_id=school_a_id, admission_number="ADM-ADMIN-CAM").first()
+        assert student and student.photo_filename
+        assert (tmp_path / student.photo_filename).is_file()
+
+def test_admin_save_and_generate_uses_card_generation_flow(client, setup_multi_schools, app, monkeypatch):
+    school_a_id, _, _ = setup_multi_schools
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+    generated = {}
+
+    def fake_generate(school, student, base_url):
+        generated["student_id"] = student.id
+        generated["school_id"] = school.id
+        return object()
+
+    monkeypatch.setattr(CardRenderer, "generate_card_for_student", fake_generate)
+    response = client.post("/students/new", data={
+        "admission_number": "ADM-ADMIN-GENERATE",
+        "full_name": "Admin Generated Student",
+        "class_name": "Grade 7",
+        "academic_year": "2026",
+        "save_and_generate": "1"
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Admin Generated Student" in response.data
+    assert generated["school_id"] == school_a_id
+    assert generated["student_id"] is not None
+
+def test_legacy_get_generate_link_redirects_to_student_preview(client, setup_multi_schools, app):
+    school_a_id, _, _ = setup_multi_schools
+    with app.app_context():
+        student = Student(
+            school_id=school_a_id,
+            admission_number="LEGACY-GET-11",
+            full_name="Legacy Link Student",
+            class_name="Grade 7",
+            academic_year="2026"
+        )
+        db.session.add(student)
+        db.session.commit()
+        student_id = student.id
+
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+    response = client.get(f"/single-id/generate?student_id={student_id}")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(f"/single-id/?student_id={student_id}")
+    with app.app_context():
+        assert CardRecord.query.filter_by(student_id=student_id).count() == 0
 
 def test_delayed_card_generation_keeps_public_preview_qr_token(client, setup_multi_schools, app):
     school_a_id, _, _ = setup_multi_schools
@@ -418,6 +617,50 @@ def test_admission_allowlist_admin_management_and_class_filter(client, setup_mul
     assert class_page.status_code == 200
     assert b"Grade Eight Learner" in class_page.data
     assert b"Grade Seven Learner" not in class_page.data
+
+def test_random_admission_allocation_uses_school_format_and_is_unique(client, setup_multi_schools, app):
+    school_a_id, _, _ = setup_multi_schools
+    with app.app_context():
+        school = db.session.get(School, school_a_id)
+        school.admission_number_prefix = "AHS/"
+        school.admission_number_length = 7
+        db.session.commit()
+
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+    result = client.post("/enrolment/admission-allowlist", data={"action": "generate", "quantity": "20"})
+    assert result.status_code == 200
+    assert b"20 numbers allocated" in result.data
+
+    with app.app_context():
+        issued = AdmissionAllowlist.query.filter_by(school_id=school_a_id, source="random").all()
+        numbers = [entry.admission_number for entry in issued]
+        batch_id = issued[0].allocation_batch_id
+        assert len(numbers) == 20
+        assert len(set(numbers)) == 20
+        assert all(number.startswith("AHS/") and len(number) == 11 for number in numbers)
+        assert all(entry.qr_token for entry in issued)
+        assert all(entry.allocation_batch_id == batch_id for entry in issued)
+        assert not Student.query.filter_by(school_id=school_a_id, admission_number=numbers[0]).first()
+
+    availability = client.get(f"/api/check-admission?school_id={school_a_id}&admission_number={numbers[0]}")
+    assert availability.get_json()["available"] is True
+    pdf_response = client.get(f"/enrolment/admission-allowlist/batch/{batch_id}/pdf")
+    assert pdf_response.status_code == 200
+    assert pdf_response.mimetype == "application/pdf"
+    assert pdf_response.data.startswith(b"%PDF")
+    assert "admission_assignments" in pdf_response.headers["Content-Disposition"]
+    all_pdf_response = client.get("/enrolment/admission-allowlist/batch/all/pdf")
+    assert all_pdf_response.status_code == 200
+    assert all_pdf_response.data.startswith(b"%PDF")
+
+def test_manually_added_legacy_admission_numbers_keep_existing_format(client, setup_multi_schools, app):
+    school_a_id, _, _ = setup_multi_schools
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+    result = client.post("/enrolment/admission-allowlist", data={"action": "add", "admission_numbers": "00123\nOLD/ADM-9"})
+    assert result.status_code == 302
+    with app.app_context():
+        assert AdmissionAllowlist.query.filter_by(school_id=school_a_id, admission_number="00123", source="manual").first()
+        assert AdmissionAllowlist.query.filter_by(school_id=school_a_id, admission_number="OLD/ADM-9", source="manual").first()
 
 def test_admin_queue_and_card_review_approval(client, setup_multi_schools, app):
     """Admin logs in, reviews submission, and one-click approves & generates ID card."""

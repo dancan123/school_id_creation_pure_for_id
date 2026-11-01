@@ -477,7 +477,7 @@
             <span>Start Student Onboarding</span>
             <i class="fa-solid fa-arrow-right"></i>
           </a>
-          <a href="{{ get_whatsapp_onboarding_share_url(s, url_for('enrolment.self_enrol', school_code=s.code or s.id, _external=True)) }}"
+          <a href="{{ get_whatsapp_onboarding_share_url(s, build_public_url(url_for('enrolment.self_enrol', school_code=s.code or s.id), s)) }}"
              target="_blank"
              title="Share {{ s.name }} portal on WhatsApp"
              style="background:#25D366; color:white; width:44px; height:44px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:1.2rem; text-decoration:none; flex-shrink:0; box-shadow:0 4px 10px rgba(37,211,102,0.25);">

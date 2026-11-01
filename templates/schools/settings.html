@@ -465,6 +465,16 @@
                 </a>
                 <small class="text-muted ms-2">Only authorized, unregistered admissions can start an online ID request.</small>
               </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small" for="admissionNumberPrefix">Generated Admission Prefix (Optional)</label>
+                <input type="text" class="form-control font-monospace" name="admission_number_prefix" id="admissionNumberPrefix" maxlength="20" value="{{ current_school.admission_number_prefix or '' }}" placeholder="e.g. SCH-">
+                <small class="text-muted">Used only for new random allocations; existing admission numbers remain valid.</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small" for="admissionNumberLength">Random Number Digits</label>
+                <input type="number" class="form-control" name="admission_number_length" id="admissionNumberLength" min="4" max="10" value="{{ current_school.admission_number_length or '' }}" placeholder="e.g. 6">
+                <small class="text-muted">Optional. Configure a prefix and 4–10 digits before generating letter-ready numbers.</small>
+              </div>
               <div class="col-12">
                 <label class="form-label fw-bold small">Onboarding Instructions (shown to applicants)</label>
                 <textarea name="onboarding_instructions" class="form-control" rows="3"
@@ -474,20 +484,18 @@
           </div>
         </div>
 
-        {# Save Bar with Active Card Sync Option #}
+        {# Save Bar with explicit existing-card sync action #}
         <div class="card section-card p-3 mb-5 bg-white border border-primary border-opacity-25 shadow-sm">
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
-              <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" name="sync_existing_cards" id="syncExistingCards" value="1" checked>
-                <label class="form-check-label fw-bold small text-dark" for="syncExistingCards">
-                  <i class="fa-solid fa-arrows-rotate text-primary me-1"></i> Update existing generated cards with new branding
-                </label>
-              </div>
-              <small class="text-muted d-block ms-4" style="font-size: 11px;">Immediately re-renders saved cards with updated colors, stamps, and signatures.</small>
+              <div class="fw-bold small text-dark"><i class="fa-solid fa-arrows-rotate text-primary me-1"></i>Apply saved settings to existing cards</div>
+              <small class="text-muted d-block" style="font-size: 11px;">This refreshes card front, back, and printable PDF for all active cards at this school.</small>
             </div>
             <div class="d-flex gap-2">
               <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary px-3">Cancel</a>
+              <button type="submit" class="btn btn-outline-primary px-3 fw-bold" name="apply_to_existing_cards" value="1">
+                <i class="fa-solid fa-arrows-rotate me-2"></i>Save &amp; Apply to Existing Cards
+              </button>
               <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
                 <i class="fa-solid fa-floppy-disk me-2"></i> Save All Settings
               </button>

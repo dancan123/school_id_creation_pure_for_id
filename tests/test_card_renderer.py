@@ -84,3 +84,39 @@ def test_code128_barcode_is_generated():
     barcode_image = generate_barcode_img("ADM-2026-001")
     assert barcode_image is not None
     assert barcode_image.size == (224, 58)
+
+def test_front_card_does_not_render_blood_group_or_house(app):
+    with app.app_context():
+        school = School(name="Privacy Test School")
+        db.session.add(school)
+        db.session.flush()
+        student = Student(
+            school_id=school.id,
+            admission_number="PRIV-001",
+            full_name="Privacy Test Student",
+            class_name="Grade 8",
+            academic_year="2026",
+            blood_group="AB-",
+            house_or_dorm="HiddenHouse"
+        )
+        db.session.add(student)
+        db.session.flush()
+        card = CardRecord(
+            school_id=school.id,
+            student_id=student.id,
+            card_number="ID-PRIV-001",
+            qr_token="privacy_test_qr_token_123456",
+            issue_date=datetime.date.today(),
+            expiry_date=datetime.date(2030, 12, 31),
+            status="active"
+        )
+        db.session.add(card)
+        db.session.flush()
+
+        front = CardRenderer.render_front(school, student, card)
+        # Assert implementation-level absence as well as successful render; PIL output is rasterized.
+        source = Path(CardRenderer.render_front.__code__.co_filename).read_text(encoding="utf-8")
+        front_source = source[source.index("def render_front"):source.index("def render_back")]
+        assert "blood_group" not in front_source
+        assert "house_or_dorm" not in front_source
+        assert front.size == (LANDSCAPE_W, LANDSCAPE_H)

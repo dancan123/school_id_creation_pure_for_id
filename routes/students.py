@@ -1,13 +1,15 @@
-import secrets
 import base64
 import io
 import datetime
+import re
+from PIL import Image, UnidentifiedImageError
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required
 from extensions import db
 from models import Student, School
 from config import Config
-from utils import get_current_school, log_audit, save_uploaded_file
+from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url
+from services.card_renderer import CardRenderer
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -20,6 +22,28 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 students_bp = Blueprint("students", __name__)
+
+
+def _save_student_webcam_photo(data_url, school_id, admission_number):
+    """Validate and save a captured webcam image from the student form."""
+    if not data_url:
+        return None
+    match = re.fullmatch(r"data:image/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=]+)", data_url)
+    if not match or len(match.group(1)) > 8_000_000:
+        raise ValueError("The captured photo is not a supported image or exceeds the size limit.")
+    try:
+        image_bytes = base64.b64decode(match.group(1), validate=True)
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            if image.width < 100 or image.height < 100 or image.width * image.height > 12_000_000:
+                raise ValueError("Captured photo dimensions are invalid or too large.")
+            image.verify()
+    except (base64.binascii.Error, UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+        raise ValueError("The captured photo could not be decoded.") from exc
+    return save_base64_image(
+        data_url,
+        Config.PHOTOS_DIR,
+        prefix=f"photo_{school_id}_{admission_number}_"
+    )
 
 def _build_students_filtered_query(school_id):
     """Builds a filtered Student query based on active request parameters."""
@@ -365,22 +389,18 @@ def new_student():
             return redirect(url_for("students.new_student"))
 
         photo_fn = None
-        # Handle file upload or webcam base64
+        # Handle explicit file upload or validated webcam capture.
         webcam_data = request.form.get("webcam_image_data")
-        if webcam_data and "," in webcam_data:
-            try:
-                header, encoded = webcam_data.split(",", 1)
-                img_bytes = base64.b64decode(encoded)
-                unique_fn = f"photo_{school.id}_{adm_no}_{secrets.token_hex(4)}.jpg"
-                with open(Config.PHOTOS_DIR / unique_fn, "wb") as f:
-                    f.write(img_bytes)
-                photo_fn = unique_fn
-            except Exception as e:
-                flash(f"Failed to save webcam photo: {e}", "warning")
-        elif "photo_file" in request.files:
+        if "photo_file" in request.files:
             pf = request.files["photo_file"]
             if pf and pf.filename:
                 photo_fn = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
+        elif webcam_data:
+            try:
+                photo_fn = _save_student_webcam_photo(webcam_data, school.id, adm_no)
+            except ValueError as exc:
+                flash(f"Could not save the camera photo: {exc}", "danger")
+                return redirect(url_for("students.new_student"))
 
         student = Student(
             school_id=school.id,
@@ -407,7 +427,12 @@ def new_student():
 
         # Check if user clicked "Save & Generate Card"
         if "save_and_generate" in request.form:
-            return redirect(url_for("single_id.generate_card", student_id=student.id))
+            try:
+                CardRenderer.generate_card_for_student(school, student, build_public_url("", school).rstrip("/"))
+                flash(f"Student '{student.full_name}' saved and the ID card was generated.", "success")
+            except Exception as exc:
+                flash(f"Student was saved, but card generation failed: {exc}", "danger")
+            return redirect(url_for("single_id.index", student_id=student.id))
 
         return redirect(url_for("students.index"))
 
@@ -460,21 +485,16 @@ def edit_student(student_id):
 
         # Photo update
         webcam_data = request.form.get("webcam_image_data")
-        if webcam_data and "," in webcam_data:
-            try:
-                import secrets
-                header, encoded = webcam_data.split(",", 1)
-                img_bytes = base64.b64decode(encoded)
-                unique_fn = f"photo_{school.id}_{adm_no}_{secrets.token_hex(4)}.jpg"
-                with open(Config.PHOTOS_DIR / unique_fn, "wb") as f:
-                    f.write(img_bytes)
-                student.photo_filename = unique_fn
-            except Exception as e:
-                flash(f"Failed to save webcam photo: {e}", "warning")
-        elif "photo_file" in request.files:
+        if "photo_file" in request.files:
             pf = request.files["photo_file"]
             if pf and pf.filename:
                 student.photo_filename = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
+        elif webcam_data:
+            try:
+                student.photo_filename = _save_student_webcam_photo(webcam_data, school.id, adm_no)
+            except ValueError as exc:
+                flash(f"Could not save the camera photo: {exc}", "danger")
+                return redirect(url_for("students.edit_student", student_id=student.id))
 
         db.session.commit()
         flash("Student details updated successfully!", "success")

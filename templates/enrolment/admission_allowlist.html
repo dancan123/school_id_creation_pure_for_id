@@ -16,9 +16,33 @@
     <div class="col-lg-5">
       <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body p-4">
-          <h5 class="fw-bold mb-2">Authorize admission numbers</h5>
-          <p class="small text-muted">Paste one number per line, or separate numbers with commas. Numbers are normalized to uppercase. A valid number can be submitted once; one corrected resubmission is allowed after rejection.</p>
+          <h5 class="fw-bold mb-2">Allocate random admission numbers</h5>
+          <p class="small text-muted">Create secure, unique admission numbers to assign to students by official letter. Once a student is approved, this number becomes their permanent school admission number and cannot be allocated to another student.</p>
+          <form method="POST" action="{{ url_for('enrolment.admission_allowlist') }}" class="border rounded-3 p-3 mb-4 bg-light">
+            <input type="hidden" name="action" value="generate">
+            <div class="d-flex align-items-end gap-2">
+              <div class="flex-grow-1">
+                <label for="allocationQuantity" class="form-label small fw-bold">How many numbers?</label>
+                <input type="number" class="form-control" id="allocationQuantity" name="quantity" min="1" max="500" value="25" required>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-shuffle me-1"></i>Generate</button>
+            </div>
+            <small class="text-muted d-block mt-2">Format: {{ current_school.admission_number_prefix or '' }}{{ '0' * (current_school.admission_number_length or 6) }} · set the prefix and digit count in School Settings.</small>
+          </form>
+
+          {% if newly_generated %}
+          <div class="alert alert-success">
+            <div class="fw-bold mb-2">{{ newly_generated|length }} numbers allocated. Download the assignment sheet to print or attach to admission letters.</div>
+            <textarea id="newNumbers" class="form-control font-monospace mb-2" rows="7" readonly>{{ newly_generated|join('\n') }}</textarea>
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="navigator.clipboard.writeText(document.getElementById('newNumbers').value)"><i class="fa-solid fa-copy me-1"></i>Copy numbers</button>
+            <a class="btn btn-sm btn-success ms-1" href="{{ url_for('enrolment.admission_batch_pdf', batch_id=latest_batch_id) }}"><i class="fa-solid fa-file-pdf me-1"></i>Download PDF Assignment Sheet</a>
+          </div>
+          {% endif %}
+
+          <h6 class="fw-bold mb-2">Add existing admission numbers</h6>
+          <p class="small text-muted">Import the school's established admission numbers here. No new format is imposed on these records.</p>
           <form method="POST" action="{{ url_for('enrolment.admission_allowlist') }}">
+            <input type="hidden" name="action" value="add">
             <label for="admissionNumbers" class="form-label small fw-bold">Admission numbers</label>
             <textarea class="form-control font-monospace mb-3" id="admissionNumbers" name="admission_numbers" rows="8" maxlength="10000" placeholder="ADM-2026-001&#10;ADM-2026-002&#10;ADM-2026-003" required></textarea>
             <button type="submit" class="btn btn-primary"><i class="fa-solid fa-circle-plus me-1"></i>Add eligible numbers</button>
@@ -29,6 +53,33 @@
     </div>
 
     <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="fw-bold mb-0"><i class="fa-solid fa-file-pdf text-danger me-2"></i>Generated Assignment Lists</h5>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge text-bg-secondary">{{ batches|length }} batches</span>
+            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('enrolment.admission_batch_pdf', batch_id='all') }}"><i class="fa-solid fa-file-arrow-down me-1"></i>All generated numbers</a>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Batch</th><th>Generated</th><th>Numbers</th><th class="text-end">PDF</th></tr></thead>
+            <tbody>
+            {% for batch_id, batch_count, batch_date in batches %}
+              <tr>
+                <td class="font-monospace small">{{ batch_id[:8].upper() }}</td>
+                <td class="small">{{ batch_date.strftime('%d %b %Y') if batch_date else '—' }}</td>
+                <td>{{ batch_count }}</td>
+                <td class="text-end"><a class="btn btn-outline-danger btn-sm" href="{{ url_for('enrolment.admission_batch_pdf', batch_id=batch_id) }}"><i class="fa-solid fa-download me-1"></i>Download</a></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="text-center text-muted py-3">No random admission batches generated yet.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
           <h5 class="fw-bold mb-0">Authorized admissions</h5>
@@ -40,7 +91,7 @@
             <tbody>
             {% for entry, submission in entries %}
               <tr>
-                <td class="fw-bold font-monospace">{{ entry.admission_number }}</td>
+                <td class="fw-bold font-monospace">{{ entry.admission_number }}<div class="small text-muted fw-normal">{{ 'Random allocation' if entry.source == 'random' else 'Existing / manually added' }}</div></td>
                 <td>
                   {% if not entry.is_active %}<span class="badge text-bg-secondary">Disabled</span>
                   {% elif submission and submission.status == 'approved' %}<span class="badge text-bg-success">Used · Approved</span>

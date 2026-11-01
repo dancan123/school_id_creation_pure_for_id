@@ -80,10 +80,20 @@ def index():
         card_history=card_history
     )
 
-@single_id_bp.route("/generate", methods=["POST"])
+@single_id_bp.route("/generate", methods=["GET", "POST"])
 @login_required
 def generate_card():
     school = get_current_school()
+    if request.method == "GET":
+        # Older/shared links used /generate?student_id=... . Do not mutate state
+        # on GET; send the user to the card preview, where generation is explicit.
+        student_id = request.args.get("student_id", type=int)
+        if not student_id or not Student.query.filter_by(id=student_id, school_id=school.id).first():
+            flash("Select a student to preview or generate an ID card.", "warning")
+            return redirect(url_for("single_id.index"))
+        flash("Review the card preview, then select Generate ID Card to create or refresh it.", "info")
+        return redirect(url_for("single_id.index", student_id=student_id))
+
     student_id = request.form.get("student_id")
     template_id = request.form.get("template_id") or None
     is_reprint = request.form.get("is_reprint") == "1"

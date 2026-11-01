@@ -117,6 +117,8 @@ Use **Activate/Deactivate Onboarding Link** to open or close submissions at the 
 
 Before opening the form, use **School Settings → Manage Eligible Admission Numbers** to add the school's approved admission numbers. Public applicants must use an active listed number. Each admission is limited to one submission and one correction after a rejection; further attempts receive a school-administrator contact message. Rejected corrections update the original application instead of creating duplicate records. The public card preview uses the same CR80 image renderer as the print PDF, including the reserved verification QR token and Code-128 admission barcode. The status tracker requires the private submission reference rather than an admission number.
 
+For new intakes, optionally set an admission prefix and 4–10 digit width in School Settings, then use **Allocate random admission numbers** on the eligibility page. Each allocation batch remains listed there and has a downloadable printable PDF assignment register, with space to record the student/letter assignment. Use the numbers from that sheet in each student's official admission letter; after approval a number is stored as that student's permanent, school-unique admission number and cannot be allocated again. Existing schools can bulk-add their current admission numbers without changing their format. Keep the approved register/list authoritative and deactivate any number assigned in error before it is used.
+
 ### 3. Default Login Credentials
 - **Username**: `admin`
 - **Password**: `admin123`
