@@ -54,6 +54,7 @@ class School(db.Model):
     emergency_contact_phone = db.Column(db.String(50), nullable=True)
     security_notice = db.Column(db.String(255), nullable=True, default="Official institutional credential. Unlawful alteration or possession is prohibited.")
     show_security_notice = db.Column(db.Boolean, default=True)
+    show_header_contacts = db.Column(db.Boolean, default=True)
     
     # Self-onboarding settings
     allow_self_onboarding = db.Column(db.Boolean, default=True)

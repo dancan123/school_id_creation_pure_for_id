@@ -32,6 +32,7 @@ def run_migration(db_path=None, quiet=True):
         if ("enable_watermark" in school_cols and
             "enable_smart_chip" in school_cols and
             "security_notice" in school_cols and
+            "show_header_contacts" in school_cols and
             "onboarding_base_url" in school_cols and
                 "admission_number_prefix" in school_cols and
                 "admission_number_length" in school_cols and
@@ -67,6 +68,7 @@ def run_migration(db_path=None, quiet=True):
             ("enable_smart_chip", "BOOLEAN DEFAULT 1"),
             ("security_notice", "VARCHAR(255) DEFAULT 'Official institutional credential. Unlawful alteration or possession is prohibited.'"),
             ("show_security_notice", "BOOLEAN DEFAULT 1"),
+            ("show_header_contacts", "BOOLEAN DEFAULT 1"),
         ],
         "students": [
             ("signature_filename", "TEXT"),

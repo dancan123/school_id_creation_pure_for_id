@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import math
 import datetime
 from pathlib import Path
@@ -373,7 +374,7 @@ class CardRenderer:
             draw_guilloche_watermark(draw, w, h, pri_rgb)
 
         # Top Header Banner
-        header_height = int(h * 0.26)
+        header_height = int(h * 0.27)
         draw.rectangle([0, 0, w, header_height], fill=pri_rgb)
         
         # Diagonal / Accent stripe under header
@@ -388,7 +389,7 @@ class CardRenderer:
 
         # School Logo
         logo_drawn = False
-        logo_box_w, logo_box_h = int(w * 0.16), int(header_height * 0.85)
+        logo_box_w, logo_box_h = int(w * 0.16), int(header_height * 0.86)
         logo_x, logo_y = 25, int((header_height - logo_box_h) / 2)
 
         if school.logo_filename:
@@ -413,25 +414,50 @@ class CardRenderer:
         avail_header_w = w - text_x - 30
 
         school_name = school.name.upper()
-        name_font, _ = fit_font_size(draw, school_name, avail_header_w, initial_size=42, min_size=24, bold=True)
+        name_font, _ = fit_font_size(draw, school_name, avail_header_w, initial_size=38, min_size=24, bold=True)
         name_w = int(draw.textlength(school_name, font=name_font))
         name_x = text_x + max(0, (avail_header_w - name_w) // 2)
-        draw.text((name_x, logo_y + 2), school_name, fill=(255, 255, 255), font=name_font)
+
+        curr_hdr_y = logo_y + 2
+        draw.text((name_x, curr_hdr_y), school_name, fill=(255, 255, 255), font=name_font)
+        curr_hdr_y += 42
         
         motto_text = f'"{school.motto}"' if school.motto else ""
         if motto_text:
-            motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=23, min_size=15, bold=True)
+            motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=20, min_size=14, bold=True)
             motto_w = int(draw.textlength(motto_text, font=motto_font))
             motto_x = text_x + max(0, (avail_header_w - motto_w) // 2)
-            draw.text((motto_x, logo_y + 50), motto_text, fill=(254, 240, 138), font=motto_font)
+            draw.text((motto_x, curr_hdr_y), motto_text, fill=(254, 240, 138), font=motto_font)
+            curr_hdr_y += 28
 
         addr_parts = [p for p in [school.po_box, f"{school.town}, {school.county}" if school.town and school.county else (school.town or school.county)] if p]
         addr_text = " • ".join(addr_parts)
         if addr_text:
-            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=21, min_size=14, bold=False)
+            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=18, min_size=13, bold=False)
             addr_w = int(draw.textlength(addr_text, font=address_font))
             addr_x = text_x + max(0, (avail_header_w - addr_w) // 2)
-            draw.text((addr_x, logo_y + 86), addr_text, fill=(241, 245, 249), font=address_font)
+            draw.text((addr_x, curr_hdr_y), addr_text, fill=(241, 245, 249), font=address_font)
+            curr_hdr_y += 26
+
+        # Direct Contact Information in Header (email, phone, website without generic labels)
+        show_contacts = getattr(school, "show_header_contacts", True)
+        if show_contacts:
+            contact_parts = []
+            if getattr(school, "email", None) and school.email.strip():
+                contact_parts.append(school.email.strip())
+            if getattr(school, "phone", None) and school.phone.strip():
+                contact_parts.append(school.phone.strip())
+            if getattr(school, "website", None) and school.website.strip():
+                web_clean = school.website.strip()
+                web_clean = re.sub(r"^https?://", "", web_clean).rstrip("/")
+                contact_parts.append(web_clean)
+
+            if contact_parts:
+                contact_text = " • ".join(contact_parts)
+                contact_font, _ = fit_font_size(draw, contact_text, avail_header_w, initial_size=16, min_size=11, bold=False)
+                c_w = int(draw.textlength(contact_text, font=contact_font))
+                c_x = text_x + max(0, (avail_header_w - c_w) // 2)
+                draw.text((c_x, curr_hdr_y), contact_text, fill=(241, 245, 249), font=contact_font)
 
         # Student Photo Frame coordinates
         photo_x, photo_y = 40, header_height + stripe_h + 20

@@ -267,6 +267,7 @@ def settings():
         school.enable_watermark = request.form.get("enable_watermark") == "1"
         school.enable_smart_chip = request.form.get("enable_smart_chip") == "1"
         school.show_security_notice = request.form.get("show_security_notice") == "1"
+        school.show_header_contacts = request.form.get("show_header_contacts") == "1"
         school.security_notice = request.form.get("security_notice", school.security_notice or "").strip() or "Official institutional credential. Unlawful alteration or possession is prohibited."
 
         # Handle Logo upload
