@@ -321,10 +321,18 @@ def clean_rubber_stamp(im, target_size=(155, 145), angle=-4):
         return im
 
 
+_STAMP_CLEAN_CACHE = {}
+_LOGO_CLEAN_CACHE = {}
+
+
 def get_official_rubber_stamp(school, size=(155, 145), angle=-4):
-    """Generates or loads official institution rubber stamp / seal as a transparent RGBA image."""
+    """Generates or loads official institution rubber stamp / seal as a transparent RGBA image with in-memory caching."""
+    cache_key = (school.id, getattr(school, "stamp_filename", None), size, angle)
+    if cache_key in _STAMP_CLEAN_CACHE:
+        return _STAMP_CLEAN_CACHE[cache_key].copy()
+
     # Check if custom stamp image uploaded
-    if school.stamp_filename:
+    if getattr(school, "stamp_filename", None):
         for folder in [Config.STAMPS_DIR, Config.SIGNATURES_DIR, Config.LOGOS_DIR]:
             p = folder / school.stamp_filename
             if p.exists():
@@ -332,6 +340,7 @@ def get_official_rubber_stamp(school, size=(155, 145), angle=-4):
                     stamp_raw = Image.open(p)
                     cleaned = clean_rubber_stamp(stamp_raw, target_size=size, angle=angle)
                     if cleaned:
+                        _STAMP_CLEAN_CACHE[cache_key] = cleaned
                         return cleaned
                 except Exception:
                     pass
@@ -375,19 +384,33 @@ def get_official_rubber_stamp(school, size=(155, 145), angle=-4):
         # Ultimate fallback: just draw the ring lines — better than a crash
         pass
 
-    return stamp.rotate(-6, expand=True, resample=Image.Resampling.BICUBIC)
+    result_stamp = stamp.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
+    _STAMP_CLEAN_CACHE[cache_key] = result_stamp
+    return result_stamp
 
 
 def clean_logo_image(im):
     """Makes outer white/light background of uploaded school logos transparent,
     allowing the card header's primary brand color to show through seamlessly
     without an unsightly rectangular white box around round/custom emblems.
-    Preserves all internal white details (e.g., books, stars, banners)."""
+    Preserves all internal white details (e.g., books, stars, banners).
+    Includes in-memory caching and intelligent pre-scaling for instant card generation."""
     if im is None:
         return None
     try:
+        cache_key = (getattr(im, "filename", None), im.size, im.mode)
+        if cache_key[0] and cache_key in _LOGO_CLEAN_CACHE:
+            return _LOGO_CLEAN_CACHE[cache_key].copy()
+
         if im.mode != "RGBA":
             im = im.convert("RGBA")
+
+        # Fast pre-scale if image is high resolution (logo box on card is ~161x100)
+        # Prevents costly Python deque iteration over millions of pixels
+        if im.width > 300 or im.height > 300:
+            im = im.copy()
+            im.thumbnail((300, 300), Image.Resampling.LANCZOS)
+
         if np is None:
             return im
 
@@ -439,7 +462,12 @@ def clean_logo_image(im):
             bbox = cleaned.getbbox()
             if bbox:
                 cleaned = cleaned.crop(bbox)
+            if cache_key[0]:
+                _LOGO_CLEAN_CACHE[cache_key] = cleaned
             return cleaned
+
+        if cache_key[0]:
+            _LOGO_CLEAN_CACHE[cache_key] = im
         return im
     except Exception:
         return im
@@ -900,24 +928,24 @@ class CardRenderer:
 
         # Disclaimers / Terms text - Left-aligned block starting at the same uniform X position
         disclaimer = school.disclaimer_text or (
-            "1. This card remains the property of the institution.\n"
-            "2. If found, return to the administration or nearest police station.\n"
-            "3. Must be produced upon request by authorized personnel."
+            "1. This card remains the property of the school.\n"
+            "2. If found, please return to the school administration or nearest police station.\n"
+            "3. The card must be carried at all times within the school premises.\n"
+            "4. The card must carried anytime when on school uniform anywhere."
         )
         raw_lines = [ln.strip() for ln in disclaimer.replace("\r", "").split("\n") if ln.strip()]
 
         start_x = t_box_x1 + 18
-        term_y = t_box_y1 + banner_h + 10
-        line_step = 24
-        # Display up to 3 terms lines cleanly
-        for line in raw_lines[:3]:
-            # Auto-wrap if line is long
-            term_line_font, _ = fit_font_size(draw, line, max_width=t_box_x2 - start_x - 16, initial_size=14, min_size=11, bold=True)
+        term_y = t_box_y1 + banner_h + 8
+        line_step = 19
+        # Display up to 4 terms lines cleanly
+        for line in raw_lines[:4]:
+            term_line_font, _ = fit_font_size(draw, line, max_width=t_box_x2 - start_x - 16, initial_size=12, min_size=10, bold=True)
             draw.text((start_x, term_y), line, fill=(15, 23, 42), font=term_line_font)
             term_y += line_step
 
         # Hairline divider inside block
-        term_div_y = max(term_y + 4, t_box_y1 + banner_h + 82)
+        term_div_y = max(term_y + 4, t_box_y1 + banner_h + 84)
         draw.line([t_box_x1 + 16, term_div_y, t_box_x2 - 16, term_div_y], fill=(226, 232, 240), width=1)
 
         # Dedicated school contact block; parent/guardian phone numbers stay private.

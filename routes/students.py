@@ -26,23 +26,32 @@ students_bp = Blueprint("students", __name__)
 
 def _save_student_webcam_photo(data_url, school_id, admission_number):
     """Validate and save a captured webcam image from the student form."""
-    if not data_url:
+    if not data_url or not isinstance(data_url, str):
         return None
-    match = re.fullmatch(r"data:image/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=]+)", data_url)
-    if not match or len(match.group(1)) > 8_000_000:
-        raise ValueError("The captured photo is not a supported image or exceeds the size limit.")
+    data_url = data_url.strip()
+    if not data_url.startswith("data:image"):
+        return None
     try:
-        image_bytes = base64.b64decode(match.group(1), validate=True)
-        with Image.open(io.BytesIO(image_bytes)) as image:
-            if image.width < 100 or image.height < 100 or image.width * image.height > 12_000_000:
-                raise ValueError("Captured photo dimensions are invalid or too large.")
-            image.verify()
-    except (base64.binascii.Error, UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
-        raise ValueError("The captured photo could not be decoded.") from exc
+        if "," in data_url:
+            header, encoded = data_url.split(",", 1)
+            clean_encoded = re.sub(r"\s+", "", encoded)
+            clean_data_url = f"{header},{clean_encoded}"
+            raw_bytes = base64.b64decode(clean_encoded)
+        else:
+            clean_data_url = re.sub(r"\s+", "", data_url)
+            raw_bytes = base64.b64decode(clean_data_url)
+
+        with Image.open(io.BytesIO(raw_bytes)) as image:
+            if image.width < 50 or image.height < 50:
+                raise ValueError("Captured photo is too small.")
+    except Exception as exc:
+        raise ValueError(f"The captured photo could not be decoded: {exc}") from exc
+
     return save_base64_image(
-        data_url,
+        clean_data_url,
         Config.PHOTOS_DIR,
-        prefix=f"photo_{school_id}_{admission_number}_"
+        prefix=f"photo_{school_id}_{admission_number}_",
+        default_ext=".jpg"
     )
 
 def _build_students_filtered_query(school_id):
@@ -507,9 +516,13 @@ def edit_student(student_id):
         pf = request.files.get("photo_file")
         if pf and pf.filename:
             student.photo_filename = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
+            student.photo_cropped_filename = None  # Clear old crop cache so the fresh photo takes immediate effect
         elif webcam_data and webcam_data.startswith("data:image"):
             try:
-                student.photo_filename = _save_student_webcam_photo(webcam_data, school.id, adm_no)
+                saved_webcam = _save_student_webcam_photo(webcam_data, school.id, adm_no)
+                if saved_webcam:
+                    student.photo_filename = saved_webcam
+                    student.photo_cropped_filename = None  # Clear old crop cache so the fresh camera picture is immediately reflected
             except ValueError as exc:
                 flash(f"Could not save the camera photo: {exc}", "danger")
                 return redirect(url_for("students.edit_student", student_id=student.id))

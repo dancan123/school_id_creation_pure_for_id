@@ -50,7 +50,7 @@ class School(db.Model):
     default_template_id = db.Column(db.Integer, nullable=True)
     
     # Back-of-card settings
-    disclaimer_text = db.Column(db.Text, nullable=True, default="1. This card remains the property of the institution.\n2. If found, please return to the administration or nearest police station.\n3. The card must be carried at all times within the premises.")
+    disclaimer_text = db.Column(db.Text, nullable=True, default="1. This card remains the property of the school.\n2. If found, please return to the school administration or nearest police station.\n3. The card must be carried at all times within the school premises.\n4. The card must carried anytime when on school uniform anywhere.")
     emergency_contact_phone = db.Column(db.String(50), nullable=True)
     security_notice = db.Column(db.String(255), nullable=True, default="Official institutional credential. Unlawful alteration or possession is prohibited.")
     show_security_notice = db.Column(db.Boolean, default=True)
