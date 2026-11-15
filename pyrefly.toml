@@ -13,10 +13,19 @@ enabled-ignores = [
     "type",
     "pyrefly",
     "pyright",
-    "mypy"
+    "mypy",
+    "ty",
+    "pyre",
+    "zuban"
 ]
+type-ignore-unknown-tag-behavior = "suppress"
+check-unannotated-defs = false
+disable-type-errors-in-ide = true
+ignore-errors-in-generated-code = true
 
 [errors]
 missing-import = "ignore"
 bad-override = "ignore"
+bad-override-param-name = "ignore"
 invalid-variance = "ignore"
+untyped-import = "ignore"
