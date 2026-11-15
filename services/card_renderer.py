@@ -5,6 +5,10 @@ import datetime
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps  # type: ignore
 try:
+    import numpy as np  # type: ignore
+except Exception:
+    np = None
+try:
     import barcode  # type: ignore
     from barcode.writer import ImageWriter  # type: ignore
 except Exception:
@@ -207,21 +211,104 @@ def draw_smart_chip(draw, x, y, w=56, h=44):
     draw.rounded_rectangle([cx - 9, cy - 8, cx + 9, cy + 8], radius=3, fill=gold_light, outline=gold_dark, width=1)
     draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=gold_highlight, outline=gold_dark, width=1)
 
-def get_official_rubber_stamp(school, size=(190, 190), angle=-8):
-    """Generates or loads official institution rubber stamp / seal as an RGBA image."""
+def clean_ink_signature(im):
+    """Isolates pen ink from paper background, creating a transparent, anti-aliased signature.
+    Eliminates photo borders, paper discoloration, and camera shadows."""
+    if im is None:
+        return None
+    try:
+        if im.mode != "RGBA":
+            im = im.convert("RGBA")
+        if np is not None:
+            arr = np.array(im, dtype=np.float32)
+            r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+            lum = 0.299 * r + 0.587 * g + 0.114 * b
+            bg_lum = max(205.0, float(np.percentile(lum, 92)))
+            alpha = np.clip((bg_lum - 12 - lum) / max(25.0, bg_lum - 12 - 125) * 255.0, 0.0, 255.0)
+
+            # Preserve & enhance blue/purple pen ink or deep black
+            is_blue = (b > r + 4) & (b > g + 4)
+            new_r = np.where(is_blue, np.clip(r * 0.7, 10, 75), np.clip(r * 0.75, 12, 50))
+            new_g = np.where(is_blue, np.clip(g * 0.7, 20, 85), np.clip(g * 0.75, 18, 60))
+            new_b = np.where(is_blue, np.clip(b * 0.95 + 15, 110, 220), np.clip(b * 0.85, 35, 80))
+
+            out = Image.fromarray(np.dstack([new_r, new_g, new_b, alpha]).astype(np.uint8), "RGBA")
+            bbox = out.getbbox()
+            return out.crop(bbox) if bbox else out
+        else:
+            gray = im.convert("L")
+            alpha = gray.point(lambda p: 255 if p < 140 else (int((215 - p) * 3.4) if p < 215 else 0))
+            im.putalpha(alpha)
+            bbox = im.getbbox()
+            return im.crop(bbox) if bbox else im
+    except Exception:
+        return im
+
+
+def clean_rubber_stamp(im, target_size=(155, 145), angle=-4):
+    """Isolates rubber stamp ink from paper backgrounds, removing rectangular photo borders
+    and producing an authentic official institution stamp with clean transparency."""
+    if im is None:
+        return None
+    try:
+        if im.mode != "RGBA":
+            im = im.convert("RGBA")
+        if np is not None:
+            arr = np.array(im, dtype=np.float32)
+            r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+            lum = 0.299 * r + 0.587 * g + 0.114 * b
+            color_diff = np.maximum.reduce([r, g, b]) - np.minimum.reduce([r, g, b])
+
+            borders = np.concatenate([lum[0, :], lum[-1, :], lum[:, 0], lum[:, -1]])
+            bg_lum = max(200.0, float(np.percentile(borders, 85)))
+
+            alpha_color = np.clip((color_diff - 8) * 14.0, 0.0, 235.0)
+            alpha_dark = np.clip((bg_lum - 20 - lum) / max(20.0, bg_lum - 20 - 100) * 230.0, 0.0, 230.0)
+            alpha = np.maximum(alpha_color, alpha_dark)
+            paper_mask = (lum > (bg_lum - 16)) & (color_diff < 12)
+            alpha[paper_mask] = 0.0
+
+            # Enhance stamp ink tone
+            is_blue = (b > r + 6) & (b > g + 6)
+            new_r = np.where(is_blue, np.clip(r * 0.65, 10, 85), r)
+            new_g = np.where(is_blue, np.clip(g * 0.65, 20, 95), g)
+            new_b = np.where(is_blue, np.clip(b * 1.05 + 10, 130, 235), b)
+
+            out = Image.fromarray(np.dstack([new_r, new_g, new_b, alpha]).astype(np.uint8), "RGBA")
+            bbox = out.getbbox()
+            if bbox:
+                out = out.crop(bbox)
+            out.thumbnail(target_size, Image.Resampling.LANCZOS)
+            if angle:
+                out = out.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
+            return out
+        else:
+            gray = im.convert("L")
+            alpha = gray.point(lambda p: 230 if p < 170 else (int((220 - p) * 4.6) if p < 220 else 0))
+            im.putalpha(alpha)
+            bbox = im.getbbox()
+            if bbox:
+                im = im.crop(bbox)
+            im.thumbnail(target_size, Image.Resampling.LANCZOS)
+            if angle:
+                im = im.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
+            return im
+    except Exception:
+        return im
+
+
+def get_official_rubber_stamp(school, size=(155, 145), angle=-4):
+    """Generates or loads official institution rubber stamp / seal as a transparent RGBA image."""
     # Check if custom stamp image uploaded
     if school.stamp_filename:
         for folder in [Config.STAMPS_DIR, Config.SIGNATURES_DIR, Config.LOGOS_DIR]:
             p = folder / school.stamp_filename
             if p.exists():
                 try:
-                    stamp_img = Image.open(p).convert("RGBA")
-                    stamp_img.thumbnail(size, Image.Resampling.LANCZOS)
-                    # Semi-transparent overlay
-                    r, g, b, a = stamp_img.split()
-                    a = a.point(lambda p: int(p * 0.88))
-                    stamp_img.putalpha(a)
-                    return stamp_img.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
+                    stamp_raw = Image.open(p)
+                    cleaned = clean_rubber_stamp(stamp_raw, target_size=size, angle=angle)
+                    if cleaned:
+                        return cleaned
                 except Exception:
                     pass
 
@@ -264,7 +351,7 @@ def get_official_rubber_stamp(school, size=(190, 190), angle=-8):
         # Ultimate fallback: just draw the ring lines — better than a crash
         pass
 
-    return stamp.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)
+    return stamp.rotate(-6, expand=True, resample=Image.Resampling.BICUBIC)
 
 class CardRenderer:
     """Production-grade Card Renderer producing high-res 300 DPI PNGs and ReportLab print PDFs."""
@@ -489,22 +576,25 @@ class CardRenderer:
         preview_signature = getattr(student, "preview_signature", None)
         if preview_signature is not None:
             try:
-                s_sig = preview_signature.convert("RGBA")
-                s_sig.thumbnail((sig_w, 32), Image.Resampling.LANCZOS)
-                centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
-                centered_sig_y = sig_baseline_y - s_sig.height - 2
-                img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
+                s_sig = clean_ink_signature(preview_signature)
+                if s_sig:
+                    s_sig.thumbnail((sig_w, 34), Image.Resampling.LANCZOS)
+                    centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
+                    centered_sig_y = sig_baseline_y - s_sig.height - 2
+                    img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
             except Exception:
                 pass
         elif getattr(student, "signature_filename", None):
             sig_p = Config.SIGNATURES_DIR / student.signature_filename
             if sig_p.exists():
                 try:
-                    s_sig = Image.open(sig_p).convert("RGBA")
-                    s_sig.thumbnail((sig_w, 32), Image.Resampling.LANCZOS)
-                    centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
-                    centered_sig_y = sig_baseline_y - s_sig.height - 2
-                    img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
+                    raw_s = Image.open(sig_p)
+                    s_sig = clean_ink_signature(raw_s)
+                    if s_sig:
+                        s_sig.thumbnail((sig_w, 34), Image.Resampling.LANCZOS)
+                        centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
+                        centered_sig_y = sig_baseline_y - s_sig.height - 2
+                        img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
                 except Exception:
                     pass
 
@@ -632,20 +722,21 @@ class CardRenderer:
             draw.text((start_x, meta_y), "Official institutional record • Verification required upon presentation.", fill=(100, 116, 139), font=std_rec_font)
 
         # ── Authority Verification Block: Official Stamp + Principal's Signature ────
+        auth_box_h = auth_box_y2 - auth_box_y
         draw.rounded_rectangle([35, auth_box_y, left_w + 8, auth_box_y2], radius=8,
-                                fill=(248, 250, 252), outline=(226, 232, 240), width=1)
+                                fill=(255, 255, 255), outline=(226, 232, 240), width=1)
 
-        # ── Official Stamp — left zone, vertically centred in auth block ────────
+        # ── Official Stamp — left zone, vertically and horizontally centred in stamp area ────
         try:
-            stamp_img = get_official_rubber_stamp(school, size=(155, 155), angle=-8)
-            stamp_x = 42
+            stamp_img = get_official_rubber_stamp(school, size=(150, 140), angle=-4)
+            stamp_x = 42 + max(0, (165 - stamp_img.width) // 2)
             stamp_y = auth_box_y + max(0, (auth_box_h - stamp_img.height) // 2)
             img.paste(stamp_img, (stamp_x, stamp_y), stamp_img)
         except Exception:
             # Fallback: draw a simple ink-circle so there's always a stamp placeholder
-            fc_x = 42 + 77
+            fc_x = 42 + 75
             fc_y = auth_box_y + auth_box_h // 2
-            fc_r = 72
+            fc_r = 65
             draw.ellipse([fc_x - fc_r, fc_y - fc_r, fc_x + fc_r, fc_y + fc_r],
                          outline=pri_rgb, width=3)
             draw.ellipse([fc_x - fc_r + 8, fc_y - fc_r + 8,
@@ -657,10 +748,10 @@ class CardRenderer:
                 pass
 
         # ── Signature zone — right side of auth block ──────────────────────────
-        sig_x = 240
-        sig_w  = left_w - sig_x - 10
-        sig_h  = 52
-        sig_y  = auth_box_y + 18
+        sig_x = 210
+        sig_w = (left_w + 8) - sig_x - 15  # ~273 px
+        sig_h = 56
+        line_y = auth_box_y2 - 68
 
         sig_drawn = False
         if school.principal_signature_filename:
@@ -668,20 +759,22 @@ class CardRenderer:
                 sig_path = s_folder / school.principal_signature_filename
                 if sig_path.exists():
                     try:
-                        sig_img = Image.open(sig_path).convert("RGBA")
-                        sig_img.thumbnail((sig_w, sig_h), Image.Resampling.LANCZOS)
-                        img.paste(sig_img,
-                                  (sig_x + (sig_w - sig_img.width) // 2, sig_y),
-                                  sig_img)
-                        sig_drawn = True
-                        break
+                        raw_sig = Image.open(sig_path)
+                        sig_img = clean_ink_signature(raw_sig)
+                        if sig_img:
+                            sig_img.thumbnail((sig_w - 20, sig_h), Image.Resampling.LANCZOS)
+                            sig_paste_x = sig_x + max(0, (sig_w - sig_img.width) // 2)
+                            sig_paste_y = line_y - sig_img.height - 4
+                            img.paste(sig_img, (sig_paste_x, sig_paste_y), sig_img)
+                            sig_drawn = True
+                            break
                     except Exception:
                         sig_drawn = False
 
         # When no signature image is uploaded, draw a professional cursive placeholder
         if not sig_drawn:
             import math as _math
-            ph_color = (100, 116, 139, 180)   # slate-grey, semi-transparent
+            ph_color = (71, 85, 105, 190)   # slate-grey, semi-transparent
             sig_overlay = Image.new("RGBA", (sig_w, sig_h + 10), (0, 0, 0, 0))
             ov_draw = ImageDraw.Draw(sig_overlay)
             pts = []
@@ -698,23 +791,22 @@ class CardRenderer:
                 pts2.append((px, py))
             for i in range(len(pts2) - 1):
                 ov_draw.line([pts2[i], pts2[i + 1]], fill=ph_color, width=1)
-            img.paste(sig_overlay, (sig_x, sig_y - 5), sig_overlay)
+            img.paste(sig_overlay, (sig_x, line_y - sig_h - 2), sig_overlay)
 
-        # Signature baseline — anchored 70 px above the bottom edge of auth block
-        line_y = auth_box_y2 - 70
-        draw.line([sig_x, line_y, sig_x + sig_w, line_y], fill=(100, 116, 139), width=2)
+        # Signature baseline — anchored above signatory titles
+        draw.line([sig_x, line_y, sig_x + sig_w, line_y], fill=(148, 163, 184), width=1)
 
         # Principal name & title below the baseline (auto-scaled)
         signatory_name  = school.principal_name or "Principal / Authorized Signatory"
         signatory_title = getattr(school, "get_signatory_title",
                                   lambda: "Principal / Head of Institution")()
-        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=16, min_size=12, bold=True)
-        title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=14, min_size=11, bold=False)
+        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=15, min_size=12, bold=True)
+        title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=13, min_size=11, bold=False)
+        stamp_guide_font = get_font(11, bold=False)
         try:
-            draw.text((sig_x + 5, line_y + 5),  signatory_name,  fill=pri_rgb,        font=pname_font)
+            draw.text((sig_x + 5, line_y + 4),  signatory_name,  fill=pri_rgb,        font=pname_font)
             draw.text((sig_x + 5, line_y + 24), signatory_title, fill=(71, 85, 105),   font=title_font)
-            stamp_guide_font = get_font(12, bold=False)
-            draw.text((sig_x + 5, line_y + 44), "[ Authorized Signatory ]",
+            draw.text((sig_x + 5, line_y + 42), "[ Authorized Signatory ]",
                       fill=(148, 163, 184), font=stamp_guide_font)
         except Exception:
             pass
