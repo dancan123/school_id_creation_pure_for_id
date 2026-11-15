@@ -5,7 +5,7 @@ import math
 import datetime
 from collections import deque
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter, ImageEnhance  # type: ignore
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter  # type: ignore
 try:
     import numpy as np  # type: ignore
 except Exception:
@@ -546,10 +546,16 @@ class CardRenderer:
         draw.rectangle([0, h - footer_height, w, h], fill=pri_rgb)
         draw.rectangle([0, h - footer_height - 6, w, h - footer_height], fill=sec_rgb)
 
-        # School Logo
+        # Student Photo Frame coordinates defined early for geometric alignment
+        photo_x = 40
+        photo_w = int(w * 0.28) # ~283 px
+        photo_center_x = photo_x + photo_w // 2
+
+        # School Logo - Horizontally aligned with the passport photo center for vertical balance
         logo_drawn = False
         logo_box_w, logo_box_h = int(w * 0.16), int(header_height * 0.86)
-        logo_x, logo_y = 25, int((header_height - logo_box_h) / 2)
+        logo_x = max(20, photo_center_x - logo_box_w // 2)
+        logo_y = int((header_height - logo_box_h) / 2)
 
         if school.logo_filename:
             logo_path = Config.LOGOS_DIR / school.logo_filename
@@ -558,20 +564,24 @@ class CardRenderer:
                     raw_logo = Image.open(logo_path)
                     logo_img = clean_logo_image(raw_logo)
                     logo_img.thumbnail((logo_box_w, logo_box_h), Image.Resampling.LANCZOS)
-                    img.paste(logo_img, (logo_x, logo_y + (logo_box_h - logo_img.height) // 2), logo_img)
+                    actual_logo_x = logo_x + (logo_box_w - logo_img.width) // 2
+                    actual_logo_y = logo_y + (logo_box_h - logo_img.height) // 2
+                    img.paste(logo_img, (actual_logo_x, actual_logo_y), logo_img)
                     logo_drawn = True
                 except Exception:
                     logo_drawn = False
 
         if not logo_drawn:
-            draw.ellipse([logo_x, logo_y, logo_x + logo_box_h, logo_y + logo_box_h], fill=sec_rgb, outline=(255,255,255), width=3)
+            emblem_x = logo_x + (logo_box_w - logo_box_h) // 2
+            draw.ellipse([emblem_x, logo_y, emblem_x + logo_box_h, logo_y + logo_box_h], fill=sec_rgb, outline=(255,255,255), width=3)
             emblem_font = get_font(32, bold=True)
             first_letters = "".join([part[0] for part in school.name.split()[:2]]).upper()
-            draw.text((logo_x + 18, logo_y + 18), first_letters, fill=pri_rgb, font=emblem_font)
+            fl_w = int(draw.textlength(first_letters, font=emblem_font))
+            draw.text((emblem_x + (logo_box_h - fl_w) // 2, logo_y + 18), first_letters, fill=pri_rgb, font=emblem_font)
 
         # School Name and details in Header - Centered horizontally for high-prestige executive finish
-        text_x = logo_x + logo_box_w + 20
-        avail_header_w = w - text_x - 30
+        text_x = logo_x + logo_box_w + 18
+        avail_header_w = w - text_x - 25
 
         school_name = school.name.upper()
         name_font, _ = fit_font_size(draw, school_name, avail_header_w, initial_size=38, min_size=24, bold=True)
@@ -593,11 +603,11 @@ class CardRenderer:
         addr_parts = [p for p in [school.po_box, f"{school.town}, {school.county}" if school.town and school.county else (school.town or school.county)] if p]
         addr_text = " • ".join(addr_parts)
         if addr_text:
-            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=18, min_size=13, bold=False)
+            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=20, min_size=14, bold=True)
             addr_w = int(draw.textlength(addr_text, font=address_font))
             addr_x = text_x + max(0, (avail_header_w - addr_w) // 2)
-            draw.text((addr_x, curr_hdr_y), addr_text, fill=(241, 245, 249), font=address_font)
-            curr_hdr_y += 26
+            draw.text((addr_x, curr_hdr_y), addr_text, fill=(255, 255, 255), font=address_font)
+            curr_hdr_y += 27
 
         # Direct Contact Information in Header (email, phone, website without generic labels)
         show_contacts = getattr(school, "show_header_contacts", True)
@@ -614,14 +624,14 @@ class CardRenderer:
 
             if contact_parts:
                 contact_text = " • ".join(contact_parts)
-                contact_font, _ = fit_font_size(draw, contact_text, avail_header_w, initial_size=16, min_size=11, bold=False)
+                contact_font, _ = fit_font_size(draw, contact_text, avail_header_w, initial_size=18, min_size=13, bold=True)
                 c_w = int(draw.textlength(contact_text, font=contact_font))
                 c_x = text_x + max(0, (avail_header_w - c_w) // 2)
-                draw.text((c_x, curr_hdr_y), contact_text, fill=(241, 245, 249), font=contact_font)
+                draw.text((c_x, curr_hdr_y), contact_text, fill=(255, 255, 255), font=contact_font)
 
         # Student Photo Frame coordinates
-        photo_x, photo_y = 40, header_height + stripe_h + 20
-        photo_w, photo_h = int(w * 0.28), int(h * 0.51) # ~283 x 325 px
+        photo_y = header_height + stripe_h + 20
+        photo_h = int(h * 0.51) # ~325 px
 
         # Badge: Dynamic Card Title (STUDENT / CORPORATE ID CARD)
         card_title_str = getattr(school, "get_card_title", lambda: "STUDENT IDENTITY CARD")()
@@ -984,15 +994,19 @@ class CardRenderer:
         # Signature baseline — anchored above signatory titles
         draw.line([sig_x, line_y, sig_x + sig_w, line_y], fill=(148, 163, 184), width=1)
 
-        # Principal name & title below the baseline (auto-scaled)
+        # Principal name & title below the baseline (auto-scaled and centered)
         signatory_name  = school.principal_name or "Principal"
         signatory_title = getattr(school, "get_signatory_title",
                                   lambda: "Principal / Head of Institution")()
-        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=15, min_size=12, bold=True)
+        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=16, min_size=12, bold=True)
         title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=13, min_size=11, bold=False)
         try:
-            draw.text((sig_x + 5, line_y + 5),  signatory_name,  fill=pri_rgb,        font=pname_font)
-            draw.text((sig_x + 5, line_y + 26), signatory_title, fill=(71, 85, 105),   font=title_font)
+            pname_w = int(draw.textlength(signatory_name, font=pname_font))
+            title_w = int(draw.textlength(signatory_title, font=title_font))
+            pname_x = sig_x + max(0, (sig_w - pname_w) // 2)
+            title_x = sig_x + max(0, (sig_w - title_w) // 2)
+            draw.text((pname_x, line_y + 5),  signatory_name,  fill=pri_rgb,        font=pname_font)
+            draw.text((title_x, line_y + 26), signatory_title, fill=(71, 85, 105),   font=title_font)
         except Exception:
             pass
 

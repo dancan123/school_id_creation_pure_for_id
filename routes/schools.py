@@ -6,7 +6,7 @@ import re
 from extensions import db
 from models import School, Student, CardRecord
 from config import Config
-from utils import get_current_school, log_audit, save_uploaded_file, build_public_url
+from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url
 from services.card_renderer import CardRenderer
 
 schools_bp = Blueprint("schools", __name__)
