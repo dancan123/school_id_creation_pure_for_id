@@ -194,6 +194,18 @@
                   </div>
                 </div>
               </div>
+              <div class="col-12 mt-1 mb-2">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="auto_whiten_photo" value="1" id="switchAutoWhitenPhoto"
+                         {% if current_school.auto_whiten_photo %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="switchAutoWhitenPhoto">
+                    Auto-Whiten Studio Photo Background (Smooth Light Backdrops Only)
+                  </label>
+                  <div class="form-text text-muted small">
+                    When enabled, automatically whitens smooth studio wall backdrops with zero impact on skin or facial features. Keep disabled (recommended) to preserve 100% authentic original photo fidelity, natural skin tones, and texture.
+                  </div>
+                </div>
+              </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold small">Authority Full Name (Principal / CEO)</label>
                 <input type="text" name="principal_name" id="inputPrincipalName" class="form-control"

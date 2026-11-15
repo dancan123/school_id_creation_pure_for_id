@@ -55,6 +55,7 @@ class School(db.Model):
     security_notice = db.Column(db.String(255), nullable=True, default="Official institutional credential. Unlawful alteration or possession is prohibited.")
     show_security_notice = db.Column(db.Boolean, default=True)
     show_header_contacts = db.Column(db.Boolean, default=True)
+    auto_whiten_photo = db.Column(db.Boolean, default=False)
     
     # Self-onboarding settings
     allow_self_onboarding = db.Column(db.Boolean, default=True)

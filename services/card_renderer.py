@@ -423,14 +423,19 @@ def clean_logo_image(im):
         return im
 
 
-def clean_passport_photo(im):
-    """Filters submitted passport photos to a pure studio white background (255, 255, 255),
-    eliminating room wall shadows, murky textures, and off-white backdrops while preserving
-    hair, skin tones, edge definition, and clothing quality with studio-grade contrast."""
+def clean_passport_photo(im, school=None):
+    """Safely cleans up passport photo backgrounds while strictly preserving original image quality.
+    If auto-whitening is disabled, or if the photo has a textured background (stone/brick/patterns),
+    or if whitening would risk encroaching on facial features/highlights, it returns the pristine,
+    unmodified original photo to guarantee 100% natural likeness and zero image degradation."""
     if im is None:
         return None
     try:
         im_rgb = im.convert("RGB")
+        auto_whiten = getattr(school, "auto_whiten_photo", False) if school else False
+        if not auto_whiten:
+            return im_rgb  # Preserve 100% original photo quality
+
         if np is None:
             return im_rgb
 
@@ -445,23 +450,29 @@ def clean_passport_photo(im):
         corners = np.vstack([tl, tr])
         bg_mean = np.median(corners, axis=0)
         bg_std = np.std(corners, axis=0)
+        max_std = float(np.max(bg_std)) if len(bg_std) else 10.0
+        bg_lum = 0.299 * bg_mean[0] + 0.587 * bg_mean[1] + 0.114 * bg_mean[2]
 
-        # Distance to corner wall sample
-        dist = np.sqrt(np.sum((arr - bg_mean) ** 2, axis=2))
+        # 1. Background must be light and smooth (not textured wall, brick, or dark room)
+        if max_std > 18.0 or bg_lum < 135.0:
+            return im_rgb  # Preserve pristine original photo
+
         r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
         lum = 0.299 * r + 0.587 * g + 0.114 * b
-        max_c = np.maximum.reduce([r, g, b])
-        min_c = np.minimum.reduce([r, g, b])
-        diff = max_c - min_c
 
-        # Background candidate: either close to corner wall color or neutral light wall
-        max_std = float(np.max(bg_std)) if len(bg_std) else 10.0
-        cand = (dist < max(42.0, max_std * 2.8)) | ((diff < 30) & (lum > 85))
+        # 2. Strict protection of human skin and dark hair/features
+        is_skin = (r > 55) & (g > 35) & (b > 20) & (r > g) & ((r - b) > 8)
+        is_dark = lum < 70
 
-        # Protect dark hair, eyes, eyebrows, deep shadows on subject
-        cand[lum < 65] = False
+        # 3. Candidate background: must closely match the corner wall sample
+        dist = np.sqrt(np.sum((arr - bg_mean) ** 2, axis=2))
+        cand = (dist < 26.0) & (~is_skin) & (~is_dark)
 
-        # Connected flood fill starting from perimeter where wall is present
+        # 4. Strict face protection zone: center oval/box cannot be background
+        face_x1, face_x2 = int(w * 0.30), int(w * 0.70)
+        face_y1, face_y2 = int(h * 0.20), int(h * 0.55)
+
+        # Flood-fill from top border ONLY
         visited = np.zeros((h, w), dtype=bool)
         bg_mask = np.zeros((h, w), dtype=bool)
         queue = deque()
@@ -470,13 +481,6 @@ def clean_passport_photo(im):
             if cand[0, x]:
                 visited[0, x] = True
                 queue.append((0, x))
-        for y in range(int(h * 0.40)):
-            if cand[y, 0] and not visited[y, 0]:
-                visited[y, 0] = True
-                queue.append((y, 0))
-            if cand[y, w - 1] and not visited[y, w - 1]:
-                visited[y, w - 1] = True
-                queue.append((y, w - 1))
 
         while queue:
             cy, cx = queue.popleft()
@@ -488,20 +492,22 @@ def clean_passport_photo(im):
                         if cand[ny, nx]:
                             queue.append((ny, nx))
 
+        # 5. Critical check: Did the mask breach into the face zone?
+        face_breach = bg_mask[face_y1:face_y2, face_x1:face_x2]
+        if np.any(face_breach):
+            # Abort immediately if any pixel in the face region was marked
+            return im_rgb
+
         if np.any(bg_mask):
-            # Soft feathered transition mask for hair/shoulder edges
             mask_im = Image.fromarray((bg_mask * 255).astype(np.uint8), "L")
-            mask_blurred = mask_im.filter(ImageFilter.GaussianBlur(radius=2.0))
+            mask_blurred = mask_im.filter(ImageFilter.GaussianBlur(radius=1.8))
             mask_arr = np.array(mask_blurred, dtype=np.float32) / 255.0
             mask_3d = np.dstack([mask_arr, mask_arr, mask_arr])
 
-            white_bg = np.ones_like(arr) * 255.0
-            blended = arr * (1.0 - mask_3d) + white_bg * mask_3d
+            blended = arr * (1.0 - mask_3d) + 255.0 * mask_3d
             res = Image.fromarray(np.clip(blended, 0, 255).astype(np.uint8), "RGB")
-            # Subtle portrait enhancement
-            res = ImageEnhance.Contrast(res).enhance(1.04)
-            res = ImageEnhance.Sharpness(res).enhance(1.08)
             return res
+
         return im_rgb
     except Exception:
         return im
@@ -657,7 +663,7 @@ class CardRenderer:
         preview_photo = getattr(student, "preview_photo", None)
         if preview_photo is not None:
             try:
-                cleaned_photo = clean_passport_photo(preview_photo)
+                cleaned_photo = clean_passport_photo(preview_photo, school=school)
                 s_photo = ImageOps.fit(cleaned_photo, (photo_w, photo_h), Image.Resampling.LANCZOS)
                 img.paste(s_photo, (photo_x, photo_y))
                 photo_pasted = True
@@ -669,7 +675,7 @@ class CardRenderer:
             if photo_path.exists():
                 try:
                     raw_photo = Image.open(photo_path)
-                    cleaned_photo = clean_passport_photo(raw_photo)
+                    cleaned_photo = clean_passport_photo(raw_photo, school=school)
                     s_photo = ImageOps.fit(cleaned_photo, (photo_w, photo_h), Image.Resampling.LANCZOS)
                     img.paste(s_photo, (photo_x, photo_y))
                     photo_pasted = True
