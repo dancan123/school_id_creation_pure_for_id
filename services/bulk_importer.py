@@ -5,7 +5,6 @@ import shutil
 import re
 from pathlib import Path
 import openpyxl
-from config import Config
 from extensions import db
 from models import Student
 
@@ -257,7 +256,6 @@ class BulkImporter:
     @staticmethod
     def commit_valid_records(school_id, valid_records):
         """Inserts all validated records within a database transaction."""
-        inserted_count = 0
         students_to_add = []
 
         for rec in valid_records:

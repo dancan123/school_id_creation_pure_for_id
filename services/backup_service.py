@@ -1,8 +1,5 @@
-import os
-import shutil
 import zipfile
 import datetime
-from pathlib import Path
 from config import Config
 
 class BackupService:

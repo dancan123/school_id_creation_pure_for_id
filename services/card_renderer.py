@@ -169,7 +169,7 @@ def draw_guilloche_watermark(draw, width, height, pri_rgb):
         draw.line([rosette2_pts[i], rosette2_pts[i+1]], fill=line_color_1, width=1)
 
     # 4. Micro-text Security Lathe Track along top
-    micro_font = get_font(9, bold=True)
+    micro_font = get_font(11, bold=True)
     if micro_font:
         micro_str = "★ OFFICIAL SECURE CREDENTIAL ★ REPUBLIC OF KENYA ★ CR80 PVC SMART IDENTITY CORE ★ DIGITAL VERIFICATION EMBEDDED ★ "
         micro_color = (
@@ -178,7 +178,7 @@ def draw_guilloche_watermark(draw, width, height, pri_rgb):
             min(255, int(pri_rgb[2] * 0.18 + 205))
         )
         try:
-            draw.text((35, int(height * 0.26) + 20), micro_str[:110], fill=micro_color, font=micro_font)
+            draw.text((35, int(height * 0.26) + 18), micro_str[:110], fill=micro_color, font=micro_font)
         except Exception:
             pass
 
@@ -321,51 +321,57 @@ class CardRenderer:
             first_letters = "".join([part[0] for part in school.name.split()[:2]]).upper()
             draw.text((logo_x + 18, logo_y + 18), first_letters, fill=pri_rgb, font=emblem_font)
 
-        # School Name and details in Header
+        # School Name and details in Header - Centered horizontally for high-prestige executive finish
         text_x = logo_x + logo_box_w + 20
         avail_header_w = w - text_x - 30
 
         school_name = school.name.upper()
-        name_font, _ = fit_font_size(draw, school_name, avail_header_w, initial_size=34, min_size=20, bold=True)
-        draw.text((text_x, logo_y + 4), school_name, fill=(255, 255, 255), font=name_font)
+        name_font, _ = fit_font_size(draw, school_name, avail_header_w, initial_size=42, min_size=24, bold=True)
+        name_w = int(draw.textlength(school_name, font=name_font))
+        name_x = text_x + max(0, (avail_header_w - name_w) // 2)
+        draw.text((name_x, logo_y + 2), school_name, fill=(255, 255, 255), font=name_font)
         
         motto_text = f'"{school.motto}"' if school.motto else ""
         if motto_text:
-            motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=20, min_size=13, bold=False)
-            draw.text((text_x, logo_y + 45), motto_text, fill=(254, 240, 138), font=motto_font)
+            motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=23, min_size=15, bold=True)
+            motto_w = int(draw.textlength(motto_text, font=motto_font))
+            motto_x = text_x + max(0, (avail_header_w - motto_w) // 2)
+            draw.text((motto_x, logo_y + 50), motto_text, fill=(254, 240, 138), font=motto_font)
 
         addr_parts = [p for p in [school.po_box, f"{school.town}, {school.county}" if school.town and school.county else (school.town or school.county)] if p]
         addr_text = " • ".join(addr_parts)
         if addr_text:
-            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=18, min_size=12, bold=False)
-            draw.text((text_x, logo_y + 75), addr_text, fill=(241, 245, 249), font=address_font)
+            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=21, min_size=14, bold=False)
+            addr_w = int(draw.textlength(addr_text, font=address_font))
+            addr_x = text_x + max(0, (avail_header_w - addr_w) // 2)
+            draw.text((addr_x, logo_y + 86), addr_text, fill=(241, 245, 249), font=address_font)
 
         # Badge: Dynamic Card Title (STUDENT / CORPORATE ID CARD)
         card_title_str = getattr(school, "get_card_title", lambda: "STUDENT IDENTITY CARD")()
-        badge_w = max(240, len(card_title_str) * 11 + 30)
-        badge_h = 32
+        badge_w = max(260, len(card_title_str) * 12 + 36)
+        badge_h = 36
         badge_x = w - badge_w - 25
-        badge_y = header_height + stripe_h + 16
+        badge_y = header_height + stripe_h + 14
         draw.rounded_rectangle([badge_x, badge_y, badge_x + badge_w, badge_y + badge_h], radius=6, fill=pri_rgb)
-        badge_font = get_font(15, bold=True)
-        draw.text((badge_x + 16, badge_y + 7), card_title_str, fill=(255, 255, 255), font=badge_font)
+        badge_font = get_font(17, bold=True)
+        draw.text((badge_x + 16, badge_y + 8), card_title_str, fill=(255, 255, 255), font=badge_font)
 
         # Academic / Year Tag
-        year_w, year_h = 120, 32
-        year_x = badge_x - year_w - 10
+        year_w, year_h = 130, 36
+        year_x = badge_x - year_w - 12
         draw.rounded_rectangle([year_x, badge_y, year_x + year_w, badge_y + year_h], radius=6, fill=sec_rgb)
-        year_font = get_font(15, bold=True)
+        year_font = get_font(17, bold=True)
         year_label = f"YR {student.academic_year}" if getattr(school, "is_corporate", lambda: False)() else f"AY {student.academic_year}"
-        draw.text((year_x + 16, badge_y + 7), year_label, fill=(15, 23, 42), font=year_font)
+        draw.text((year_x + 16, badge_y + 8), year_label, fill=(15, 23, 42), font=year_font)
 
         # Renewal Stamp Badge (if card has been renewed)
         renewal_cnt = (getattr(card_record, "renewal_count", 0) or 0) if card_record else 0
         if renewal_cnt > 0:
-            ren_w, ren_h = 110, 26
-            ren_x = year_x - ren_w - 8
+            ren_w, ren_h = 125, 30
+            ren_x = year_x - ren_w - 10
             draw.rounded_rectangle([ren_x, badge_y + 3, ren_x + ren_w, badge_y + 3 + ren_h], radius=5, fill=(16, 185, 129))
-            ren_font = get_font(12, bold=True)
-            draw.text((ren_x + 10, badge_y + 8), f"RENEWED R{renewal_cnt}", fill=(255, 255, 255), font=ren_font)
+            ren_font = get_font(14, bold=True)
+            draw.text((ren_x + 10, badge_y + 7), f"RENEWED R{renewal_cnt}", fill=(255, 255, 255), font=ren_font)
 
         # Student Photo Frame
         photo_x, photo_y = 40, header_height + stripe_h + 20
@@ -423,23 +429,23 @@ class CardRenderer:
 
         # Information Block with Dynamic Labels and Perfect Harmonized Column Offsets
         info_x = photo_x + photo_w + 92
-        start_y = header_height + stripe_h + 58
-        line_spacing = 38
+        start_y = header_height + stripe_h + 56
+        line_spacing = 40
 
-        lbl_font = get_font(18, bold=False)
-        val_font = get_font(21, bold=True)
+        lbl_font = get_font(20, bold=True)
+        val_font = get_font(24, bold=True)
 
         id_lbl_text = f"{getattr(school, 'get_id_label', lambda: 'ADM NO')()}:"
         class_lbl_text = f"{getattr(school, 'get_class_label', lambda: 'CLASS / GRADE')()}:"
 
-        # Column 2 value start offset (guaranteed 165px label space - never collides)
-        col2_x = info_x + 165
+        # Column 2 value start offset (guaranteed 175px label space - never collides)
+        col2_x = info_x + 175
         avail_val_w = (w - 35) - col2_x  # available width for values without margin collision
 
         # Full Name with auto font-scaling for longer names
         draw.text((info_x, start_y), "NAME:", fill=(100, 116, 139), font=lbl_font)
         clean_full_name = student.full_name.upper()
-        name_font_to_use, _ = fit_font_size(draw, clean_full_name, avail_val_w, initial_size=25, min_size=15, bold=True)
+        name_font_to_use, _ = fit_font_size(draw, clean_full_name, avail_val_w, initial_size=30, min_size=18, bold=True)
         draw.text((col2_x, start_y - 3), clean_full_name, fill=pri_rgb, font=name_font_to_use)
 
         # ID / Admission Number
@@ -451,14 +457,14 @@ class CardRenderer:
         curr_y += line_spacing
         draw.text((info_x, curr_y), class_lbl_text, fill=(100, 116, 139), font=lbl_font)
         cls_stream_str = f"{student.class_name} {student.stream_name or ''}".strip()
-        cls_font_to_use, _ = fit_font_size(draw, cls_stream_str, avail_val_w, initial_size=21, min_size=14, bold=True)
+        cls_font_to_use, _ = fit_font_size(draw, cls_stream_str, avail_val_w, initial_size=24, min_size=16, bold=True)
         draw.text((col2_x, curr_y), cls_stream_str, fill=text_rgb, font=cls_font_to_use)
 
         # Card Number
         curr_y += line_spacing
         draw.text((info_x, curr_y), "CARD NO:", fill=(100, 116, 139), font=lbl_font)
         card_no = card_record.card_number if card_record else f"{school.card_prefix or 'ID-'}{student.admission_number}"
-        card_no_font, _ = fit_font_size(draw, card_no, avail_val_w, initial_size=21, min_size=14, bold=True)
+        card_no_font, _ = fit_font_size(draw, card_no, avail_val_w, initial_size=24, min_size=16, bold=True)
         draw.text((col2_x, curr_y), card_no, fill=text_rgb, font=card_no_font)
 
         # Valid Until / Expiry
@@ -471,16 +477,16 @@ class CardRenderer:
         # ── Cardholder Signature Zone ──────────────────────────────────────────
         # Lifted safely above the bottom footer margin (raised by 20px from initial -50)
         # Guarantees a comfortable ~18px breathing space above the footer accent line
-        sig_w = 150
+        sig_w = 160
         sig_paste_x = w - sig_w - 28
-        sig_paste_y = h - footer_height - 70
-        sig_baseline_y = sig_paste_y + 32
+        sig_paste_y = h - footer_height - 72
+        sig_baseline_y = sig_paste_y + 34
 
         preview_signature = getattr(student, "preview_signature", None)
         if preview_signature is not None:
             try:
                 s_sig = preview_signature.convert("RGBA")
-                s_sig.thumbnail((sig_w, 30), Image.Resampling.LANCZOS)
+                s_sig.thumbnail((sig_w, 32), Image.Resampling.LANCZOS)
                 centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
                 centered_sig_y = sig_baseline_y - s_sig.height - 2
                 img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
@@ -491,7 +497,7 @@ class CardRenderer:
             if sig_p.exists():
                 try:
                     s_sig = Image.open(sig_p).convert("RGBA")
-                    s_sig.thumbnail((sig_w, 30), Image.Resampling.LANCZOS)
+                    s_sig.thumbnail((sig_w, 32), Image.Resampling.LANCZOS)
                     centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
                     centered_sig_y = sig_baseline_y - s_sig.height - 2
                     img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
@@ -500,15 +506,16 @@ class CardRenderer:
 
         # Cardholder signature baseline and label
         draw.line([sig_paste_x, sig_baseline_y, sig_paste_x + sig_w, sig_baseline_y], fill=(148, 163, 184), width=1)
-        sig_lbl_font = get_font(11, bold=False)
-        draw.text((sig_paste_x + 20, sig_baseline_y + 3), "Cardholder Signature", fill=(100, 116, 139), font=sig_lbl_font)
+        sig_lbl_font = get_font(13, bold=True)
+        sig_lbl_w = int(draw.textlength("Cardholder Signature", font=sig_lbl_font))
+        draw.text((sig_paste_x + (sig_w - sig_lbl_w) // 2, sig_baseline_y + 4), "Cardholder Signature", fill=(100, 116, 139), font=sig_lbl_font)
 
         # Footer bar text with collision protection
         serial_str = "SERIAL: " + (card_record.card_number if card_record else student.admission_number)
-        serial_font = get_font(17, bold=True)
-        serial_w = 240
+        serial_font = get_font(20, bold=True)
+        serial_w = 260
         foot_str = f"OFFICIAL {school.name.upper()} IDENTIFICATION CREDENTIAL"
-        foot_font, _ = fit_font_size(draw, foot_str, max_width=w - serial_w - 70, initial_size=17, min_size=12, bold=True)
+        foot_font, _ = fit_font_size(draw, foot_str, max_width=w - serial_w - 70, initial_size=20, min_size=14, bold=True)
         draw.text((40, h - footer_height + 18), foot_str, fill=(255, 255, 255), font=foot_font)
         draw.text((w - serial_w, h - footer_height + 18), serial_str, fill=(254, 240, 138), font=serial_font)
 
@@ -529,13 +536,15 @@ class CardRenderer:
         if getattr(school, "enable_watermark", True):
             draw_guilloche_watermark(draw, w, h, pri_rgb)
 
-        # Top Header Bar
+        # Top Header Bar - Centered on ID card for high-level institutional presentation
         top_h = int(h * 0.12)
         draw.rectangle([0, 0, w, top_h], fill=pri_rgb)
         draw.rectangle([0, top_h, w, top_h + 8], fill=sec_rgb)
         
-        top_font = get_font(21, bold=True)
-        draw.text((35, 18), "CARD TERMS, OFFICIAL STAMP & VERIFICATION", fill=(255, 255, 255), font=top_font)
+        top_hdr_str = "CARD TERMS, OFFICIAL STAMP & VERIFICATION"
+        top_font, _ = fit_font_size(draw, top_hdr_str, max_width=w - 60, initial_size=25, min_size=18, bold=True)
+        top_hdr_w = int(draw.textlength(top_hdr_str, font=top_font))
+        draw.text(((w - top_hdr_w) // 2, (top_h - 26) // 2), top_hdr_str, fill=(255, 255, 255), font=top_font)
 
         # Left Column content area
         # Left Column content area - widened to 70% width (~707px) for world-class spacious card layout
@@ -562,13 +571,15 @@ class CardRenderer:
         draw.rounded_rectangle([t_box_x1, t_box_y1, t_box_x2, t_box_y2], radius=8,
                                fill=(248, 250, 252), outline=(226, 232, 240), width=1)
 
-        # Header banner inside the block
-        banner_h = 28
+        # Header banner inside the block - Centered
+        banner_h = 32
         draw.rounded_rectangle([t_box_x1, t_box_y1, t_box_x2, t_box_y1 + banner_h], radius=8, fill=pri_rgb)
         draw.rectangle([t_box_x1, t_box_y1 + banner_h - 6, t_box_x2, t_box_y1 + banner_h], fill=pri_rgb)
 
-        terms_hdr_font = get_font(12, bold=True)
-        draw.text((t_box_x1 + 16, t_box_y1 + 6), "● TERMS & CONDITIONS OF ISSUANCE ●", fill=(255, 255, 255), font=terms_hdr_font)
+        terms_hdr_font = get_font(14, bold=True)
+        terms_hdr_str = "● TERMS & CONDITIONS OF ISSUANCE ●"
+        t_hdr_w = int(draw.textlength(terms_hdr_str, font=terms_hdr_font))
+        draw.text((t_box_x1 + (t_box_x2 - t_box_x1 - t_hdr_w) // 2, t_box_y1 + 7), terms_hdr_str, fill=(255, 255, 255), font=terms_hdr_font)
 
         # Disclaimers / Terms text - Left-aligned block starting at the same uniform X position
         disclaimer = school.disclaimer_text or (
@@ -580,24 +591,23 @@ class CardRenderer:
 
         start_x = t_box_x1 + 18
         term_y = t_box_y1 + banner_h + 10
-        line_step = 22
+        line_step = 24
         # Display up to 3 terms lines cleanly
         for line in raw_lines[:3]:
             # Auto-wrap if line is long
-            term_line_font, _ = fit_font_size(draw, line, max_width=t_box_x2 - start_x - 16, initial_size=12, min_size=10, bold=True)
+            term_line_font, _ = fit_font_size(draw, line, max_width=t_box_x2 - start_x - 16, initial_size=14, min_size=11, bold=True)
             draw.text((start_x, term_y), line, fill=(15, 23, 42), font=term_line_font)
             term_y += line_step
 
         # Hairline divider inside block
-        term_div_y = max(term_y + 4, t_box_y1 + banner_h + 78)
+        term_div_y = max(term_y + 4, t_box_y1 + banner_h + 82)
         draw.line([t_box_x1 + 16, term_div_y, t_box_x2 - 16, term_div_y], fill=(226, 232, 240), width=1)
 
         # Dedicated school contact block; parent/guardian phone numbers stay private.
         em_school_phone = school.emergency_contact_phone or school.phone or "N/A"
         contact_y = term_div_y + 8
         contact_width = t_box_x2 - start_x - 16
-        contact_heading_font = get_font(11, bold=True)
-        contact_font = get_font(11, bold=False)
+        contact_heading_font = get_font(13, bold=True)
         draw.text((start_x, contact_y), "SCHOOL CONTACT", fill=pri_rgb, font=contact_heading_font)
         contact_lines = [
             f"Hotline: {em_school_phone}",
@@ -605,16 +615,16 @@ class CardRenderer:
             f"Website: {school.website or 'Not provided'}"
         ]
         for line_index, contact_line in enumerate(contact_lines):
-            line_font, _ = fit_font_size(draw, contact_line, contact_width, initial_size=11, min_size=9, bold=False)
-            draw.text((start_x, contact_y + 16 + line_index * 16), contact_line, fill=(51, 65, 85), font=line_font)
-        meta_y = contact_y + 68
+            line_font, _ = fit_font_size(draw, contact_line, contact_width, initial_size=13, min_size=10, bold=False)
+            draw.text((start_x, contact_y + 18 + line_index * 17), contact_line, fill=(51, 65, 85), font=line_font)
+        meta_y = contact_y + 72
 
         # NEMIS / UPI row
         upi_lbl = getattr(school, "upi_label", "NEMIS / UPI") or "NEMIS / UPI"
         if getattr(student, "nemis_upi", None):
-            draw.text((start_x, meta_y), f"{upi_lbl}: {student.nemis_upi}", fill=(185, 28, 28), font=get_font(12, bold=True))
+            draw.text((start_x, meta_y), f"{upi_lbl}: {student.nemis_upi}", fill=(185, 28, 28), font=get_font(14, bold=True))
         else:
-            notice_font = get_font(11, bold=False)
+            notice_font = get_font(12, bold=False)
             draw.text((start_x, meta_y), "Official institutional credential. Unlawful alteration or possession is prohibited.", fill=(148, 163, 184), font=notice_font)
 
         # ── Authority Verification Block: Official Stamp + Principal's Signature ────
@@ -705,13 +715,13 @@ class CardRenderer:
         signatory_name  = school.principal_name or "Principal / Authorized Signatory"
         signatory_title = getattr(school, "get_signatory_title",
                                   lambda: "Principal / Head of Institution")()
-        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=14, min_size=11, bold=True)
-        title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=13, min_size=10, bold=False)
+        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=16, min_size=12, bold=True)
+        title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=14, min_size=11, bold=False)
         try:
             draw.text((sig_x + 5, line_y + 5),  signatory_name,  fill=pri_rgb,        font=pname_font)
-            draw.text((sig_x + 5, line_y + 23), signatory_title, fill=(71, 85, 105),   font=title_font)
-            stamp_guide_font = get_font(11, bold=False)
-            draw.text((sig_x + 5, line_y + 42), "[ Authorized Signatory ]",
+            draw.text((sig_x + 5, line_y + 24), signatory_title, fill=(71, 85, 105),   font=title_font)
+            stamp_guide_font = get_font(12, bold=False)
+            draw.text((sig_x + 5, line_y + 44), "[ Authorized Signatory ]",
                       fill=(148, 163, 184), font=stamp_guide_font)
         except Exception:
             pass
@@ -736,12 +746,14 @@ class CardRenderer:
         draw.rounded_rectangle([rc_x1 - 2, qr_frame_y1 - 2, rc_x2 + 2, qr_frame_y2 + 2], radius=12, fill=sec_rgb)
         draw.rounded_rectangle([rc_x1, qr_frame_y1, rc_x2, qr_frame_y2], radius=10, fill=(255, 255, 255))
 
-        # Security Header Banner
-        banner_qr_h = 24
+        # Security Header Banner - Centered
+        banner_qr_h = 26
         draw.rounded_rectangle([rc_x1, qr_frame_y1, rc_x2, qr_frame_y1 + banner_qr_h], radius=8, fill=pri_rgb)
         draw.rectangle([rc_x1, qr_frame_y1 + banner_qr_h - 4, rc_x2, qr_frame_y1 + banner_qr_h], fill=pri_rgb)
-        qr_hdr_font = get_font(11, bold=True)
-        draw.text((rc_x1 + 18, qr_frame_y1 + 5), "● DIGITAL ID VERIFICATION ●", fill=(255, 255, 255), font=qr_hdr_font)
+        qr_hdr_font = get_font(12, bold=True)
+        qr_hdr_str = "● DIGITAL ID VERIFICATION ●"
+        qr_hdr_w = int(draw.textlength(qr_hdr_str, font=qr_hdr_font))
+        draw.text((rc_x1 + (rc_w - qr_hdr_w) // 2, qr_frame_y1 + 5), qr_hdr_str, fill=(255, 255, 255), font=qr_hdr_font)
 
         # Center QR code
         qr_x = rc_x1 + (rc_w - qr_box_size) // 2
@@ -767,19 +779,25 @@ class CardRenderer:
         # Paste QR
         img.paste(qr_img, (qr_x, qr_y))
 
-        # Under QR
-        scan_font = get_font(12, bold=True)
-        draw.text((rc_x1 + 35, qr_y + qr_box_size + 6), "SCAN TO AUTHENTICATE", fill=pri_rgb, font=scan_font)
+        # Under QR - Centered cleanly with enhanced font sizes
+        scan_font = get_font(13, bold=True)
+        scan_str = "SCAN TO AUTHENTICATE"
+        scan_w = int(draw.textlength(scan_str, font=scan_font))
+        draw.text((rc_x1 + (rc_w - scan_w) // 2, qr_y + qr_box_size + 6), scan_str, fill=pri_rgb, font=scan_font)
 
         token_upper = qr_token.replace("-", "").upper()
         token_chunks = [token_upper[i:i+4] for i in range(0, min(len(token_upper), 16), 4)]
         formatted_token = "-".join(token_chunks) if token_chunks else qr_token[:16]
 
-        token_font = get_font(10, bold=True)
-        draw.text((rc_x1 + 22, qr_y + qr_box_size + 24), f"CODE: {formatted_token}", fill=(71, 85, 105), font=token_font)
+        token_font = get_font(11, bold=True)
+        code_str = f"CODE: {formatted_token}"
+        code_w = int(draw.textlength(code_str, font=token_font))
+        draw.text((rc_x1 + (rc_w - code_w) // 2, qr_y + qr_box_size + 24), code_str, fill=(71, 85, 105), font=token_font)
 
-        sub_font = get_font(9, bold=False)
-        draw.text((rc_x1 + 18, qr_y + qr_box_size + 40), "SMARTPHONE CAMERA / 2D SCANNER", fill=(148, 163, 184), font=sub_font)
+        sub_font = get_font(10, bold=False)
+        sub_str = "SMARTPHONE CAMERA / 2D SCANNER"
+        sub_w = int(draw.textlength(sub_str, font=sub_font))
+        draw.text((rc_x1 + (rc_w - sub_w) // 2, qr_y + qr_box_size + 40), sub_str, fill=(148, 163, 184), font=sub_font)
 
         # 2. Bottom Container: Optical Code-128 Barcode (Library, Gate & Canteen)
         bc_frame_y1 = 352
@@ -788,12 +806,14 @@ class CardRenderer:
         draw.rounded_rectangle([rc_x1 - 2, bc_frame_y1 - 2, rc_x2 + 2, bc_frame_y2 + 2], radius=12, fill=sec_rgb)
         draw.rounded_rectangle([rc_x1, bc_frame_y1, rc_x2, bc_frame_y2], radius=10, fill=(255, 255, 255))
 
-        # Barcode Header Banner
-        banner_bc_h = 24
+        # Barcode Header Banner - Centered
+        banner_bc_h = 26
         draw.rounded_rectangle([rc_x1, bc_frame_y1, rc_x2, bc_frame_y1 + banner_bc_h], radius=8, fill=pri_rgb)
         draw.rectangle([rc_x1, bc_frame_y1 + banner_bc_h - 4, rc_x2, bc_frame_y1 + banner_bc_h], fill=pri_rgb)
-        bc_hdr_font = get_font(11, bold=True)
-        draw.text((rc_x1 + 20, bc_frame_y1 + 5), "● LIBRARY & GATE BARCODE ●", fill=(255, 255, 255), font=bc_hdr_font)
+        bc_hdr_font = get_font(12, bold=True)
+        bc_hdr_str = "● LIBRARY & GATE BARCODE ●"
+        bc_hdr_w = int(draw.textlength(bc_hdr_str, font=bc_hdr_font))
+        draw.text((rc_x1 + (rc_w - bc_hdr_w) // 2, bc_frame_y1 + 5), bc_hdr_str, fill=(255, 255, 255), font=bc_hdr_font)
 
         # Render and paste Code-128 Barcode
         bc_val = student.admission_number or (card_record.card_number if card_record else "ID-000")
@@ -805,9 +825,9 @@ class CardRenderer:
             bc_paste_y = bc_frame_y1 + banner_bc_h + 8
             img.paste(bc_img, (bc_paste_x, bc_paste_y))
 
-        # Under Barcode: Human readable admission number & compatibility
+        # Under Barcode: Human readable admission number & compatibility (Centered)
         bc_txt_y = bc_frame_y1 + banner_bc_h + 8 + bc_h + 4
-        num_font = get_font(13, bold=True)
+        num_font = get_font(15, bold=True)
         num_text = f"* {bc_val} *"
         try:
             num_w = int(draw.textlength(num_text, font=num_font))
@@ -815,11 +835,15 @@ class CardRenderer:
         except Exception:
             draw.text((rc_x1 + 35, bc_txt_y), num_text, fill=text_rgb, font=num_font)
 
-        compat_font = get_font(10, bold=True)
-        draw.text((rc_x1 + 22, bc_txt_y + 19), "1D LASER SCANNER COMPATIBLE", fill=pri_rgb, font=compat_font)
+        compat_font = get_font(11, bold=True)
+        compat_str = "1D LASER SCANNER COMPATIBLE"
+        compat_w = int(draw.textlength(compat_str, font=compat_font))
+        draw.text((rc_x1 + (rc_w - compat_w) // 2, bc_txt_y + 19), compat_str, fill=pri_rgb, font=compat_font)
 
-        sys_font = get_font(9, bold=False)
-        draw.text((rc_x1 + 34, bc_txt_y + 34), "KOHA / GATE / CANTEEN POS", fill=(148, 163, 184), font=sys_font)
+        sys_font = get_font(10, bold=False)
+        sys_str = "KOHA / GATE / CANTEEN POS"
+        sys_w = int(draw.textlength(sys_str, font=sys_font))
+        draw.text((rc_x1 + (rc_w - sys_w) // 2, bc_txt_y + 35), sys_str, fill=(148, 163, 184), font=sys_font)
 
         # Bottom Bar
         draw.rectangle([0, h - bottom_h, w, h], fill=pri_rgb)
@@ -827,13 +851,13 @@ class CardRenderer:
 
         foot_left_str = f"{school.name.upper()} • {school.town.upper()}"
         foot_right_str = "OFFICIAL SYSTEM ISSUED & DIGITALLY VERIFIED"
-        foot_right_font, _ = fit_font_size(draw, foot_right_str, max_width=int(w * 0.40), initial_size=16, min_size=10, bold=True)
+        foot_right_font, _ = fit_font_size(draw, foot_right_str, max_width=int(w * 0.44), initial_size=18, min_size=12, bold=True)
         try:
             foot_right_width = int(draw.textlength(foot_right_str, font=foot_right_font))
         except Exception:
-            foot_right_width = min(int(w * 0.40), len(foot_right_str) * 9)
+            foot_right_width = min(int(w * 0.44), len(foot_right_str) * 10)
         foot_right_x = w - 35 - foot_right_width
-        foot_left_font, _ = fit_font_size(draw, foot_left_str, max_width=max(100, foot_right_x - 55), initial_size=16, min_size=10, bold=True)
+        foot_left_font, _ = fit_font_size(draw, foot_left_str, max_width=max(100, foot_right_x - 55), initial_size=18, min_size=12, bold=True)
         draw.text((35, h - bottom_h + 18), foot_left_str, fill=(255, 255, 255), font=foot_left_font)
         draw.text((foot_right_x, h - bottom_h + 18), foot_right_str, fill=(254, 240, 138), font=foot_right_font)
 
