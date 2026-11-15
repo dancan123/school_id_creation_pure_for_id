@@ -750,8 +750,8 @@ class CardRenderer:
         # ── Signature zone — right side of auth block ──────────────────────────
         sig_x = 210
         sig_w = (left_w + 8) - sig_x - 15  # ~273 px
-        sig_h = 56
-        line_y = auth_box_y2 - 68
+        sig_h = 60
+        line_y = auth_box_y2 - 58
 
         sig_drawn = False
         if school.principal_signature_filename:
@@ -797,17 +797,14 @@ class CardRenderer:
         draw.line([sig_x, line_y, sig_x + sig_w, line_y], fill=(148, 163, 184), width=1)
 
         # Principal name & title below the baseline (auto-scaled)
-        signatory_name  = school.principal_name or "Principal / Authorized Signatory"
+        signatory_name  = school.principal_name or "Principal"
         signatory_title = getattr(school, "get_signatory_title",
                                   lambda: "Principal / Head of Institution")()
         pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=15, min_size=12, bold=True)
         title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=13, min_size=11, bold=False)
-        stamp_guide_font = get_font(11, bold=False)
         try:
-            draw.text((sig_x + 5, line_y + 4),  signatory_name,  fill=pri_rgb,        font=pname_font)
-            draw.text((sig_x + 5, line_y + 24), signatory_title, fill=(71, 85, 105),   font=title_font)
-            draw.text((sig_x + 5, line_y + 42), "[ Authorized Signatory ]",
-                      fill=(148, 163, 184), font=stamp_guide_font)
+            draw.text((sig_x + 5, line_y + 5),  signatory_name,  fill=pri_rgb,        font=pname_font)
+            draw.text((sig_x + 5, line_y + 26), signatory_title, fill=(71, 85, 105),   font=title_font)
         except Exception:
             pass
 
