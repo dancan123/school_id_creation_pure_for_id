@@ -213,9 +213,11 @@ def draw_smart_chip(draw, x, y, w=56, h=44):
     draw.rounded_rectangle([cx - 9, cy - 8, cx + 9, cy + 8], radius=3, fill=gold_light, outline=gold_dark, width=1)
     draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=gold_highlight, outline=gold_dark, width=1)
 
-def clean_ink_signature(im):
-    """Isolates pen ink from paper background, creating a transparent, anti-aliased signature.
-    Eliminates photo borders, paper discoloration, and camera shadows."""
+def clean_ink_signature(im, ink_color=(20, 50, 135)):
+    """Isolates pen ink from paper or digital canvas backgrounds, producing a crisp,
+    transparent, anti-aliased signature rendered in authentic deep institutional blue ink.
+    Eliminates rectangular dark boxes, canvas transparency artifacts, paper discoloration,
+    and camera shadows while preserving original pen stroke fidelity and pressure."""
     if im is None:
         return None
     try:
@@ -223,18 +225,38 @@ def clean_ink_signature(im):
             im = im.convert("RGBA")
         if np is not None:
             arr = np.array(im, dtype=np.float32)
-            r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
-            lum = 0.299 * r + 0.587 * g + 0.114 * b
-            bg_lum = max(205.0, float(np.percentile(lum, 92)))
-            alpha = np.clip((bg_lum - 12 - lum) / max(25.0, bg_lum - 12 - 125) * 255.0, 0.0, 255.0)
+            r, g, b, a = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2], arr[:, :, 3]
 
-            # Preserve & enhance blue/purple pen ink or deep black
-            is_blue = (b > r + 4) & (b > g + 4)
-            new_r = np.where(is_blue, np.clip(r * 0.7, 10, 75), np.clip(r * 0.75, 12, 50))
-            new_g = np.where(is_blue, np.clip(g * 0.7, 20, 85), np.clip(g * 0.75, 18, 60))
-            new_b = np.where(is_blue, np.clip(b * 0.95 + 15, 110, 220), np.clip(b * 0.85, 35, 80))
+            # Check if this image has an existing transparency channel (e.g. from an HTML5 digital canvas)
+            has_transparency = np.any(a < 240)
 
-            out = Image.fromarray(np.dstack([new_r, new_g, new_b, alpha]).astype(np.uint8), "RGBA")
+            if has_transparency:
+                # The signature comes from a transparent digital drawing board (HTML5 canvas)
+                # Background pixels have a == 0; strokes have a > 15
+                ink_mask = a > 15
+                out_a = np.where(ink_mask, np.clip(a * 1.05, 0.0, 255.0), 0.0)
+            else:
+                # Opaque image (scanned paper document, photo of signature on paper)
+                lum = 0.299 * r + 0.587 * g + 0.114 * b
+                borders = np.concatenate([lum[0, :], lum[-1, :], lum[:, 0], lum[:, -1]])
+                edge_lum = float(np.median(borders))
+
+                if edge_lum < 80:
+                    # Inverted: light ink on dark background
+                    out_a = np.clip((lum - 60) / 100.0 * 255.0, 0.0, 255.0)
+                else:
+                    # Normal paper: dark ink on white/off-white background
+                    bg_lum = max(195.0, float(np.percentile(lum, 88)))
+                    out_a = np.clip((bg_lum - 10 - lum) / max(25.0, bg_lum - 10 - 120) * 255.0, 0.0, 255.0)
+
+            # Map the ink stroke to deep institutional blue ink (20, 50, 135)
+            target_r, target_g, target_b = ink_color
+            new_r = np.full_like(r, target_r)
+            new_g = np.full_like(g, target_g)
+            new_b = np.full_like(b, target_b)
+
+            out_arr = np.dstack([new_r, new_g, new_b, out_a]).astype(np.uint8)
+            out = Image.fromarray(out_arr, "RGBA")
             bbox = out.getbbox()
             return out.crop(bbox) if bbox else out
         else:
@@ -771,12 +793,15 @@ class CardRenderer:
         sig_paste_y = h - footer_height - 72
         sig_baseline_y = sig_paste_y + 34
 
+        # Dedicated pure white background box for cardholder signature to conform originality
+        draw.rectangle([sig_paste_x, sig_paste_y - 6, sig_paste_x + sig_w, sig_baseline_y], fill=(255, 255, 255))
+
         preview_signature = getattr(student, "preview_signature", None)
         if preview_signature is not None:
             try:
-                s_sig = clean_ink_signature(preview_signature)
+                s_sig = clean_ink_signature(preview_signature, ink_color=(20, 50, 135))
                 if s_sig:
-                    s_sig.thumbnail((sig_w, 34), Image.Resampling.LANCZOS)
+                    s_sig.thumbnail((sig_w - 8, 36), Image.Resampling.LANCZOS)
                     centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
                     centered_sig_y = sig_baseline_y - s_sig.height - 2
                     img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
@@ -787,9 +812,9 @@ class CardRenderer:
             if sig_p.exists():
                 try:
                     raw_s = Image.open(sig_p)
-                    s_sig = clean_ink_signature(raw_s)
+                    s_sig = clean_ink_signature(raw_s, ink_color=(20, 50, 135))
                     if s_sig:
-                        s_sig.thumbnail((sig_w, 34), Image.Resampling.LANCZOS)
+                        s_sig.thumbnail((sig_w - 8, 36), Image.Resampling.LANCZOS)
                         centered_sig_x = sig_paste_x + max(0, (sig_w - s_sig.width) // 2)
                         centered_sig_y = sig_baseline_y - s_sig.height - 2
                         img.paste(s_sig, (centered_sig_x, centered_sig_y), s_sig)
@@ -958,7 +983,7 @@ class CardRenderer:
                 if sig_path.exists():
                     try:
                         raw_sig = Image.open(sig_path)
-                        sig_img = clean_ink_signature(raw_sig)
+                        sig_img = clean_ink_signature(raw_sig, ink_color=(20, 50, 135))
                         if sig_img:
                             sig_img.thumbnail((sig_w - 20, sig_h), Image.Resampling.LANCZOS)
                             sig_paste_x = sig_x + max(0, (sig_w - sig_img.width) // 2)
@@ -969,10 +994,10 @@ class CardRenderer:
                     except Exception:
                         sig_drawn = False
 
-        # When no signature image is uploaded, draw a professional cursive placeholder
+        # When no signature image is uploaded, draw a professional cursive placeholder in deep blue ink
         if not sig_drawn:
             import math as _math
-            ph_color = (71, 85, 105, 190)   # slate-grey, semi-transparent
+            ph_color = (20, 50, 135, 195)   # deep institutional blue ink
             sig_overlay = Image.new("RGBA", (sig_w, sig_h + 10), (0, 0, 0, 0))
             ov_draw = ImageDraw.Draw(sig_overlay)
             pts = []
