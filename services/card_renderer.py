@@ -3,8 +3,9 @@ import io
 import re
 import math
 import datetime
+from collections import deque
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageOps  # type: ignore
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter, ImageEnhance  # type: ignore
 try:
     import numpy as np  # type: ignore
 except Exception:
@@ -354,6 +355,158 @@ def get_official_rubber_stamp(school, size=(155, 145), angle=-4):
 
     return stamp.rotate(-6, expand=True, resample=Image.Resampling.BICUBIC)
 
+
+def clean_logo_image(im):
+    """Makes outer white/light background of uploaded school logos transparent,
+    allowing the card header's primary brand color to show through seamlessly
+    without an unsightly rectangular white box around round/custom emblems.
+    Preserves all internal white details (e.g., books, stars, banners)."""
+    if im is None:
+        return None
+    try:
+        if im.mode != "RGBA":
+            im = im.convert("RGBA")
+        if np is None:
+            return im
+
+        arr = np.array(im, dtype=np.uint8)
+        h, w = arr.shape[:2]
+
+        r = arr[:, :, 0].astype(np.int32)
+        g = arr[:, :, 1].astype(np.int32)
+        b = arr[:, :, 2].astype(np.int32)
+        a = arr[:, :, 3]
+
+        max_c = np.maximum.reduce([r, g, b])
+        min_c = np.minimum.reduce([r, g, b])
+        is_near_white = (min_c >= 220) & ((max_c - min_c) <= 25)
+
+        visited = np.zeros((h, w), dtype=bool)
+        mask_remove = np.zeros((h, w), dtype=bool)
+        queue = deque()
+
+        for x in range(w):
+            if is_near_white[0, x] and a[0, x] > 0:
+                visited[0, x] = True
+                queue.append((0, x))
+            if is_near_white[h - 1, x] and a[h - 1, x] > 0:
+                visited[h - 1, x] = True
+                queue.append((h - 1, x))
+        for y in range(h):
+            if is_near_white[y, 0] and a[y, 0] > 0:
+                visited[y, 0] = True
+                queue.append((y, 0))
+            if is_near_white[y, w - 1] and a[y, w - 1] > 0:
+                visited[y, w - 1] = True
+                queue.append((y, w - 1))
+
+        while queue:
+            cy, cx = queue.popleft()
+            mask_remove[cy, cx] = True
+            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+                if 0 <= ny < h and 0 <= nx < w:
+                    if not visited[ny, nx] and is_near_white[ny, nx] and a[ny, nx] > 0:
+                        visited[ny, nx] = True
+                        queue.append((ny, nx))
+
+        if np.any(mask_remove):
+            new_a = a.copy()
+            new_a[mask_remove] = 0
+            arr[:, :, 3] = new_a
+            cleaned = Image.fromarray(arr, "RGBA")
+            bbox = cleaned.getbbox()
+            if bbox:
+                cleaned = cleaned.crop(bbox)
+            return cleaned
+        return im
+    except Exception:
+        return im
+
+
+def clean_passport_photo(im):
+    """Filters submitted passport photos to a pure studio white background (255, 255, 255),
+    eliminating room wall shadows, murky textures, and off-white backdrops while preserving
+    hair, skin tones, edge definition, and clothing quality with studio-grade contrast."""
+    if im is None:
+        return None
+    try:
+        im_rgb = im.convert("RGB")
+        if np is None:
+            return im_rgb
+
+        w, h = im_rgb.size
+        arr = np.array(im_rgb, dtype=np.float32)
+
+        # Sample top corners for background wall baseline
+        sample_h = max(4, int(h * 0.08))
+        sample_w = max(4, int(w * 0.12))
+        tl = arr[:sample_h, :sample_w].reshape(-1, 3)
+        tr = arr[:sample_h, -sample_w:].reshape(-1, 3)
+        corners = np.vstack([tl, tr])
+        bg_mean = np.median(corners, axis=0)
+        bg_std = np.std(corners, axis=0)
+
+        # Distance to corner wall sample
+        dist = np.sqrt(np.sum((arr - bg_mean) ** 2, axis=2))
+        r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        max_c = np.maximum.reduce([r, g, b])
+        min_c = np.minimum.reduce([r, g, b])
+        diff = max_c - min_c
+
+        # Background candidate: either close to corner wall color or neutral light wall
+        max_std = float(np.max(bg_std)) if len(bg_std) else 10.0
+        cand = (dist < max(42.0, max_std * 2.8)) | ((diff < 30) & (lum > 85))
+
+        # Protect dark hair, eyes, eyebrows, deep shadows on subject
+        cand[lum < 65] = False
+
+        # Connected flood fill starting from perimeter where wall is present
+        visited = np.zeros((h, w), dtype=bool)
+        bg_mask = np.zeros((h, w), dtype=bool)
+        queue = deque()
+
+        for x in range(w):
+            if cand[0, x]:
+                visited[0, x] = True
+                queue.append((0, x))
+        for y in range(int(h * 0.40)):
+            if cand[y, 0] and not visited[y, 0]:
+                visited[y, 0] = True
+                queue.append((y, 0))
+            if cand[y, w - 1] and not visited[y, w - 1]:
+                visited[y, w - 1] = True
+                queue.append((y, w - 1))
+
+        while queue:
+            cy, cx = queue.popleft()
+            bg_mask[cy, cx] = True
+            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+                if 0 <= ny < h and 0 <= nx < w:
+                    if not visited[ny, nx]:
+                        visited[ny, nx] = True
+                        if cand[ny, nx]:
+                            queue.append((ny, nx))
+
+        if np.any(bg_mask):
+            # Soft feathered transition mask for hair/shoulder edges
+            mask_im = Image.fromarray((bg_mask * 255).astype(np.uint8), "L")
+            mask_blurred = mask_im.filter(ImageFilter.GaussianBlur(radius=2.0))
+            mask_arr = np.array(mask_blurred, dtype=np.float32) / 255.0
+            mask_3d = np.dstack([mask_arr, mask_arr, mask_arr])
+
+            white_bg = np.ones_like(arr) * 255.0
+            blended = arr * (1.0 - mask_3d) + white_bg * mask_3d
+            res = Image.fromarray(np.clip(blended, 0, 255).astype(np.uint8), "RGB")
+            # Subtle portrait enhancement
+            res = ImageEnhance.Contrast(res).enhance(1.04)
+            res = ImageEnhance.Sharpness(res).enhance(1.08)
+            return res
+        return im_rgb
+    except Exception:
+        return im
+
+
 class CardRenderer:
     """Production-grade Card Renderer producing high-res 300 DPI PNGs and ReportLab print PDFs."""
 
@@ -396,7 +549,8 @@ class CardRenderer:
             logo_path = Config.LOGOS_DIR / school.logo_filename
             if logo_path.exists():
                 try:
-                    logo_img = Image.open(logo_path).convert("RGBA")
+                    raw_logo = Image.open(logo_path)
+                    logo_img = clean_logo_image(raw_logo)
                     logo_img.thumbnail((logo_box_w, logo_box_h), Image.Resampling.LANCZOS)
                     img.paste(logo_img, (logo_x, logo_y + (logo_box_h - logo_img.height) // 2), logo_img)
                     logo_drawn = True
@@ -503,7 +657,8 @@ class CardRenderer:
         preview_photo = getattr(student, "preview_photo", None)
         if preview_photo is not None:
             try:
-                s_photo = ImageOps.fit(preview_photo.convert("RGB"), (photo_w, photo_h), Image.Resampling.LANCZOS)
+                cleaned_photo = clean_passport_photo(preview_photo)
+                s_photo = ImageOps.fit(cleaned_photo, (photo_w, photo_h), Image.Resampling.LANCZOS)
                 img.paste(s_photo, (photo_x, photo_y))
                 photo_pasted = True
             except Exception:
@@ -513,8 +668,9 @@ class CardRenderer:
             photo_path = Config.PHOTOS_DIR / target_photo_fn
             if photo_path.exists():
                 try:
-                    s_photo = Image.open(photo_path).convert("RGB")
-                    s_photo = ImageOps.fit(s_photo, (photo_w, photo_h), Image.Resampling.LANCZOS)
+                    raw_photo = Image.open(photo_path)
+                    cleaned_photo = clean_passport_photo(raw_photo)
+                    s_photo = ImageOps.fit(cleaned_photo, (photo_w, photo_h), Image.Resampling.LANCZOS)
                     img.paste(s_photo, (photo_x, photo_y))
                     photo_pasted = True
                 except Exception:
