@@ -111,11 +111,50 @@
                   <!-- Live Webcam Button -->
                   <div class="mt-2">
                     <button type="button" id="openWebcamButton" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#webcamModal">
-                      <i class="fa-solid fa-camera me-1"></i> Capture Using Webcam
+                      <i class="fa-solid fa-camera me-1"></i> Capture Using Camera
                     </button>
                   </div>
                   <input type="hidden" name="webcam_image_data" id="webcam_image_data">
-                  <small class="text-muted d-block mt-2">This computer: use localhost. Other phones/computers: the site must use trusted HTTPS.</small>
+                  <small class="text-muted d-block mt-2">Take photo live using webcam or device camera.</small>
+                </div>
+
+                <!-- Student Digital Signature Board -->
+                <div class="card bg-light border-0 rounded-4 p-3 text-center mt-3 shadow-sm">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="fw-bold mb-0 text-start">
+                      <i class="fa-solid fa-signature text-primary me-1"></i> Student Signature
+                    </h6>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" onclick="clearStudentSignature()">
+                      <i class="fa-solid fa-eraser me-1"></i>Clear
+                    </button>
+                  </div>
+                  
+                  {% if student and student.signature_filename %}
+                  <div id="existing-signature-preview" class="mb-2 p-2 bg-white rounded-3 border">
+                    <img src="{{ url_for('serve_media', folder='signatures', filename=student.signature_filename) }}" alt="Signature" style="max-height: 48px; max-width: 100%; object-fit: contain;">
+                    <div class="small text-muted mt-1" style="font-size: 0.72rem;">Current on file. Sign below to replace:</div>
+                  </div>
+                  {% endif %}
+
+                  <!-- Signature Pad Canvas -->
+                  <div class="position-relative bg-white rounded-3 border p-1" style="touch-action: none;">
+                    <canvas id="studentSigCanvas" style="width: 100%; height: 120px; display: block; border-radius: 6px; cursor: crosshair;"></canvas>
+                    <div class="position-absolute bottom-0 start-50 translate-middle-x pb-1" style="pointer-events: none; width: 85%;">
+                      <div style="border-bottom: 1px dashed #cbd5e1; height: 1px;"></div>
+                      <span class="text-muted" style="font-size: 0.68rem; display: block; margin-top: 2px;">Sign above with finger, stylus, or mouse</span>
+                    </div>
+                  </div>
+                  <input type="hidden" name="signature_data" id="student_signature_data">
+
+                  <!-- Alternative File Upload -->
+                  <div class="mt-2 text-start">
+                    <a class="small text-decoration-none text-muted" data-bs-toggle="collapse" href="#sigUploadCollapse" role="button">
+                      <i class="fa-solid fa-file-arrow-up me-1"></i> Or upload signature image
+                    </a>
+                    <div class="collapse mt-1" id="sigUploadCollapse">
+                      <input type="file" name="signature_file" id="signature_file" class="form-control form-control-sm" accept="image/png,image/jpeg,image/webp">
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -153,10 +192,15 @@
           <canvas id="webcam-canvas" class="d-none" width="480" height="640"></canvas>
         </div>
         <div id="webcamStatus" class="alert alert-info py-2 small text-start" role="status" aria-live="polite">Opening camera…</div>
-        <button type="button" id="capturePhotoButton" class="btn btn-primary px-4 py-2 rounded-pill fw-bold" onclick="capturePhoto()" disabled>
-          <i class="fa-solid fa-camera-retro me-1"></i> Snap Photo
-        </button>
-        <button type="button" id="retryWebcamButton" class="btn btn-outline-secondary btn-sm ms-2 d-none" onclick="startWebcam()">Try again</button>
+        <div class="d-flex justify-content-center gap-2 mb-2">
+          <button type="button" id="switchFacingBtn" class="btn btn-outline-secondary btn-sm" onclick="switchWebcamFacing()">
+            <i class="fa-solid fa-camera-rotate me-1"></i> Flip Camera
+          </button>
+          <button type="button" id="capturePhotoButton" class="btn btn-primary px-4 py-2 rounded-pill fw-bold" onclick="capturePhoto()" disabled>
+            <i class="fa-solid fa-camera-retro me-1"></i> Snap Photo
+          </button>
+          <button type="button" id="retryWebcamButton" class="btn btn-outline-secondary btn-sm d-none" onclick="startWebcam()">Try again</button>
+        </div>
         <p class="small text-muted mt-2 mb-0">Center the face in the guide, look straight, then snap.</p>
       </div>
     </div>
@@ -198,6 +242,7 @@ function showWebcamStatus(message, type, securePortalUrl) {
 }
 
 let videoStream = null;
+let currentFacingMode = 'user';
 const webcamModal = document.getElementById('webcamModal');
 if (webcamModal) {
   webcamModal.addEventListener('shown.bs.modal', function() {
@@ -206,6 +251,11 @@ if (webcamModal) {
   webcamModal.addEventListener('hidden.bs.modal', function() {
     stopWebcam();
   });
+}
+
+function switchWebcamFacing() {
+  currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+  startWebcam();
 }
 
 function startWebcam() {
@@ -232,13 +282,15 @@ function startWebcam() {
   }
   showWebcamStatus('Requesting camera permission…', 'info', false);
   navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 960 } },
+    video: { facingMode: { ideal: currentFacingMode }, width: { ideal: 1280 }, height: { ideal: 960 } },
     audio: false
   }).catch(function() {
     return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
   }).then(function(stream) {
     videoStream = stream;
     video.srcObject = stream;
+    // Mirror front camera, un-mirror rear camera
+    video.style.transform = (currentFacingMode === 'user') ? 'scaleX(-1)' : 'none';
     return video.play();
   }).then(function() {
     showWebcamStatus('Camera ready. Center the face in the guide and snap the passport photo.', 'success', false);
@@ -287,7 +339,7 @@ function capturePhoto() {
   }
   context.save();
   const activeTrack = videoStream.getVideoTracks()[0];
-  const activeFacingMode = activeTrack && activeTrack.getSettings ? activeTrack.getSettings().facingMode : null;
+  const activeFacingMode = activeTrack && activeTrack.getSettings ? activeTrack.getSettings().facingMode : currentFacingMode;
   if (!activeFacingMode || activeFacingMode === 'user') {
     context.translate(canvas.width, 0);
     context.scale(-1, 1);
@@ -308,5 +360,96 @@ function capturePhoto() {
   const modal = bootstrap.Modal.getInstance(document.getElementById('webcamModal'));
   if (modal) modal.hide();
 }
+
+// ── DIGITAL SIGNATURE PAD LOGIC ──
+let sigCanvas = document.getElementById('studentSigCanvas');
+let sigCtx = null;
+let isDrawing = false;
+let hasDrawn = false;
+
+function initSignaturePad() {
+  sigCanvas = document.getElementById('studentSigCanvas');
+  if (!sigCanvas) return;
+  const rect = sigCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  sigCanvas.width = (rect.width || 300) * dpr;
+  sigCanvas.height = 120 * dpr;
+  sigCtx = sigCanvas.getContext('2d');
+  sigCtx.scale(dpr, dpr);
+  sigCtx.strokeStyle = '#1e3a8a'; // Institutional deep navy ink
+  sigCtx.lineWidth = 2.4;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+}
+
+function getSigPos(e) {
+  const rect = sigCanvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  };
+}
+
+function startSig(e) {
+  if (!sigCtx) initSignaturePad();
+  isDrawing = true;
+  hasDrawn = true;
+  const p = getSigPos(e);
+  sigCtx.beginPath();
+  sigCtx.moveTo(p.x, p.y);
+  if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+}
+
+function moveSig(e) {
+  if (!isDrawing || !sigCtx) return;
+  const p = getSigPos(e);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+  if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+}
+
+function endSig(e) {
+  if (!isDrawing) return;
+  isDrawing = false;
+  if (hasDrawn) {
+    document.getElementById('student_signature_data').value = sigCanvas.toDataURL('image/png');
+  }
+}
+
+function clearStudentSignature() {
+  if (!sigCanvas) return;
+  if (!sigCtx) initSignaturePad();
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  hasDrawn = false;
+  document.getElementById('student_signature_data').value = '';
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  initSignaturePad();
+  if (sigCanvas) {
+    sigCanvas.addEventListener('mousedown', startSig);
+    sigCanvas.addEventListener('mousemove', moveSig);
+    window.addEventListener('mouseup', endSig);
+    sigCanvas.addEventListener('touchstart', startSig, { passive: false });
+    sigCanvas.addEventListener('touchmove', moveSig, { passive: false });
+    window.addEventListener('touchend', endSig);
+  }
+});
+window.addEventListener('resize', function() {
+  // Save current signature stroke if drawn before resize
+  if (hasDrawn && sigCanvas) {
+    const saved = document.getElementById('student_signature_data').value;
+    initSignaturePad();
+    if (saved) {
+      const img = new Image();
+      img.onload = () => sigCtx.drawImage(img, 0, 0, sigCanvas.width / (window.devicePixelRatio || 1), 120);
+      img.src = saved;
+    }
+  } else {
+    initSignaturePad();
+  }
+});
 </script>
 {% endblock %}

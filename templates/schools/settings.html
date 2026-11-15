@@ -372,13 +372,20 @@
                 <label class="form-label fw-bold small">Authority Signature Image</label>
                 <div class="upload-zone" onclick="document.getElementById('signature_file').click()">
                   {% if current_school.principal_signature_filename %}
-                    <img src="{{ url_for('static', filename='uploads/signatures/' + current_school.principal_signature_filename) }}" class="thumb d-block mx-auto mb-1" alt="signature">
+                    <img id="settings-sig-preview" src="{{ url_for('static', filename='uploads/signatures/' + current_school.principal_signature_filename) }}" class="thumb d-block mx-auto mb-1" alt="signature">
                     <small class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Signature uploaded</small>
                   {% else %}
-                    <i class="fa-solid fa-signature fa-2x text-muted mb-2 d-block"></i>
-                    <small class="text-muted">Click to upload authority signature</small>
+                    <img id="settings-sig-preview" src="" class="thumb d-none mx-auto mb-1" alt="signature">
+                    <i class="fa-solid fa-signature fa-2x text-muted mb-2 d-block" id="settings-sig-icon"></i>
+                    <small class="text-muted" id="settings-sig-text">Click to upload authority signature</small>
                   {% endif %}
                   <input type="file" name="signature_file" id="signature_file" accept="image/*" class="d-none">
+                </div>
+                <div class="mt-2 text-center">
+                  <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#authoritySigModal">
+                    <i class="fa-solid fa-pen-nib me-1"></i> Sign on Digital Board
+                  </button>
+                  <input type="hidden" name="authority_signature_data" id="authority_signature_data">
                 </div>
               </div>
               <div class="col-md-8">
@@ -1223,5 +1230,135 @@ window.addEventListener('DOMContentLoaded', function() {
   updatePreviewColorVars();
   bindRealtimePreview();
 });
+
+// ── AUTHORITY DIGITAL SIGNATURE BOARD ──
+var authSigCanvas = document.getElementById('authSigCanvas');
+var authSigCtx = null;
+var authIsDrawing = false;
+var authHasDrawn = false;
+
+function initAuthSig() {
+  authSigCanvas = document.getElementById('authSigCanvas');
+  if (!authSigCanvas) return;
+  var rect = authSigCanvas.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  authSigCanvas.width = (rect.width || 420) * dpr;
+  authSigCanvas.height = 160 * dpr;
+  authSigCtx = authSigCanvas.getContext('2d');
+  authSigCtx.scale(dpr, dpr);
+  authSigCtx.strokeStyle = '#1e3a8a'; // Deep institutional blue ink
+  authSigCtx.lineWidth = 2.6;
+  authSigCtx.lineCap = 'round';
+  authSigCtx.lineJoin = 'round';
+}
+
+var authSigModal = document.getElementById('authoritySigModal');
+if (authSigModal) {
+  authSigModal.addEventListener('shown.bs.modal', function() {
+    initAuthSig();
+  });
+}
+
+function getAuthSigPos(e) {
+  var rect = authSigCanvas.getBoundingClientRect();
+  var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function startAuthSig(e) {
+  if (!authSigCtx) initAuthSig();
+  authIsDrawing = true;
+  authHasDrawn = true;
+  var p = getAuthSigPos(e);
+  authSigCtx.beginPath();
+  authSigCtx.moveTo(p.x, p.y);
+  if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+}
+
+function moveAuthSig(e) {
+  if (!authIsDrawing || !authSigCtx) return;
+  var p = getAuthSigPos(e);
+  authSigCtx.lineTo(p.x, p.y);
+  authSigCtx.stroke();
+  if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+}
+
+function endAuthSig(e) {
+  authIsDrawing = false;
+}
+
+function clearAuthSig() {
+  if (!authSigCanvas || !authSigCtx) return;
+  authSigCtx.clearRect(0, 0, authSigCanvas.width, authSigCanvas.height);
+  authHasDrawn = false;
+  document.getElementById('authority_signature_data').value = '';
+}
+
+function saveAuthSig() {
+  if (!authHasDrawn) {
+    alert('Please sign on the board before applying.');
+    return;
+  }
+  var dataUrl = authSigCanvas.toDataURL('image/png');
+  document.getElementById('authority_signature_data').value = dataUrl;
+  
+  // Update preview image in settings form
+  var prev = document.getElementById('settings-sig-preview');
+  if (prev) {
+    prev.src = dataUrl;
+    prev.classList.remove('d-none');
+    prev.classList.add('d-block');
+  }
+  var icon = document.getElementById('settings-sig-icon');
+  if (icon) icon.classList.add('d-none');
+  var txt = document.getElementById('settings-sig-text');
+  if (txt) txt.textContent = 'Digital signature applied (click Save Settings)';
+  
+  var modal = bootstrap.Modal.getInstance(document.getElementById('authoritySigModal'));
+  if (modal) modal.hide();
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  authSigCanvas = document.getElementById('authSigCanvas');
+  if (authSigCanvas) {
+    authSigCanvas.addEventListener('mousedown', startAuthSig);
+    authSigCanvas.addEventListener('mousemove', moveAuthSig);
+    window.addEventListener('mouseup', endAuthSig);
+    authSigCanvas.addEventListener('touchstart', startAuthSig, { passive: false });
+    authSigCanvas.addEventListener('touchmove', moveAuthSig, { passive: false });
+    window.addEventListener('touchend', endAuthSig);
+  }
+});
 </script>
+
+<!-- Authority Digital Signature Modal -->
+<div class="modal fade" id="authoritySigModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-signature text-primary me-2"></i> Draw Authority Signature</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center p-4">
+        <p class="text-muted small mb-2">Draw your signature with your finger, stylus, or mouse inside the box.</p>
+        <div class="position-relative bg-white rounded-3 border p-1" style="touch-action: none;">
+          <canvas id="authSigCanvas" style="width: 100%; height: 160px; display: block; border-radius: 6px; cursor: crosshair;"></canvas>
+          <div class="position-absolute bottom-0 start-50 translate-middle-x pb-2" style="pointer-events: none; width: 85%;">
+            <div style="border-bottom: 1px dashed #cbd5e1; height: 1px;"></div>
+            <span class="text-muted" style="font-size: 0.72rem; display: block; margin-top: 3px;">Sign above the line</span>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAuthSig()">
+            <i class="fa-solid fa-eraser me-1"></i> Clear
+          </button>
+          <button type="button" class="btn btn-primary px-4 fw-bold" onclick="saveAuthSig()">
+            <i class="fa-solid fa-check me-1"></i> Apply Signature
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

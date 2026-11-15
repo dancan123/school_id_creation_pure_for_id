@@ -391,16 +391,34 @@ def new_student():
         photo_fn = None
         # Handle explicit file upload or validated webcam capture.
         webcam_data = request.form.get("webcam_image_data")
-        if "photo_file" in request.files:
-            pf = request.files["photo_file"]
-            if pf and pf.filename:
-                photo_fn = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
-        elif webcam_data:
+        pf = request.files.get("photo_file")
+        if pf and pf.filename:
+            photo_fn = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
+        elif webcam_data and webcam_data.startswith("data:image"):
             try:
                 photo_fn = _save_student_webcam_photo(webcam_data, school.id, adm_no)
             except ValueError as exc:
                 flash(f"Could not save the camera photo: {exc}", "danger")
                 return redirect(url_for("students.new_student"))
+
+        # Handle Digital Signature (Canvas base64 or file upload)
+        signature_fn = None
+        signature_data = request.form.get("signature_data", "").strip()
+        if signature_data and signature_data.startswith("data:image"):
+            signature_fn = save_base64_image(
+                signature_data,
+                Config.SIGNATURES_DIR,
+                prefix=f"sig_stud_{school.id}_{adm_no}_",
+                default_ext=".png"
+            )
+        elif "signature_file" in request.files:
+            sf = request.files["signature_file"]
+            if sf and sf.filename:
+                signature_fn = save_uploaded_file(
+                    sf,
+                    Config.SIGNATURES_DIR,
+                    prefix=f"sig_stud_{school.id}_{adm_no}_"
+                )
 
         student = Student(
             school_id=school.id,
@@ -417,6 +435,7 @@ def new_student():
             house_or_dorm=house_or_dorm,
             academic_year=academic_year,
             photo_filename=photo_fn,
+            signature_filename=signature_fn,
             card_status="pending"
         )
         db.session.add(student)
@@ -485,16 +504,33 @@ def edit_student(student_id):
 
         # Photo update
         webcam_data = request.form.get("webcam_image_data")
-        if "photo_file" in request.files:
-            pf = request.files["photo_file"]
-            if pf and pf.filename:
-                student.photo_filename = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
-        elif webcam_data:
+        pf = request.files.get("photo_file")
+        if pf and pf.filename:
+            student.photo_filename = save_uploaded_file(pf, Config.PHOTOS_DIR, prefix=f"photo_{school.id}_{adm_no}_")
+        elif webcam_data and webcam_data.startswith("data:image"):
             try:
                 student.photo_filename = _save_student_webcam_photo(webcam_data, school.id, adm_no)
             except ValueError as exc:
                 flash(f"Could not save the camera photo: {exc}", "danger")
                 return redirect(url_for("students.edit_student", student_id=student.id))
+
+        # Signature update
+        signature_data = request.form.get("signature_data", "").strip()
+        if signature_data and signature_data.startswith("data:image"):
+            student.signature_filename = save_base64_image(
+                signature_data,
+                Config.SIGNATURES_DIR,
+                prefix=f"sig_stud_{school.id}_{adm_no}_",
+                default_ext=".png"
+            )
+        elif "signature_file" in request.files:
+            sf = request.files["signature_file"]
+            if sf and sf.filename:
+                student.signature_filename = save_uploaded_file(
+                    sf,
+                    Config.SIGNATURES_DIR,
+                    prefix=f"sig_stud_{school.id}_{adm_no}_"
+                )
 
         db.session.commit()
         flash("Student details updated successfully!", "success")

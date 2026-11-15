@@ -278,8 +278,13 @@ def settings():
                 fn = save_uploaded_file(logo_f, Config.LOGOS_DIR, prefix="logo_")
                 school.logo_filename = fn
 
-        # Handle Signature upload
-        if "signature_file" in request.files:
+        # Handle Signature (Digital Board or upload)
+        auth_sig_data = request.form.get("authority_signature_data", "").strip()
+        if auth_sig_data and auth_sig_data.startswith("data:image"):
+            fn = save_base64_image(auth_sig_data, Config.SIGNATURES_DIR, prefix="sig_", default_ext=".png")
+            if fn:
+                school.principal_signature_filename = fn
+        elif "signature_file" in request.files:
             sig_f = request.files["signature_file"]
             if sig_f and sig_f.filename:
                 fn = save_uploaded_file(sig_f, Config.SIGNATURES_DIR, prefix="sig_")

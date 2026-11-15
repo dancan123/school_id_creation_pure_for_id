@@ -1100,6 +1100,25 @@ def quick_add_student():
                     prefix=f"photo_{school.id}_{admission_no}_"
                 )
 
+        # Handle Digital Signature (Canvas base64 or file upload)
+        signature_fn = None
+        signature_data = request.form.get("signature_data", "").strip()
+        if signature_data and signature_data.startswith("data:image"):
+            signature_fn = save_base64_image(
+                signature_data,
+                Config.SIGNATURES_DIR,
+                prefix=f"sig_stud_{school.id}_{admission_no}_",
+                default_ext=".png"
+            )
+        elif "signature_file" in request.files:
+            sf = request.files["signature_file"]
+            if sf and sf.filename:
+                signature_fn = save_uploaded_file(
+                    sf,
+                    Config.SIGNATURES_DIR,
+                    prefix=f"sig_stud_{school.id}_{admission_no}_"
+                )
+
         student = Student(
             school_id=school.id,
             admission_number=admission_no,
@@ -1115,6 +1134,7 @@ def quick_add_student():
             nemis_upi=nemis_upi,
             photo_filename=photo_fn,
             photo_cropped_filename=photo_fn,
+            signature_filename=signature_fn,
             card_status="pending",
             enrolment_status="active",
         )

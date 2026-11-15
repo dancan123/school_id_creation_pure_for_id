@@ -184,6 +184,9 @@
                           <button type="button" class="btn btn-outline-secondary btn-sm" onclick="startWebcam()">
                             <i class="fa-solid fa-video me-1"></i>Open Camera
                           </button>
+                          <button type="button" class="btn btn-outline-dark btn-sm" id="flipCamBtn" onclick="toggleQuickCamFacing()" style="display:none;">
+                            <i class="fa-solid fa-camera-rotate me-1"></i>Flip Camera
+                          </button>
                           <button type="button" class="btn btn-sm" style="background:var(--primary);color:white;" id="captureBtn" onclick="captureWebcam()" style="display:none;" disabled>
                             <i class="fa-solid fa-camera me-1"></i>Capture Photo
                           </button>
@@ -192,6 +195,36 @@
                           </button>
                         </div>
                         <input type="hidden" name="webcam_image_data" id="webcamImageData">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Digital Signature Pad -->
+                  <div class="col-12 mt-3">
+                    <div class="border rounded-3 p-3 bg-light">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label fw-semibold small mb-0">
+                          <i class="fa-solid fa-signature text-primary me-1"></i>Student Digital Signature (Optional)
+                        </label>
+                        <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none" onclick="clearQuickAddSig()">
+                          <i class="fa-solid fa-eraser me-1"></i>Clear
+                        </button>
+                      </div>
+                      <div class="position-relative bg-white rounded-3 border p-1" style="touch-action: none;">
+                        <canvas id="quickAddSigCanvas" style="width: 100%; height: 110px; display: block; border-radius: 6px; cursor: crosshair;"></canvas>
+                        <div class="position-absolute bottom-0 start-50 translate-middle-x pb-1" style="pointer-events: none; width: 85%;">
+                          <div style="border-bottom: 1px dashed #cbd5e1; height: 1px;"></div>
+                          <span class="text-muted" style="font-size: 0.68rem; display: block; margin-top: 2px; text-align: center;">Sign above with finger, stylus, or mouse</span>
+                        </div>
+                      </div>
+                      <input type="hidden" name="signature_data" id="quickAddSignatureData">
+                      <div class="mt-2">
+                        <a class="small text-decoration-none text-muted" data-bs-toggle="collapse" href="#quickAddSigFileCollapse" role="button">
+                          <i class="fa-solid fa-file-arrow-up me-1"></i>Or upload signature image file
+                        </a>
+                        <div class="collapse mt-1" id="quickAddSigFileCollapse">
+                          <input type="file" name="signature_file" class="form-control form-control-sm" accept="image/png,image/jpeg,image/webp">
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -257,20 +290,37 @@ function showPhotoTab(tab, btn) {
 }
 
 var webcamStream = null;
+var quickFacingMode = 'user';
+
+function toggleQuickCamFacing() {
+  quickFacingMode = (quickFacingMode === 'user') ? 'environment' : 'user';
+  if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
+  startWebcam();
+}
+
 function startWebcam() {
-  navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480, facingMode: 'user' } }).then(function(s) {
+  navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480, facingMode: { ideal: quickFacingMode } } }).then(function(s) {
     webcamStream = s;
     var v = document.getElementById('webcamFeed');
     v.srcObject = s; v.style.display = 'block';
+    v.style.transform = (quickFacingMode === 'user') ? 'scaleX(-1)' : 'none';
     document.getElementById('captureBtn').style.display = 'inline-flex';
     document.getElementById('captureBtn').disabled = false;
+    document.getElementById('flipCamBtn').style.display = 'inline-flex';
   }).catch(function() { alert('Could not access camera. Please use file upload instead.'); });
 }
 function captureWebcam() {
   var v = document.getElementById('webcamFeed');
   var c = document.getElementById('webcamCanvas');
   c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v, 0, 0);
+  var ctx = c.getContext('2d');
+  ctx.save();
+  if (quickFacingMode === 'user') {
+    ctx.translate(c.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(v, 0, 0);
+  ctx.restore();
   var dataUrl = c.toDataURL('image/jpeg', 0.92);
   document.getElementById('webcamImageData').value = dataUrl;
   var p = document.getElementById('webcamPreview');
@@ -278,6 +328,7 @@ function captureWebcam() {
   v.style.display = 'none';
   if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
   document.getElementById('captureBtn').style.display = 'none';
+  document.getElementById('flipCamBtn').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'inline-flex';
 }
 function retakeWebcam() {
@@ -286,5 +337,80 @@ function retakeWebcam() {
   document.getElementById('retakeBtn').style.display = 'none';
   startWebcam();
 }
+
+// ── QUICK ADD DIGITAL SIGNATURE PAD ──
+var qSigCanvas = document.getElementById('quickAddSigCanvas');
+var qSigCtx = null;
+var qIsDrawing = false;
+var qHasDrawn = false;
+
+function initQuickSig() {
+  qSigCanvas = document.getElementById('quickAddSigCanvas');
+  if (!qSigCanvas) return;
+  var rect = qSigCanvas.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  qSigCanvas.width = (rect.width || 300) * dpr;
+  qSigCanvas.height = 110 * dpr;
+  qSigCtx = qSigCanvas.getContext('2d');
+  qSigCtx.scale(dpr, dpr);
+  qSigCtx.strokeStyle = '#1e3a8a';
+  qSigCtx.lineWidth = 2.4;
+  qSigCtx.lineCap = 'round';
+  qSigCtx.lineJoin = 'round';
+}
+
+function getQuickSigPos(e) {
+  var rect = qSigCanvas.getBoundingClientRect();
+  var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function startQuickSig(e) {
+  if (!qSigCtx) initQuickSig();
+  qIsDrawing = true;
+  qHasDrawn = true;
+  var p = getQuickSigPos(e);
+  qSigCtx.beginPath();
+  qSigCtx.moveTo(p.x, p.y);
+  if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+}
+
+function moveQuickSig(e) {
+  if (!qIsDrawing || !qSigCtx) return;
+  var p = getQuickSigPos(e);
+  qSigCtx.lineTo(p.x, p.y);
+  qSigCtx.stroke();
+  if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+}
+
+function endQuickSig(e) {
+  if (!qIsDrawing) return;
+  qIsDrawing = false;
+  if (qHasDrawn) {
+    document.getElementById('quickAddSignatureData').value = qSigCanvas.toDataURL('image/png');
+  }
+}
+
+function clearQuickAddSig() {
+  if (!qSigCanvas) return;
+  if (!qSigCtx) initQuickSig();
+  qSigCtx.clearRect(0, 0, qSigCanvas.width, qSigCanvas.height);
+  qHasDrawn = false;
+  document.getElementById('quickAddSignatureData').value = '';
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  initQuickSig();
+  if (qSigCanvas) {
+    qSigCanvas.addEventListener('mousedown', startQuickSig);
+    qSigCanvas.addEventListener('mousemove', moveQuickSig);
+    window.addEventListener('mouseup', endQuickSig);
+    qSigCanvas.addEventListener('touchstart', startQuickSig, { passive: false });
+    qSigCanvas.addEventListener('touchmove', moveQuickSig, { passive: false });
+    window.addEventListener('touchend', endQuickSig);
+  }
+});
+window.addEventListener('resize', initQuickSig);
 </script>
 {% endblock %}
