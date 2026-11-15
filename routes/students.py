@@ -2,7 +2,7 @@ import base64
 import io
 import datetime
 import re
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError  # type: ignore
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required
 from extensions import db

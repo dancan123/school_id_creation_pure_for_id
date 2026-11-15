@@ -3,10 +3,10 @@ import io
 import math
 import datetime
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps  # type: ignore
 try:
-    import barcode
-    from barcode.writer import ImageWriter
+    import barcode  # type: ignore
+    from barcode.writer import ImageWriter  # type: ignore
 except Exception:
     barcode = None
     ImageWriter = None

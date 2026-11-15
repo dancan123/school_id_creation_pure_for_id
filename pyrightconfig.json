@@ -1,0 +1,14 @@
+{
+  "include": [
+    ".",
+    "routes",
+    "services"
+  ],
+  "extraPaths": [
+    "d:\\Developments. In_progress\\School_id_Generation_system",
+    "C:\\Users\\Angaza Computecs\\AppData\\Local\\Programs\\Python\\Python38-32\\lib\\site-packages",
+    "C:\\Users\\Angaza Computecs\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages",
+    "C:\\Users\\Angaza Computecs\\AppData\\Local\\Programs\\Python\\Python38\\lib\\site-packages"
+  ],
+  "reportMissingImports": "none"
+}

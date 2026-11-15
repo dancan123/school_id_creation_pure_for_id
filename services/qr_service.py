@@ -2,7 +2,7 @@ import io
 import secrets
 import datetime
 import qrcode
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw  # type: ignore
 from extensions import db
 from models import QRVerificationToken, CardRecord, Student, School
 

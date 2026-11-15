@@ -1,5 +1,6 @@
+
 import datetime
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont  # type: ignore
 from app import create_app
 from config import Config
 from extensions import db

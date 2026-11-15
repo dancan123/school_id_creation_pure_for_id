@@ -31,7 +31,7 @@ import io
 import re
 import uuid
 from types import SimpleNamespace
-from PIL import Image
+from PIL import Image  # type: ignore
 from flask import (
     Blueprint, render_template, request, redirect,
     url_for, flash, abort, jsonify, Response, send_file
