@@ -27,6 +27,7 @@ class School(db.Model):
     card_bg_color = db.Column(db.String(20), nullable=False, default="#FFFFFF")   # White
     text_color = db.Column(db.String(20), nullable=False, default="#0F172A")      # Dark slate
     enable_watermark = db.Column(db.Boolean, default=True)
+    enable_smart_chip = db.Column(db.Boolean, default=True)
     
     # Media paths
     logo_filename = db.Column(db.String(255), nullable=True)
@@ -51,6 +52,8 @@ class School(db.Model):
     # Back-of-card settings
     disclaimer_text = db.Column(db.Text, nullable=True, default="1. This card remains the property of the institution.\n2. If found, please return to the administration or nearest police station.\n3. The card must be carried at all times within the premises.")
     emergency_contact_phone = db.Column(db.String(50), nullable=True)
+    security_notice = db.Column(db.String(255), nullable=True, default="Official institutional credential. Unlawful alteration or possession is prohibited.")
+    show_security_notice = db.Column(db.Boolean, default=True)
     
     # Self-onboarding settings
     allow_self_onboarding = db.Column(db.Boolean, default=True)

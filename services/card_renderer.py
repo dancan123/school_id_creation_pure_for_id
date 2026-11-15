@@ -346,6 +346,10 @@ class CardRenderer:
             addr_x = text_x + max(0, (avail_header_w - addr_w) // 2)
             draw.text((addr_x, logo_y + 86), addr_text, fill=(241, 245, 249), font=address_font)
 
+        # Student Photo Frame coordinates
+        photo_x, photo_y = 40, header_height + stripe_h + 20
+        photo_w, photo_h = int(w * 0.28), int(h * 0.51) # ~283 x 325 px
+
         # Badge: Dynamic Card Title (STUDENT / CORPORATE ID CARD)
         card_title_str = getattr(school, "get_card_title", lambda: "STUDENT IDENTITY CARD")()
         badge_w = max(260, len(card_title_str) * 12 + 36)
@@ -364,18 +368,17 @@ class CardRenderer:
         year_label = f"YR {student.academic_year}" if getattr(school, "is_corporate", lambda: False)() else f"AY {student.academic_year}"
         draw.text((year_x + 16, badge_y + 8), year_label, fill=(15, 23, 42), font=year_font)
 
-        # Renewal Stamp Badge (if card has been renewed)
+        # Renewal Stamp Badge (if card has been renewed) - Aligned cleanly in badge bar with zero overlap
         renewal_cnt = (getattr(card_record, "renewal_count", 0) or 0) if card_record else 0
         if renewal_cnt > 0:
-            ren_w, ren_h = 125, 30
-            ren_x = year_x - ren_w - 10
-            draw.rounded_rectangle([ren_x, badge_y + 3, ren_x + ren_w, badge_y + 3 + ren_h], radius=5, fill=(16, 185, 129))
+            ren_w = 135
+            photo_right_bound = photo_x + photo_w + 14
+            ren_x = max(photo_right_bound, year_x - ren_w - 12)
+            draw.rounded_rectangle([ren_x, badge_y, ren_x + ren_w, badge_y + badge_h], radius=6, fill=(16, 185, 129))
             ren_font = get_font(14, bold=True)
-            draw.text((ren_x + 10, badge_y + 7), f"RENEWED R{renewal_cnt}", fill=(255, 255, 255), font=ren_font)
-
-        # Student Photo Frame
-        photo_x, photo_y = 40, header_height + stripe_h + 20
-        photo_w, photo_h = int(w * 0.28), int(h * 0.51) # ~283 x 325 px
+            ren_str = f"RENEWED R{renewal_cnt}"
+            ren_lbl_w = int(draw.textlength(ren_str, font=ren_font))
+            draw.text((ren_x + (ren_w - ren_lbl_w) // 2, badge_y + 8), ren_str, fill=(255, 255, 255), font=ren_font)
 
         # Outer luxury double border: metallic gold outer, clean white inner spacer
         draw.rounded_rectangle([photo_x - 3, photo_y - 3, photo_x + photo_w + 3, photo_y + photo_h + 3], radius=8, fill=sec_rgb)
@@ -424,13 +427,14 @@ class CardRenderer:
             except Exception:
                 pass
 
-        # Smart Gold Contactless Security Chip beside photo
-        draw_smart_chip(draw, photo_x + photo_w + 22, photo_y + 10, w=56, h=44)
-
         # Information Block with Dynamic Labels and Perfect Harmonized Column Offsets
         info_x = photo_x + photo_w + 92
         start_y = header_height + stripe_h + 56
         line_spacing = 40
+
+        # Smart Gold Contactless Security Chip beside photo - positioned clearly below the top badges lane
+        if getattr(school, "enable_smart_chip", True):
+            draw_smart_chip(draw, photo_x + photo_w + 18, start_y + 16, w=56, h=44)
 
         lbl_font = get_font(20, bold=True)
         val_font = get_font(24, bold=True)
@@ -553,10 +557,10 @@ class CardRenderer:
         # ── Authority Verification Block geometry (computed first to anchor vertical rhythm) ──
         bottom_h = int(h * 0.12)
         footer_top = h - bottom_h
-        sig_margin_above_footer = 20
-        auth_box_h = 170
-        auth_box_y2 = footer_top - sig_margin_above_footer
-        auth_box_y = auth_box_y2 - auth_box_h
+        sig_margin_above_footer = 28
+        auth_box_h = 168
+        auth_box_y2 = footer_top - sig_margin_above_footer  # y = 534
+        auth_box_y = auth_box_y2 - auth_box_h               # y = 366
 
         # ── Harmonized Terms & Conditions Institutional Block ───────────────────
         # Matches the Auth Block geometry directly below it:
@@ -564,8 +568,8 @@ class CardRenderer:
         # same subtle container styling with integrated header banner.
         t_box_x1 = 35
         t_box_x2 = left_w + 8
-        t_box_y1 = top_h + 18
-        t_box_y2 = auth_box_y - 16
+        t_box_y1 = top_h + 16
+        t_box_y2 = auth_box_y - 14
 
         # Container card with rounded corners and subtle border
         draw.rounded_rectangle([t_box_x1, t_box_y1, t_box_x2, t_box_y2], radius=8,
@@ -624,21 +628,10 @@ class CardRenderer:
         if getattr(student, "nemis_upi", None):
             draw.text((start_x, meta_y), f"{upi_lbl}: {student.nemis_upi}", fill=(185, 28, 28), font=get_font(14, bold=True))
         else:
-            notice_font = get_font(12, bold=False)
-            draw.text((start_x, meta_y), "Official institutional credential. Unlawful alteration or possession is prohibited.", fill=(148, 163, 184), font=notice_font)
+            std_rec_font = get_font(12, bold=False)
+            draw.text((start_x, meta_y), "Official institutional record • Verification required upon presentation.", fill=(100, 116, 139), font=std_rec_font)
 
         # ── Authority Verification Block: Official Stamp + Principal's Signature ────
-        # Pin the block to a fixed margin ABOVE the bottom footer bar so it is always
-        # professionally placed regardless of how much content is above it.
-        bottom_h = int(h * 0.12)
-        footer_top = h - bottom_h        # y-coordinate where the bottom bar starts
-        sig_margin_above_footer = 20     # professional gap between last text and footer
-
-        # Total height needed: stamp ~160, sig area ~90 → use 170 as auth block height
-        auth_box_h = 170
-        auth_box_y2 = footer_top - sig_margin_above_footer
-        auth_box_y = auth_box_y2 - auth_box_h
-
         draw.rounded_rectangle([35, auth_box_y, left_w + 8, auth_box_y2], radius=8,
                                 fill=(248, 250, 252), outline=(226, 232, 240), width=1)
 
@@ -739,8 +732,8 @@ class CardRenderer:
         qr_box_size = 145
         qr_img = QRService.generate_qr_image(verify_url, size_px=qr_box_size, add_shield=True)
 
-        qr_frame_y1 = top_h + 18
-        qr_frame_y2 = 338
+        qr_frame_y1 = t_box_y1
+        qr_frame_y2 = t_box_y2
 
         # Double border
         draw.rounded_rectangle([rc_x1 - 2, qr_frame_y1 - 2, rc_x2 + 2, qr_frame_y2 + 2], radius=12, fill=sec_rgb)
@@ -800,8 +793,8 @@ class CardRenderer:
         draw.text((rc_x1 + (rc_w - sub_w) // 2, qr_y + qr_box_size + 40), sub_str, fill=(148, 163, 184), font=sub_font)
 
         # 2. Bottom Container: Optical Code-128 Barcode (Library, Gate & Canteen)
-        bc_frame_y1 = 352
-        bc_frame_y2 = auth_box_y2  # perfectly harmonized with bottom of auth block (y = 542)
+        bc_frame_y1 = auth_box_y
+        bc_frame_y2 = auth_box_y2  # perfectly harmonized with bottom of auth block (y = 534)
 
         draw.rounded_rectangle([rc_x1 - 2, bc_frame_y1 - 2, rc_x2 + 2, bc_frame_y2 + 2], radius=12, fill=sec_rgb)
         draw.rounded_rectangle([rc_x1, bc_frame_y1, rc_x2, bc_frame_y2], radius=10, fill=(255, 255, 255))
@@ -844,6 +837,16 @@ class CardRenderer:
         sys_str = "KOHA / GATE / CANTEEN POS"
         sys_w = int(draw.textlength(sys_str, font=sys_font))
         draw.text((rc_x1 + (rc_w - sys_w) // 2, bc_txt_y + 35), sys_str, fill=(148, 163, 184), font=sys_font)
+
+        # ── Legal & Security Warning Notice: Centered at the bottom of the card in BOLD RED ──
+        if getattr(school, "show_security_notice", True):
+            notice_text = (getattr(school, "security_notice", None) or "Official institutional credential. Unlawful alteration or possession is prohibited.").strip()
+            if notice_text:
+                notice_font, _ = fit_font_size(draw, notice_text, max_width=w - 50, initial_size=13, min_size=10, bold=True)
+                notice_w = int(draw.textlength(notice_text, font=notice_font))
+                notice_x = (w - notice_w) // 2
+                notice_y = footer_top - 23
+                draw.text((notice_x, notice_y), notice_text, fill=(220, 38, 38), font=notice_font)
 
         # Bottom Bar
         draw.rectangle([0, h - bottom_h, w, h], fill=pri_rgb)

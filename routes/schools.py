@@ -1,83 +1,18 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_required
 from urllib.parse import urlsplit
 import re
 from extensions import db
-from models import School, Student, CardRecord
+from models import School, CardRecord
 from config import Config
 from utils import get_current_school, log_audit, save_uploaded_file, build_public_url
 from services.card_renderer import CardRenderer
-import io
 
 schools_bp = Blueprint("schools", __name__)
 
 
-class SettingsPreviewSchoolProxy:
-    """Provides a lightweight proxy over a School model that allows in-memory
-    overrides for live test card rendering without mutating or saving to the DB."""
-    def __init__(self, original, overrides=None):
-        self._orig = original
-        self._overrides = overrides or {}
-
-    def __getattr__(self, name):
-        if name in self._overrides:
-            val = self._overrides[name]
-            if val is not None and val != "":
-                return val
-        return getattr(self._orig, name)
 
 
-@schools_bp.route("/preview-card/<side>", methods=["GET", "POST"])
-@login_required
-def preview_card(side):
-    """Dynamically renders the front or back of a card in real-time using settings overrides.
-    Used by the Settings live preview panel to render pixel-perfect 300 DPI PNGs."""
-    school = get_current_school()
-    overrides = request.args.to_dict() if request.method == "GET" else request.form.to_dict()
-
-    preview_school = SettingsPreviewSchoolProxy(school, overrides)
-
-    # Use first active student from school, or fallback to mock student
-    student = Student.query.filter_by(school_id=school.id, is_archived=False).first()
-    if not student:
-        student = Student(
-            school_id=school.id,
-            full_name="MWANGI DANIEL KAMAU",
-            admission_number="ADM-0042",
-            curriculum_type="CBC",
-            class_name="Grade 8",
-            stream_name="Red",
-            academic_year=str(getattr(preview_school, "academic_year", "2026") or "2026"),
-            nemis_upi="NEMIS-784219"
-        )
-
-    card = CardRecord.query.filter_by(student_id=student.id, status="active").first() if student.id else None
-    base_url = build_public_url("", school).rstrip("/")
-
-    try:
-        if side == "back":
-            img = CardRenderer.render_back(preview_school, student, card, verify_base_url=base_url)
-        else:
-            img = CardRenderer.render_front(preview_school, student, card)
-
-        buf = io.BytesIO()
-        img.save(buf, format="PNG", optimize=False)
-        buf.seek(0)
-        return Response(buf.read(), mimetype="image/png",
-                        headers={"Cache-Control": "no-store, max-age=0"})
-    except Exception as exc:
-        return Response(f"Preview error: {exc}", status=500, mimetype="text/plain")
-
-
-@schools_bp.route("/switch/<int:school_id>")
-@login_required
-def switch_school(school_id):
-    school = School.query.get_or_404(school_id)
-    session["active_school_id"] = school.id
-    flash(f"Switched active school to: {school.name}", "success")
-    log_audit("SWITCH_SCHOOL", f"Switched to school ID {school.id} ({school.name})")
-    # Redirect back to referring page or dashboard
-    return redirect(request.referrer or url_for("dashboard.index"))
 
 @schools_bp.route("/new", methods=["GET", "POST"])
 @login_required
@@ -264,6 +199,9 @@ def settings():
         school.stream_label = request.form.get("stream_label", school.stream_label or "").strip()
         school.upi_label = request.form.get("upi_label", school.upi_label or "").strip()
         school.enable_watermark = request.form.get("enable_watermark") == "1"
+        school.enable_smart_chip = request.form.get("enable_smart_chip") == "1"
+        school.show_security_notice = request.form.get("show_security_notice") == "1"
+        school.security_notice = request.form.get("security_notice", school.security_notice or "").strip() or "Official institutional credential. Unlawful alteration or possession is prohibited."
 
         # Handle Logo upload
         if "logo_file" in request.files:

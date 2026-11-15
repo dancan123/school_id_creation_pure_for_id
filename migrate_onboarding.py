@@ -30,6 +30,8 @@ def run_migration(db_path=None, quiet=True):
         cur.execute("PRAGMA table_info(admission_allowlist)")
         allowlist_cols = {row[1] for row in cur.fetchall()}
         if ("enable_watermark" in school_cols and
+            "enable_smart_chip" in school_cols and
+            "security_notice" in school_cols and
             "onboarding_base_url" in school_cols and
                 "admission_number_prefix" in school_cols and
                 "admission_number_length" in school_cols and
@@ -62,6 +64,9 @@ def run_migration(db_path=None, quiet=True):
             ("stream_label", "VARCHAR(50) DEFAULT 'STREAM'"),
             ("upi_label", "VARCHAR(50) DEFAULT 'NEMIS / UPI'"),
             ("enable_watermark", "BOOLEAN DEFAULT 1"),
+            ("enable_smart_chip", "BOOLEAN DEFAULT 1"),
+            ("security_notice", "VARCHAR(255) DEFAULT 'Official institutional credential. Unlawful alteration or possession is prohibited.'"),
+            ("show_security_notice", "BOOLEAN DEFAULT 1"),
         ],
         "students": [
             ("signature_filename", "TEXT"),

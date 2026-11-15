@@ -1,0 +1,22 @@
+project-excludes = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/venv/**/*",
+]
+site-packages-path = [
+    "C:\\Users\\Angaza Computecs\\AppData\\Local\\Programs\\Python\\Python38-32\\lib\\site-packages",
+    "C:\\Users\\Angaza Computecs\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages",
+    "C:\\Users\\Angaza Computecs\\AppData\\Local\\Programs\\Python\\Python38\\lib\\site-packages"
+]
+permissive-ignores = true
+enabled-ignores = [
+    "type",
+    "pyrefly",
+    "pyright",
+    "mypy"
+]
+
+[errors]
+missing-import = "ignore"
+bad-override = "ignore"
+invalid-variance = "ignore"
