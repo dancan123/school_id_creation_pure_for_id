@@ -1,11 +1,9 @@
 import datetime
-import secrets
-from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from app import create_app
 from config import Config
 from extensions import db
-from models import School, Student, CardRecord, QRVerificationToken, User
+from models import School, Student, CardRecord, QRVerificationToken
 from services.card_renderer import CardRenderer
 from services.qr_service import QRService
 
