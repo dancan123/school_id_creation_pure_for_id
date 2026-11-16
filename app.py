@@ -75,7 +75,16 @@ def create_app(config_class=Config):
                     "schools": {
                         "onboarding_base_url": "VARCHAR(255)",
                         "admission_number_prefix": "VARCHAR(20)",
-                        "admission_number_length": "INTEGER"
+                        "admission_number_length": "INTEGER",
+                        "registration_number": "VARCHAR(100)",
+                        "physical_address": "VARCHAR(255)",
+                        "alt_email": "VARCHAR(120)",
+                        "alt_phone": "VARCHAR(50)",
+                        "sub_photo_label": "VARCHAR(50)",
+                        "custom_fields_json": "TEXT",
+                        "terms_clauses_json": "TEXT",
+                        "header_config_json": "TEXT",
+                        "print_settings_json": "TEXT"
                     },
                     "admission_allowlist": {
                         "source": "VARCHAR(20) NOT NULL DEFAULT 'manual'",
@@ -85,7 +94,10 @@ def create_app(config_class=Config):
                         "card_qr_token": "VARCHAR(64)",
                         "resubmission_count": "INTEGER NOT NULL DEFAULT 0"
                     },
-                    "students": {"pending_card_qr_token": "VARCHAR(64)"}
+                    "students": {
+                        "pending_card_qr_token": "VARCHAR(64)",
+                        "custom_data_json": "TEXT"
+                    }
                 }
                 with db.engine.begin() as connection:
                     for table, columns in required_columns.items():

@@ -214,10 +214,10 @@ def draw_smart_chip(draw, x, y, w=56, h=44):
     draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=gold_highlight, outline=gold_dark, width=1)
 
 def clean_ink_signature(im, ink_color=(20, 50, 135)):
-    """Isolates pen ink from paper or digital canvas backgrounds, producing a crisp,
+    """Isolates pen ink from paper, transparent canvas, or dark mode backgrounds, producing a crisp,
     transparent, anti-aliased signature rendered in authentic deep institutional blue ink.
-    Eliminates rectangular dark boxes, canvas transparency artifacts, paper discoloration,
-    and camera shadows while preserving original pen stroke fidelity and pressure."""
+    Completely eliminates rectangular dark boxes, canvas transparency artifacts, paper discoloration,
+    and dark backgrounds while preserving original pen stroke fidelity, pressure, and curves."""
     if im is None:
         return None
     try:
@@ -227,27 +227,57 @@ def clean_ink_signature(im, ink_color=(20, 50, 135)):
             arr = np.array(im, dtype=np.float32)
             r, g, b, a = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2], arr[:, :, 3]
 
-            # Check if this image has an existing transparency channel (e.g. from an HTML5 digital canvas)
-            has_transparency = np.any(a < 240)
+            # Sample perimeter/border pixels to determine true background color
+            borders = np.concatenate([
+                arr[0, :, :],      # top row
+                arr[-1, :, :],     # bottom row
+                arr[:, 0, :],      # left col
+                arr[:, -1, :]      # right col
+            ])
 
-            if has_transparency:
-                # The signature comes from a transparent digital drawing board (HTML5 canvas)
-                # Background pixels have a == 0; strokes have a > 15
-                ink_mask = a > 15
-                out_a = np.where(ink_mask, np.clip(a * 1.05, 0.0, 255.0), 0.0)
-            else:
-                # Opaque image (scanned paper document, photo of signature on paper)
+            border_alpha = borders[:, 3]
+            has_alpha = np.any(border_alpha < 240)
+
+            if has_alpha:
+                transparent_border_ratio = float(np.mean(border_alpha < 30))
+                if transparent_border_ratio > 0.6:
+                    # Digital canvas with transparent background
+                    ink_mask = a > 20
+                    out_a = np.where(ink_mask, np.clip(a * 1.05, 0.0, 255.0), 0.0)
+
+                    target_r, target_g, target_b = ink_color
+                    new_r = np.full_like(r, target_r)
+                    new_g = np.full_like(g, target_g)
+                    new_b = np.full_like(b, target_b)
+
+                    out_arr = np.dstack([new_r, new_g, new_b, out_a]).astype(np.uint8)
+                    out = Image.fromarray(out_arr, "RGBA")
+                    bbox = out.getbbox()
+                    return out.crop(bbox) if bbox else out
+
+            # For opaque images or images where borders have solid background:
+            bg_r = float(np.median(borders[:, 0]))
+            bg_g = float(np.median(borders[:, 1]))
+            bg_b = float(np.median(borders[:, 2]))
+            bg_lum = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+
+            # Distance in RGB space from the background color
+            dist = np.sqrt((r - bg_r)**2 + (g - bg_g)**2 + (b - bg_b)**2)
+
+            if bg_lum >= 120:
+                # Light paper (white or off-white)
                 lum = 0.299 * r + 0.587 * g + 0.114 * b
-                borders = np.concatenate([lum[0, :], lum[-1, :], lum[:, 0], lum[:, -1]])
-                edge_lum = float(np.median(borders))
+                lum_diff = np.maximum(0.0, bg_lum - 8 - lum)
+                chroma_diff = dist
+                ink_strength = np.maximum(lum_diff * 1.8, chroma_diff * 1.4)
+                out_a = np.clip((ink_strength - 18.0) / 45.0 * 255.0, 0.0, 255.0)
+            else:
+                # Dark background (dark mode canvas, black screen, dark paper)
+                # Any pixel distinct from dark background is stroke ink
+                out_a = np.clip((dist - 14.0) / 32.0 * 255.0, 0.0, 255.0)
 
-                if edge_lum < 80:
-                    # Inverted: light ink on dark background
-                    out_a = np.clip((lum - 60) / 100.0 * 255.0, 0.0, 255.0)
-                else:
-                    # Normal paper: dark ink on white/off-white background
-                    bg_lum = max(195.0, float(np.percentile(lum, 88)))
-                    out_a = np.clip((bg_lum - 10 - lum) / max(25.0, bg_lum - 10 - 120) * 255.0, 0.0, 255.0)
+            # Respect existing alpha channel if any
+            out_a = np.minimum(out_a, a)
 
             # Map the ink stroke to deep institutional blue ink (20, 50, 135)
             target_r, target_g, target_b = ink_color
@@ -762,6 +792,16 @@ class CardRenderer:
             except Exception:
                 pass
 
+        # ── Sub-Photo Identification Badge (ADM NO / EMP NO / REG NO) ───────────
+        sub_badge_y = photo_y + photo_h + 10
+        sub_badge_h = 32
+        sub_label = school.get_sub_photo_label() if hasattr(school, "get_sub_photo_label") else "ADM NO"
+        sub_text = f"{sub_label}: {student.admission_number}"
+        draw.rounded_rectangle([photo_x, sub_badge_y, photo_x + photo_w, sub_badge_y + sub_badge_h], radius=6, fill=pri_rgb)
+        sub_font, _ = fit_font_size(draw, sub_text, max_width=photo_w - 12, initial_size=18, min_size=13, bold=True)
+        sub_text_w = int(draw.textlength(sub_text, font=sub_font))
+        draw.text((photo_x + (photo_w - sub_text_w) // 2, sub_badge_y + 6), sub_text, fill=(255, 255, 255), font=sub_font)
+
         # Information Block with Dynamic Labels and Perfect Harmonized Column Offsets
         info_x = photo_x + photo_w + 92
         start_y = header_height + stripe_h + 56
@@ -822,7 +862,7 @@ class CardRenderer:
         sig_baseline_y = sig_paste_y + 34
 
         # Dedicated pure white background box for cardholder signature to conform originality
-        draw.rectangle([sig_paste_x, sig_paste_y - 6, sig_paste_x + sig_w, sig_baseline_y], fill=(255, 255, 255))
+        draw.rounded_rectangle([sig_paste_x - 4, sig_paste_y - 8, sig_paste_x + sig_w + 4, sig_baseline_y + 1], radius=4, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
 
         preview_signature = getattr(student, "preview_signature", None)
         if preview_signature is not None:
@@ -927,13 +967,16 @@ class CardRenderer:
         draw.text((t_box_x1 + (t_box_x2 - t_box_x1 - t_hdr_w) // 2, t_box_y1 + 7), terms_hdr_str, fill=(255, 255, 255), font=terms_hdr_font)
 
         # Disclaimers / Terms text - Left-aligned block starting at the same uniform X position
-        disclaimer = school.disclaimer_text or (
-            "1. This card remains the property of the school.\n"
-            "2. If found, please return to the school administration or nearest police station.\n"
-            "3. The card must be carried at all times within the school premises.\n"
-            "4. The card must carried anytime when on school uniform anywhere."
-        )
-        raw_lines = [ln.strip() for ln in disclaimer.replace("\r", "").split("\n") if ln.strip()]
+        if hasattr(school, "get_disclaimer_lines"):
+            raw_lines = school.get_disclaimer_lines()
+        else:
+            disclaimer = school.disclaimer_text or (
+                "1. This card remains the property of the institution.\n"
+                "2. If found, please return to the administration or nearest police station.\n"
+                "3. The card must be carried at all times within premises.\n"
+                "4. The card must be carried anytime when representing the institution."
+            )
+            raw_lines = [ln.strip() for ln in disclaimer.replace("\r", "").split("\n") if ln.strip()]
 
         start_x = t_box_x1 + 18
         term_y = t_box_y1 + banner_h + 8

@@ -167,20 +167,41 @@
                 <input type="text" name="county" id="inputCounty" class="form-control" value="{{ current_school.county or '' }}">
               </div>
               <div class="col-md-4">
-                <label class="form-label fw-bold small">P.O. Box</label>
+                <label class="form-label fw-bold small">P.O. Box / Postal Address</label>
                 <input type="text" name="po_box" id="inputPoBox" class="form-control" value="{{ current_school.po_box or '' }}">
               </div>
               <div class="col-md-4">
-                <label class="form-label fw-bold small">Phone</label>
+                <label class="form-label fw-bold small">Physical Address / Campus</label>
+                <input type="text" name="physical_address" id="inputPhysicalAddress" class="form-control" value="{{ current_school.physical_address or '' }}" placeholder="e.g. Upper Hill Campus, Nairobi">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Registration / License No.</label>
+                <input type="text" name="registration_number" id="inputRegNo" class="form-control" value="{{ current_school.registration_number or '' }}" placeholder="e.g. CPR/2024/001 or MOE/CE/042">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Primary Phone</label>
                 <input type="text" name="phone" id="inputPhone" class="form-control" value="{{ current_school.phone or '' }}">
               </div>
               <div class="col-md-4">
-                <label class="form-label fw-bold small">Email</label>
+                <label class="form-label fw-bold small">Alternative Phone / Mobile</label>
+                <input type="text" name="alt_phone" id="inputAltPhone" class="form-control" value="{{ current_school.alt_phone or '' }}" placeholder="e.g. +254 700 000000">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Primary Email</label>
                 <input type="email" name="email" id="inputEmail" class="form-control" value="{{ current_school.email or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Alternative Email</label>
+                <input type="email" name="alt_email" id="inputAltEmail" class="form-control" value="{{ current_school.alt_email or '' }}" placeholder="admin@domain.com">
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold small">Website</label>
                 <input type="url" name="website" id="inputWebsite" class="form-control" value="{{ current_school.website or '' }}" placeholder="https://...">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold small">Sub-Photo Badge Label</label>
+                <input type="text" name="sub_photo_label" id="inputSubPhotoLabel" class="form-control" value="{{ current_school.sub_photo_label or '' }}" placeholder="Default: {{ current_school.get_sub_photo_label() }}">
+                <small class="text-muted" style="font-size: 0.72rem;">Prefix below photo (e.g. ADM NO, EMP NO, REG NO)</small>
               </div>
               <div class="col-12 mt-1 mb-2">
                 <div class="form-check form-switch">
@@ -371,11 +392,10 @@
               <div class="col-md-6">
                 <label class="form-label fw-bold small">Authority Signature Image</label>
                 <div class="upload-zone" onclick="document.getElementById('signature_file').click()">
+                  <img id="settings-sig-preview" src="{{ url_for('static', filename='uploads/signatures/' + current_school.principal_signature_filename) if current_school.principal_signature_filename else '' }}" class="thumb mx-auto mb-1 {{ 'd-block' if current_school.principal_signature_filename else 'd-none' }}" alt="signature">
                   {% if current_school.principal_signature_filename %}
-                    <img id="settings-sig-preview" src="{{ url_for('static', filename='uploads/signatures/' + current_school.principal_signature_filename) }}" class="thumb d-block mx-auto mb-1" alt="signature">
                     <small class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Signature uploaded</small>
                   {% else %}
-                    <img id="settings-sig-preview" src="" class="thumb d-none mx-auto mb-1" alt="signature">
                     <i class="fa-solid fa-signature fa-2x text-muted mb-2 d-block" id="settings-sig-icon"></i>
                     <small class="text-muted" id="settings-sig-text">Click to upload authority signature</small>
                   {% endif %}

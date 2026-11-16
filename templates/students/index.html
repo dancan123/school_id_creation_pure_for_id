@@ -6,21 +6,24 @@
 <div class="container-fluid px-4">
   <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-      <h4 class="fw-bold mb-1"><i class="fa-solid fa-user-graduate text-primary me-2"></i> Student Register</h4>
-      <p class="text-muted small mb-0">Active School: <strong>{{ current_school.name }}</strong> &bull; Total: {{ pagination.total }} students</p>
+      <h4 class="fw-bold mb-1">
+        <i class="fa-solid {% if current_school and current_school.is_corporate() %}fa-users-gear{% else %}fa-user-graduate{% endif %} text-primary me-2"></i>
+        {{ current_school.get_members_title() if current_school else 'Member Register' }}
+      </h4>
+      <p class="text-muted small mb-0">Active Institution: <strong>{{ current_school.name }}</strong> &bull; Total: {{ pagination.total }} {{ current_school.get_member_label_plural().lower() if current_school else 'members' }}</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-      <a href="{{ url_for('students.export_excel', **request.args) }}" class="btn btn-outline-success btn-sm fw-semibold shadow-sm" title="Download filtered student records as styled Excel (.xlsx)">
+      <a href="{{ url_for('students.export_excel', **request.args) }}" class="btn btn-outline-success btn-sm fw-semibold shadow-sm" title="Download filtered records as styled Excel (.xlsx)">
         <i class="fa-solid fa-file-excel me-1 text-success"></i> Export Excel
       </a>
-      <a href="{{ url_for('students.export_pdf', **request.args) }}" class="btn btn-outline-danger btn-sm fw-semibold shadow-sm" title="Download official student register roster as printable PDF">
+      <a href="{{ url_for('students.export_pdf', **request.args) }}" class="btn btn-outline-danger btn-sm fw-semibold shadow-sm" title="Download official roster as printable PDF">
         <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Export PDF Register
       </a>
       <a href="{{ url_for('bulk_import.upload') }}" class="btn btn-outline-primary btn-sm">
         <i class="fa-solid fa-file-import me-1"></i> Bulk Import
       </a>
       <a href="{{ url_for('students.new_student') }}" class="btn btn-primary btn-sm fw-semibold" style="background-color: {{ current_school.primary_color }}; border-color: {{ current_school.primary_color }};">
-        <i class="fa-solid fa-user-plus me-1"></i> Add Student
+        <i class="fa-solid fa-user-plus me-1"></i> Add {{ current_school.get_member_label() if current_school else 'Member' }}
       </a>
     </div>
   </div>
@@ -85,10 +88,10 @@
           <thead>
             <tr>
               <th style="width: 60px;">Photo</th>
-              <th>Adm No</th>
-              <th>Student Name</th>
-              <th>Class / Stream</th>
-              <th>Academic Year</th>
+              <th>{{ current_school.get_id_label() if current_school else 'Adm No' }}</th>
+              <th>{{ current_school.get_member_label() if current_school else 'Full Name' }}</th>
+              <th>{{ current_school.get_class_label() if current_school else 'Class / Stream' }}</th>
+              <th>{{ current_school.get_academic_year_label() if current_school else 'Year' }}</th>
               <th>Card Status</th>
               <th>Card Number</th>
               <th class="text-end" style="width: 180px;">Actions</th>

@@ -21,62 +21,100 @@
           <form method="POST" action="{{ url_for('schools.create_school') }}" enctype="multipart/form-data">
             <div class="row g-3">
 
-              <!-- Institution Type Selector -->
+              <!-- Institution Type Selector (7 Universal Classifications) -->
               <div class="col-12">
                 <label class="form-label small fw-bold text-dark">Select Institution Classification <span class="text-danger">*</span></label>
                 <div class="row g-2">
-                  <div class="col-6 col-md-3">
+                  <div class="col-6 col-md-3 col-lg">
                     <input type="radio" class="btn-check" name="institution_type" id="type_school" value="school" checked onchange="toggleType('school')">
-                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_school">
-                      <i class="fa-solid fa-school fa-xl"></i>
-                      <span class="fw-bold small">School / JSS</span>
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_school">
+                      <i class="fa-solid fa-school fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">School / JSS</span>
                     </label>
                   </div>
-                  <div class="col-6 col-md-3">
-                    <input type="radio" class="btn-check" name="institution_type" id="type_company" value="company" onchange="toggleType('company')">
-                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_company">
-                      <i class="fa-solid fa-building fa-xl text-primary"></i>
-                      <span class="fw-bold small">Company / Corporate</span>
-                    </label>
-                  </div>
-                  <div class="col-6 col-md-3">
+                  <div class="col-6 col-md-3 col-lg">
                     <input type="radio" class="btn-check" name="institution_type" id="type_college" value="college" onchange="toggleType('college')">
-                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_college">
-                      <i class="fa-solid fa-graduation-cap fa-xl"></i>
-                      <span class="fw-bold small">College / Uni</span>
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_college">
+                      <i class="fa-solid fa-graduation-cap fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">University / College</span>
                     </label>
                   </div>
-                  <div class="col-6 col-md-3">
-                    <input type="radio" class="btn-check" name="institution_type" id="type_org" value="organization" onchange="toggleType('organization')">
-                    <label class="btn btn-outline-primary w-100 py-3 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_org">
-                      <i class="fa-solid fa-users-rectangle fa-xl"></i>
-                      <span class="fw-bold small">NGO / Sacco</span>
+                  <div class="col-6 col-md-3 col-lg">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_tvet" value="tvet" onchange="toggleType('tvet')">
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_tvet">
+                      <i class="fa-solid fa-wrench fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">TVET / Polytechnic</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3 col-lg">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_company" value="company" onchange="toggleType('company')">
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_company">
+                      <i class="fa-solid fa-building fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">Company / Business</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3 col-lg">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_ngo" value="ngo" onchange="toggleType('ngo')">
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_ngo">
+                      <i class="fa-solid fa-hand-holding-heart fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">NGO / Sacco</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3 col-lg">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_government" value="government" onchange="toggleType('government')">
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_government">
+                      <i class="fa-solid fa-landmark fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">Government / Ministry</span>
+                    </label>
+                  </div>
+                  <div class="col-6 col-md-3 col-lg">
+                    <input type="radio" class="btn-check" name="institution_type" id="type_other" value="other" onchange="toggleType('other')">
+                    <label class="btn btn-outline-primary w-100 py-2 text-center rounded-3 h-100 d-flex flex-column align-items-center justify-content-center gap-1" for="type_other">
+                      <i class="fa-solid fa-id-badge fa-lg"></i>
+                      <span class="fw-bold small" style="font-size: 0.8rem;">Other Registered</span>
                     </label>
                   </div>
                 </div>
               </div>
 
-              <div class="col-md-8">
+              <div class="col-md-7">
                 <label class="form-label small fw-bold" id="lbl_name">Institution / School Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" id="input_name" class="form-control" placeholder="e.g. Alliance High School or Angaza Computecs Ltd" required>
+                <input type="text" name="name" id="input_name" class="form-control" placeholder="e.g. Alliance High School or SafariTech Ltd" required>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label small fw-bold" id="lbl_reg_no">Registration / License Number</label>
+                <input type="text" name="registration_number" id="input_reg_no" class="form-control" placeholder="e.g. MOE/CE/042 or CPR/2024/001">
+              </div>
+
+              <div class="col-md-8">
+                <label class="form-label small fw-bold" id="lbl_motto">Motto / Tagline / Slogan</label>
+                <input type="text" name="motto" id="input_motto" class="form-control" placeholder="e.g. Excellence in Service / Strong to Serve">
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Code / Abbreviation</label>
-                <input type="text" name="code" id="input_code" class="form-control" placeholder="e.g. AHS-001 or ACL-KE">
-              </div>
-
-              <div class="col-12">
-                <label class="form-label small fw-bold" id="lbl_motto">Motto / Tagline</label>
-                <input type="text" name="motto" id="input_motto" class="form-control" placeholder="e.g. Excellence in Service / Strong to Serve">
+                <input type="text" name="code" id="input_code" class="form-control" placeholder="e.g. AHS-001 or STL-KE">
               </div>
 
               <div class="col-md-6">
+                <label class="form-label small fw-bold">Physical Address / Campus / Location</label>
+                <input type="text" name="physical_address" id="input_physical_address" class="form-control" placeholder="e.g. Upper Hill Commercial Centre, Hospital Road">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Postal Address</label>
+                <input type="text" name="postal_address" id="input_postal_address" class="form-control" placeholder="e.g. P.O. Box 7 - 00902 Kikuyu">
+              </div>
+
+              <div class="col-md-4">
                 <label class="form-label small fw-bold">Town / City</label>
                 <input type="text" name="town" class="form-control" value="Nairobi" required>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label class="form-label small fw-bold">County / State</label>
                 <input type="text" name="county" class="form-control" value="Nairobi" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Official Email</label>
+                <input type="email" name="email" class="form-control" placeholder="info@institution.ac.ke">
               </div>
 
               <div class="col-md-4">
@@ -136,8 +174,8 @@
 
 <script>
 function toggleType(type) {
-  var isCorp = (type === 'company' || type === 'organization');
   var nameInput = document.getElementById('input_name');
+  var regInput = document.getElementById('input_reg_no');
   var prefixInput = document.getElementById('input_card_prefix');
   var authTitleInput = document.getElementById('input_principal_title');
   var btnSubmit = document.getElementById('btnSubmit');
@@ -146,34 +184,96 @@ function toggleType(type) {
 
   if (type === 'company') {
     document.getElementById('lbl_name').innerHTML = 'Company / Business Name <span class="text-danger">*</span>';
-    nameInput.placeholder = 'e.g. Angaza Computecs Ltd / SafariTech Logistics';
+    nameInput.placeholder = 'e.g. SafariTech Logistics Ltd';
+    document.getElementById('lbl_reg_no').textContent = 'Company Registration No (CPR / BNR)';
+    regInput.placeholder = 'e.g. CPR/2024/00812';
     prefixInput.value = 'EMP-';
     authTitleInput.value = 'Managing Director / CEO';
     document.getElementById('lbl_auth_name').textContent = 'Managing Director / CEO Full Name';
-    document.getElementById('lbl_auth_title').textContent = 'Signatory Title (e.g. Managing Director, HR Manager)';
-    document.getElementById('lbl_year').textContent = 'Calendar / Fiscal Year';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Fiscal Year';
     document.getElementById('lbl_logo').textContent = 'Company Corporate Logo';
     btnSubmit.innerHTML = '<i class="fa-solid fa-building me-2"></i> Register Company & Make Active';
-    priColor.value = '#0F172A'; // Slate Corporate
-    secColor.value = '#3B82F6'; // Tech Blue
+    priColor.value = '#0F172A';
+    secColor.value = '#3B82F6';
   } else if (type === 'college') {
-    document.getElementById('lbl_name').innerHTML = 'College / University Name <span class="text-danger">*</span>';
-    nameInput.placeholder = 'e.g. Nairobi Technical Institute';
-    prefixInput.value = 'COL-';
-    authTitleInput.value = 'Principal / Registrar / Vice-Chancellor';
-    btnSubmit.innerHTML = '<i class="fa-solid fa-graduation-cap me-2"></i> Register College & Make Active';
-  } else if (type === 'organization') {
-    document.getElementById('lbl_name').innerHTML = 'Organization / NGO / SACCO Name <span class="text-danger">*</span>';
-    nameInput.placeholder = 'e.g. Afya SACCO / Kenya Red Cross Society';
+    document.getElementById('lbl_name').innerHTML = 'University / College Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Strathmore University';
+    document.getElementById('lbl_reg_no').textContent = 'Charter / CUE Registration Number';
+    regInput.placeholder = 'e.g. CUE/REG/012';
+    prefixInput.value = 'REG-';
+    authTitleInput.value = 'Vice-Chancellor / Registrar';
+    document.getElementById('lbl_auth_name').textContent = 'Vice-Chancellor / Registrar Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Academic Year';
+    document.getElementById('lbl_logo').textContent = 'University Crest / Seal';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-graduation-cap me-2"></i> Register University & Make Active';
+    priColor.value = '#581C87';
+    secColor.value = '#F59E0B';
+  } else if (type === 'tvet') {
+    document.getElementById('lbl_name').innerHTML = 'TVET / Polytechnic Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Rift Valley Technical Training Institute';
+    document.getElementById('lbl_reg_no').textContent = 'TVETA Registration Number';
+    regInput.placeholder = 'e.g. TVETA/INST/2023/044';
+    prefixInput.value = 'TRN-';
+    authTitleInput.value = 'Principal / Director';
+    document.getElementById('lbl_auth_name').textContent = 'Principal / Director Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Training Year';
+    document.getElementById('lbl_logo').textContent = 'TVET Institute Crest';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-wrench me-2"></i> Register TVET & Make Active';
+    priColor.value = '#065F46';
+    secColor.value = '#F59E0B';
+  } else if (type === 'ngo') {
+    document.getElementById('lbl_name').innerHTML = 'NGO / Organization Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Kenya Wildlife Care Foundation';
+    document.getElementById('lbl_reg_no').textContent = 'NGO Board / Society Reg Number';
+    regInput.placeholder = 'e.g. OP.218/051/2021/04';
     prefixInput.value = 'MBR-';
-    authTitleInput.value = 'Executive Director / Secretary General';
-    btnSubmit.innerHTML = '<i class="fa-solid fa-users me-2"></i> Register Organization & Make Active';
+    authTitleInput.value = 'Executive Director';
+    document.getElementById('lbl_auth_name').textContent = 'Executive Director / Secretary Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Membership Year';
+    document.getElementById('lbl_logo').textContent = 'Organization Logo';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-hand-holding-heart me-2"></i> Register Organization & Make Active';
+    priColor.value = '#0284C7';
+    secColor.value = '#10B981';
+  } else if (type === 'government') {
+    document.getElementById('lbl_name').innerHTML = 'Government Entity / Ministry Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. State Department for Immigration';
+    document.getElementById('lbl_reg_no').textContent = 'Gazette / Ministry Vote Code';
+    regInput.placeholder = 'e.g. GOK-MIG-014';
+    prefixInput.value = 'SVC-';
+    authTitleInput.value = 'Director General / Principal Secretary';
+    document.getElementById('lbl_auth_name').textContent = 'Accounting Officer Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Financial Year';
+    document.getElementById('lbl_logo').textContent = 'Official Court of Arms / Crest';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-landmark me-2"></i> Register Government Entity & Make Active';
+    priColor.value = '#1F2937';
+    secColor.value = '#D97706';
+  } else if (type === 'other') {
+    document.getElementById('lbl_name').innerHTML = 'Institution Name <span class="text-danger">*</span>';
+    nameInput.placeholder = 'e.g. Apex Health & Sports Club';
+    document.getElementById('lbl_reg_no').textContent = 'Registration / License Code';
+    regInput.placeholder = 'e.g. REG-2026-X';
+    prefixInput.value = 'ID-';
+    authTitleInput.value = 'Authorized Officer';
+    document.getElementById('lbl_auth_name').textContent = 'Authorized Officer Full Name';
+    document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
+    document.getElementById('lbl_year').textContent = 'Year';
+    document.getElementById('lbl_logo').textContent = 'Institution Logo';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-id-badge me-2"></i> Register Institution & Make Active';
+    priColor.value = '#334155';
+    secColor.value = '#38BDF8';
   } else {
     document.getElementById('lbl_name').innerHTML = 'School Name <span class="text-danger">*</span>';
     nameInput.placeholder = 'e.g. Alliance High School';
+    document.getElementById('lbl_reg_no').textContent = 'MOE Registration / Nemis Code';
+    regInput.placeholder = 'e.g. MOE/CE/0421';
     prefixInput.value = 'ID-';
-    authTitleInput.value = 'Principal / Headteacher';
-    document.getElementById('lbl_auth_name').textContent = 'Principal / Headteacher Full Name';
+    authTitleInput.value = 'Chief Principal / Headteacher';
+    document.getElementById('lbl_auth_name').textContent = 'Principal Full Name';
     document.getElementById('lbl_auth_title').textContent = 'Signatory Title';
     document.getElementById('lbl_year').textContent = 'Academic Year';
     document.getElementById('lbl_logo').textContent = 'School Crest / Logo';

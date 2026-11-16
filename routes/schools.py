@@ -89,7 +89,9 @@ def create_school():
         motto = request.form.get("motto", "").strip()
         town = request.form.get("town", "Nairobi").strip()
         county = request.form.get("county", "Nairobi").strip()
-        po_box = request.form.get("po_box", "").strip()
+        po_box = request.form.get("postal_address", "").strip() or request.form.get("po_box", "").strip()
+        physical_address = request.form.get("physical_address", "").strip()
+        registration_number = request.form.get("registration_number", "").strip()
         phone = request.form.get("phone", "").strip()
         email = request.form.get("email", "").strip()
         
@@ -145,6 +147,8 @@ def create_school():
             town=town,
             county=county,
             po_box=po_box,
+            physical_address=physical_address,
+            registration_number=registration_number,
             phone=phone,
             email=email,
             institution_type=institution_type,
@@ -220,11 +224,18 @@ def settings():
         school.code = request.form.get("code", school.code).strip() or None
         school.motto = request.form.get("motto", school.motto).strip()
         school.po_box = request.form.get("po_box", school.po_box).strip()
+        school.physical_address = request.form.get("physical_address", getattr(school, "physical_address", "") or "").strip()
+        school.registration_number = request.form.get("registration_number", getattr(school, "registration_number", "") or "").strip()
         school.town = request.form.get("town", school.town).strip()
         school.county = request.form.get("county", school.county).strip()
         school.phone = request.form.get("phone", school.phone).strip()
+        school.alt_phone = request.form.get("alt_phone", getattr(school, "alt_phone", "") or "").strip()
         school.email = request.form.get("email", school.email).strip()
+        school.alt_email = request.form.get("alt_email", getattr(school, "alt_email", "") or "").strip()
         school.website = request.form.get("website", school.website).strip()
+        school.sub_photo_label = request.form.get("sub_photo_label", getattr(school, "sub_photo_label", "") or "").strip()
+        if request.form.get("institution_type"):
+            school.institution_type = request.form.get("institution_type").strip()
         
         # Color adjustments
         school.primary_color = request.form.get("primary_color", school.primary_color)

@@ -26,26 +26,26 @@
                 <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-id-card-clip me-1"></i> Core Identification Details</h6>
                 <div class="row g-3">
                   <div class="col-md-6">
-                    <label class="form-label small fw-bold">Admission Number <span class="text-danger">*</span></label>
+                    <label class="form-label small fw-bold">{{ current_school.get_id_label() if current_school else 'Admission Number' }} <span class="text-danger">*</span></label>
                     <input type="text" name="admission_number" class="form-control" value="{{ student.admission_number if student else '' }}" placeholder="e.g. 10452" required>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label small fw-bold">Academic Year <span class="text-danger">*</span></label>
+                    <label class="form-label small fw-bold">{{ current_school.get_academic_year_label() if current_school else 'Academic Year' }} <span class="text-danger">*</span></label>
                     <input type="text" name="academic_year" class="form-control" value="{{ student.academic_year if student else current_school.academic_year }}" required>
                   </div>
 
                   <div class="col-12">
-                    <label class="form-label small fw-bold">Student Full Name <span class="text-danger">*</span></label>
+                    <label class="form-label small fw-bold">{{ current_school.get_member_label() if current_school else 'Student' }} Full Name <span class="text-danger">*</span></label>
                     <input type="text" name="full_name" class="form-control" value="{{ student.full_name if student else '' }}" placeholder="e.g. Kelvin Kipkemboi Tanui" required>
                   </div>
 
                   <div class="col-md-6">
-                    <label class="form-label small fw-bold">Class / Form <span class="text-danger">*</span></label>
-                    <input type="text" name="class_name" class="form-control" value="{{ student.class_name if student else '' }}" placeholder="e.g. Form 1, Grade 7" required>
+                    <label class="form-label small fw-bold">{{ current_school.get_class_label() if current_school else 'Class / Form' }} <span class="text-danger">*</span></label>
+                    <input type="text" name="class_name" class="form-control" value="{{ student.class_name if student else '' }}" placeholder="e.g. Form 1, Grade 7 or Operations" required>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label small fw-bold">Stream / Section</label>
-                    <input type="text" name="stream_name" class="form-control" value="{{ student.stream_name if student and student.stream_name else '' }}" placeholder="e.g. East, Blue, North">
+                    <label class="form-label small fw-bold">{{ current_school.get_stream_label() if current_school else 'Stream / Section' }}</label>
+                    <input type="text" name="stream_name" class="form-control" value="{{ student.stream_name if student and student.stream_name else '' }}" placeholder="e.g. East, Blue, Senior Tech">
                   </div>
 
                   <div class="col-md-6">
@@ -207,6 +207,8 @@
   </div>
 </div>
 
+<div id="schoolPortalConfig" data-onboarding-base="{{ current_school.onboarding_base_url or '' }}" class="d-none"></div>
+
 <script>
 function previewFile(input) {
   if (input.files && input.files[0]) {
@@ -223,7 +225,8 @@ function previewFile(input) {
   }
 }
 
-var configuredSecurePortalBase = {{ (current_school.onboarding_base_url or '')|tojson }};
+var _portalEl = document.getElementById('schoolPortalConfig');
+var configuredSecurePortalBase = _portalEl ? (_portalEl.getAttribute('data-onboarding-base') || '') : '';
 
 function showWebcamStatus(message, type, securePortalUrl) {
   const status = document.getElementById('webcamStatus');

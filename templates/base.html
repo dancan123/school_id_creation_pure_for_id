@@ -96,7 +96,7 @@
               </li>
               <li>
                 <a class="dropdown-item" href="{{ url_for('enrolment.onboard_hub') }}" target="_blank">
-                  <i class="fa-solid fa-school me-2 text-secondary"></i>All Schools Directory
+                  <i class="fa-solid fa-building-columns me-2 text-secondary"></i>All Institutions Directory
                 </a>
               </li>
             </ul>
@@ -121,7 +121,7 @@
           </li>
         </ul>
 
-        <!-- Active School Switcher (Multi-School at a Go) -->
+        <!-- Active Institution Switcher (Multi-Institution Platform) -->
         <div class="d-flex align-items-center gap-3">
           {% if current_user.is_authenticated and current_school %}
           <div class="dropdown">
@@ -130,18 +130,21 @@
               <span class="fw-semibold text-truncate" style="max-width: 180px;">{{ current_school.name }}</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li class="dropdown-header text-uppercase fs-7 text-muted">Switch Active School</li>
+              <li class="dropdown-header text-uppercase fs-7 text-muted">Switch Active Institution</li>
               {% for sch in all_schools %}
               <li>
                 <a class="dropdown-item d-flex align-items-center justify-content-between {% if sch.id == current_school.id %}active{% endif %}" href="{{ url_for('schools.switch_school', school_id=sch.id) }}">
-                  <span><i class="fa-solid fa-school me-2 text-primary"></i> {{ sch.name }}</span>
+                  <span>
+                    <i class="fa-solid {% if sch.is_corporate() %}fa-building{% elif sch.is_university() %}fa-graduation-cap{% elif sch.is_ngo() %}fa-hand-holding-heart{% elif sch.is_government() %}fa-landmark{% else %}fa-school{% endif %} me-2 text-primary"></i>
+                    {{ sch.name }}
+                  </span>
                   <span class="badge rounded-pill" data-dot-color="{{ sch.primary_color }}" style="width: 12px; height: 12px; display: inline-block; background-color: #64748B;"> </span>
                 </a>
               </li>
               {% endfor %}
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-success" href="{{ url_for('schools.create_school') }}"><i class="fa-solid fa-plus-circle me-2"></i> Register New School</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-sliders me-2"></i> School Settings & Colors</a></li>
+              <li><a class="dropdown-item text-success" href="{{ url_for('schools.create_school') }}"><i class="fa-solid fa-plus-circle me-2"></i> Register New Institution</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-sliders me-2"></i> Institution Settings & Colors</a></li>
             </ul>
           </div>
           {% endif %}
@@ -155,7 +158,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
               <li class="dropdown-header text-muted">{{ current_user.full_name }} ({{ current_user.role }})</li>
-              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-gear me-2"></i> School Settings</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-gear me-2"></i> Institution Settings</a></li>
               <li><a class="dropdown-item" href="{{ url_for('system.backup') }}"><i class="fa-solid fa-database me-2"></i> System Backup</a></li>
               <li><a class="dropdown-item" href="{{ url_for('system.audit') }}"><i class="fa-solid fa-clock-rotate-left me-2"></i> Audit Logs</a></li>
               <li><hr class="dropdown-divider"></li>

@@ -18,7 +18,11 @@ class School(db.Model):
     website = db.Column(db.String(120), nullable=True)
     
     # Institution Profile & Classification
-    institution_type = db.Column(db.String(30), nullable=False, default="school") # 'school', 'college', 'corporate', 'organization'
+    institution_type = db.Column(db.String(30), nullable=False, default="school") # 'school', 'university', 'tvet', 'company', 'ngo', 'government', 'other'
+    registration_number = db.Column(db.String(100), nullable=True) # Official Registration / Incorporation No.
+    physical_address = db.Column(db.String(255), nullable=True)    # Campus / Building / Floor / Road
+    alt_email = db.Column(db.String(120), nullable=True)
+    alt_phone = db.Column(db.String(50), nullable=True)
     
     # Visual Branding & Color adjustment per school
     primary_color = db.Column(db.String(20), nullable=False, default="#1E3A8A")  # Deep blue
@@ -39,9 +43,16 @@ class School(db.Model):
     # Dynamic Field Labels for School vs Corporate / Company Cards
     card_title = db.Column(db.String(100), nullable=True, default="STUDENT IDENTIFICATION CARD")
     id_label = db.Column(db.String(50), nullable=True, default="ADM NO")
+    sub_photo_label = db.Column(db.String(50), nullable=True, default="ADM NO") # Label directly beneath passport photo
     class_label = db.Column(db.String(50), nullable=True, default="CLASS / GRADE")
     stream_label = db.Column(db.String(50), nullable=True, default="STREAM")
     upi_label = db.Column(db.String(50), nullable=True, default="NEMIS / UPI")
+    
+    # Extensible Configurations (JSON)
+    custom_fields_json = db.Column(db.Text, nullable=True)  # JSON list of custom field definitions
+    terms_clauses_json = db.Column(db.Text, nullable=True)  # JSON list of enabled/custom terms clauses
+    header_config_json = db.Column(db.Text, nullable=True)  # JSON configuration for header layout
+    print_settings_json = db.Column(db.Text, nullable=True) # JSON configuration for printer margins
     
     # ID Generation Rules
     academic_year = db.Column(db.String(20), nullable=False, default=str(datetime.datetime.now().year))
@@ -79,56 +90,225 @@ class School(db.Model):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    # ── Institution Classification Helpers ──────────────────────────────────────
+    def is_school(self):
+        t = (self.institution_type or "school").lower()
+        return t in ["school", "primary", "secondary", "jss", "high school"]
+
+    def is_university(self):
+        t = (self.institution_type or "").lower()
+        return t in ["college", "university", "tertiary"]
+
+    def is_tvet(self):
+        t = (self.institution_type or "").lower()
+        return t in ["tvet", "vocational", "polytechnic", "institute"]
+
     def is_corporate(self):
-        return (self.institution_type or "").lower() in [
-            "corporate", "company", "enterprise", "business", "organization", "ngo", "firm", "agency"
-        ]
+        t = (self.institution_type or "").lower()
+        return t in ["corporate", "company", "enterprise", "business", "firm"]
+
+    def is_ngo(self):
+        t = (self.institution_type or "").lower()
+        return t in ["organization", "ngo", "cbo", "sacco", "society", "foundation", "church", "hospital"]
+
+    def is_government(self):
+        t = (self.institution_type or "").lower()
+        return t in ["government", "ministry", "agency", "parastatal", "authority"]
+
+    def get_institution_type_display(self):
+        t = (self.institution_type or "school").lower()
+        mapping = {
+            "school": "Primary / Secondary School",
+            "college": "College / University",
+            "university": "College / University",
+            "tvet": "TVET Institution",
+            "company": "Company / Business",
+            "corporate": "Company / Business",
+            "ngo": "NGO / Community Organization",
+            "organization": "NGO / Community Organization",
+            "government": "Government Institution",
+            "other": "Other Registered Institution"
+        }
+        return mapping.get(t, t.capitalize())
 
     def get_institution_label(self):
-        t = (self.institution_type or "school").lower()
-        if t in ["company", "corporate", "enterprise", "business", "firm"]:
+        if self.is_corporate():
             return "Company"
-        elif t in ["organization", "ngo", "agency"]:
+        elif self.is_ngo():
             return "Organization"
-        elif t in ["college", "university"]:
-            return "College"
+        elif self.is_university():
+            return "College / University"
+        elif self.is_tvet():
+            return "TVET Institution"
+        elif self.is_government():
+            return "Government Institution"
         return "School"
 
+    # ── Context-Aware Identity Field Labels ─────────────────────────────────────
     def get_member_label(self):
-        return "Employee / Staff" if self.is_corporate() else "Student"
+        if self.is_corporate():
+            return "Employee"
+        elif self.is_tvet():
+            return "Trainee"
+        elif self.is_ngo():
+            return "Member"
+        elif self.is_government():
+            return "Officer"
+        return "Student"
 
     def get_member_label_plural(self):
-        return "Employees / Staff" if self.is_corporate() else "Students"
+        if self.is_corporate():
+            return "Employees"
+        elif self.is_tvet():
+            return "Trainees"
+        elif self.is_ngo():
+            return "Members"
+        elif self.is_government():
+            return "Officers"
+        return "Students"
+
+    def get_members_title(self):
+        if self.is_corporate():
+            return "Employee Records"
+        elif self.is_tvet():
+            return "Trainee Records"
+        elif self.is_ngo():
+            return "Member Records"
+        elif self.is_government():
+            return "Personnel Records"
+        return "Student Records"
 
     def get_id_label(self):
         if self.id_label and self.id_label.strip():
             return self.id_label.strip()
-        return "STAFF NO" if self.is_corporate() else "ADM NO"
+        if self.is_corporate():
+            return "EMP NO"
+        elif self.is_university() or self.is_tvet():
+            return "REG NO"
+        elif self.is_ngo():
+            return "MEMBER NO"
+        elif self.is_government():
+            return "SVC NO"
+        return "ADM NO"
+
+    def get_sub_photo_label(self):
+        """Label placed directly below the passport picture (e.g. ADM NO: 556 or REG NO: 556)."""
+        if self.sub_photo_label and self.sub_photo_label.strip():
+            return self.sub_photo_label.strip()
+        if self.is_corporate():
+            return "EMP NO"
+        elif self.is_university() or self.is_tvet() or self.is_ngo():
+            return "REG NO"
+        elif self.is_government():
+            return "SVC NO"
+        return "ADM NO"
 
     def get_class_label(self):
         if self.class_label and self.class_label.strip():
             return self.class_label.strip()
-        return "DEPARTMENT" if self.is_corporate() else "CLASS / GRADE"
+        if self.is_corporate():
+            return "DEPARTMENT"
+        elif self.is_university():
+            return "FACULTY / DEPT"
+        elif self.is_tvet():
+            return "DEPARTMENT"
+        elif self.is_ngo():
+            return "CHAPTER / DEPT"
+        elif self.is_government():
+            return "DIRECTORATE"
+        return "CLASS / GRADE"
 
     def get_stream_label(self):
         if self.stream_label and self.stream_label.strip():
             return self.stream_label.strip()
-        return "JOB TITLE / ROLE" if self.is_corporate() else "STREAM"
+        if self.is_corporate():
+            return "DESIGNATION / ROLE"
+        elif self.is_university():
+            return "COURSE / PROGRAMME"
+        elif self.is_tvet():
+            return "TRADE / LEVEL"
+        elif self.is_ngo():
+            return "ROLE / CATEGORY"
+        elif self.is_government():
+            return "RANK / STATION"
+        return "STREAM"
+
+    def get_academic_year_label(self):
+        if self.is_corporate() or self.is_government():
+            return "FISCAL / ISSUE YEAR"
+        elif self.is_ngo():
+            return "MEMBERSHIP YEAR"
+        return "ACADEMIC YEAR"
+
+    def get_guardian_label(self):
+        if self.is_school():
+            return "PARENT / GUARDIAN"
+        return "EMERGENCY CONTACT"
 
     def get_upi_label(self):
         if self.upi_label and self.upi_label.strip():
             return self.upi_label.strip()
-        return "NATIONAL ID" if self.is_corporate() else "NEMIS / UPI"
+        if self.is_school():
+            return "NEMIS / UPI"
+        elif self.is_university() or self.is_tvet():
+            return "KUCCPS / NEMIS"
+        return "NATIONAL ID / SSN"
 
     def get_card_title(self):
         if self.card_title and self.card_title.strip():
             return self.card_title.strip()
-        return "STAFF IDENTIFICATION CARD" if self.is_corporate() else "STUDENT IDENTIFICATION CARD"
+        if self.is_corporate():
+            return "EMPLOYEE IDENTIFICATION CARD"
+        elif self.is_university():
+            return "UNIVERSITY IDENTIFICATION CARD"
+        elif self.is_tvet():
+            return "TVET TRAINEE IDENTIFICATION CARD"
+        elif self.is_ngo():
+            return "MEMBERSHIP IDENTIFICATION CARD"
+        elif self.is_government():
+            return "OFFICIAL IDENTIFICATION CREDENTIAL"
+        return "STUDENT IDENTIFICATION CARD"
 
     def get_signatory_title(self):
         if self.principal_title and self.principal_title.strip():
             return self.principal_title.strip()
-        return "Managing Director / HR Manager" if self.is_corporate() else "Principal / Head of Institution"
+        if self.is_corporate():
+            return "Managing Director / CEO"
+        elif self.is_university():
+            return "Vice Chancellor / Registrar"
+        elif self.is_tvet():
+            return "Principal / Director"
+        elif self.is_ngo():
+            return "Executive Director / Secretary General"
+        elif self.is_government():
+            return "Director General / Authorized Signatory"
+        return "Principal / Head of Institution"
+
+    def get_disclaimer_lines(self):
+        """Returns the list of active terms & conditions clauses for card reverse."""
+        if self.terms_clauses_json:
+            try:
+                import json
+                clauses = json.loads(self.terms_clauses_json)
+                if isinstance(clauses, list) and clauses:
+                    return [c.strip() for c in clauses if isinstance(c, str) and c.strip()]
+            except Exception:
+                pass
+        
+        # Fall back to disclaimer_text
+        if self.disclaimer_text:
+            lines = [ln.strip() for ln in self.disclaimer_text.replace("\r", "").split("\n") if ln.strip()]
+            if lines:
+                return lines
+
+        # Default institutional 4 rules
+        inst_noun = "company" if self.is_corporate() else ("organization" if self.is_ngo() else "school")
+        return [
+            f"1. This card remains the property of the {inst_noun}.",
+            f"2. If found, please return to the {inst_noun} administration or nearest police station.",
+            f"3. The card must be carried at all times within the premises.",
+            f"4. The card must carried anytime when on official duty or uniform."
+        ]
 
     def to_dict(self):
         return {
@@ -137,6 +317,7 @@ class School(db.Model):
             "code": self.code,
             "motto": self.motto,
             "institution_type": self.institution_type,
+            "registration_number": self.registration_number,
             "primary_color": self.primary_color,
             "secondary_color": self.secondary_color,
             "academic_year": self.academic_year,
@@ -217,6 +398,7 @@ class Student(db.Model):
     self_enrolment_token = db.Column(db.String(64), nullable=True, unique=True)  # for edit link
 
     is_archived = db.Column(db.Boolean, default=False)
+    custom_data_json = db.Column(db.Text, nullable=True) # JSON dict storing extensible custom field values
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -229,6 +411,58 @@ class Student(db.Model):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    # ── Universal Multi-Institution Identity Aliases ────────────────────────────
+    @property
+    def employee_number(self):
+        return self.admission_number
+
+    @employee_number.setter
+    def employee_number(self, val):
+        self.admission_number = val
+
+    @property
+    def membership_number(self):
+        return self.admission_number
+
+    @membership_number.setter
+    def membership_number(self, val):
+        self.admission_number = val
+
+    @property
+    def department(self):
+        return self.class_name
+
+    @department.setter
+    def department(self, val):
+        self.class_name = val
+
+    @property
+    def designation(self):
+        return self.stream_name
+
+    @designation.setter
+    def designation(self, val):
+        self.stream_name = val
+
+    def get_custom_data(self):
+        if not self.custom_data_json:
+            return {}
+        try:
+            import json
+            data = json.loads(self.custom_data_json)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def set_custom_data(self, key_or_dict, value=None):
+        import json
+        current = self.get_custom_data()
+        if isinstance(key_or_dict, dict):
+            current.update(key_or_dict)
+        elif isinstance(key_or_dict, str):
+            current[key_or_dict] = value
+        self.custom_data_json = json.dumps(current)
 
 
 # ── Self-Service Student Enrolment Portal ────────────────────────────────────
@@ -447,3 +681,8 @@ class SystemSetting(db.Model):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+
+# ── Universal Multi-Institution Platform Aliases ────────────────────────────
+Institution = School
+Member = Student
