@@ -92,14 +92,20 @@ class BulkGenerator:
                 success_count += 1
             except Exception as e:
                 failed_count += 1
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
                 print(f"Error generating card for student {student.admission_number}: {e}")
 
-            # Update progress every 20 records or on complete
-            if idx % 20 == 0 or idx == len(students):
-                job.processed_count = idx
-                job.success_count = success_count
-                job.failed_count = failed_count
+            # Update progress smoothly in real-time
+            job.processed_count = idx
+            job.success_count = success_count
+            job.failed_count = failed_count
+            try:
                 db.session.commit()
+            except Exception:
+                pass
 
         # Generate Compiled Print-Ready PDF
         pdf_filename = f"batch_{school.id}_{job_id[:8]}_{print_format}.pdf"
@@ -165,6 +171,29 @@ class BulkGenerator:
         db.session.commit()
 
         return job
+
+    @staticmethod
+    def start_background_generation(app, job_id, school_id, student_ids=None, print_format="cr80_single", base_url="http://localhost:5000"):
+        """Launches run_generation in a background daemon thread with its own application context."""
+        import threading
+        
+        def _task():
+            with app.app_context():
+                try:
+                    BulkGenerator.run_generation(job_id, school_id, student_ids, print_format, base_url)
+                except Exception as exc:
+                    print(f"Fatal background batch error for {job_id}: {exc}")
+                    try:
+                        j = db.session.get(GenerationJob, job_id)
+                        if j:
+                            j.status = "failed"
+                            db.session.commit()
+                    except Exception:
+                        pass
+
+        t = threading.Thread(target=_task, daemon=True)
+        t.start()
+        return t
 
     @staticmethod
     def ensure_batch_zip(job_id):

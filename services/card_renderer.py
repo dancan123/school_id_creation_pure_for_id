@@ -26,6 +26,11 @@ CR80_W_MM = 85.60
 CR80_H_MM = 53.98
 DPI = 300
 
+# High-Performance In-Memory Asset Caches (eliminates redundant image processing in bulk generation)
+_CLEANED_LOGOS_CACHE = {}
+_CLEANED_STAMPS_CACHE = {}
+_CLEANED_SIGS_CACHE = {}
+
 # Pixels at 300 DPI
 LANDSCAPE_W = int(round((CR80_W_MM / 25.4) * DPI))  # 1011 px
 LANDSCAPE_H = int(round((CR80_H_MM / 25.4) * DPI))  # 638 px
@@ -653,16 +658,25 @@ class CardRenderer:
         if school.logo_filename:
             logo_path = Config.LOGOS_DIR / school.logo_filename
             if logo_path.exists():
-                try:
-                    raw_logo = Image.open(logo_path)
-                    logo_img = clean_logo_image(raw_logo)
-                    logo_img.thumbnail((logo_box_w, logo_box_h), Image.Resampling.LANCZOS)
+                cache_key = (getattr(school, "id", 0), school.logo_filename, logo_box_w, logo_box_h)
+                if cache_key in _CLEANED_LOGOS_CACHE:
+                    logo_img = _CLEANED_LOGOS_CACHE[cache_key].copy()
                     actual_logo_x = logo_x + (logo_box_w - logo_img.width) // 2
                     actual_logo_y = logo_y + (logo_box_h - logo_img.height) // 2
                     img.paste(logo_img, (actual_logo_x, actual_logo_y), logo_img)
                     logo_drawn = True
-                except Exception:
-                    logo_drawn = False
+                else:
+                    try:
+                        raw_logo = Image.open(logo_path)
+                        logo_img = clean_logo_image(raw_logo)
+                        logo_img.thumbnail((logo_box_w, logo_box_h), Image.Resampling.LANCZOS)
+                        _CLEANED_LOGOS_CACHE[cache_key] = logo_img.copy()
+                        actual_logo_x = logo_x + (logo_box_w - logo_img.width) // 2
+                        actual_logo_y = logo_y + (logo_box_h - logo_img.height) // 2
+                        img.paste(logo_img, (actual_logo_x, actual_logo_y), logo_img)
+                        logo_drawn = True
+                    except Exception:
+                        logo_drawn = False
 
         if not logo_drawn:
             emblem_x = logo_x + (logo_box_w - logo_box_h) // 2
@@ -1044,10 +1058,19 @@ class CardRenderer:
 
         # ── Official Stamp — left zone, vertically and horizontally centred in stamp area ────
         try:
-            stamp_img = get_official_rubber_stamp(school, size=(150, 140), angle=-4)
-            stamp_x = 42 + max(0, (165 - stamp_img.width) // 2)
-            stamp_y = auth_box_y + max(0, (auth_box_h - stamp_img.height) // 2)
-            img.paste(stamp_img, (stamp_x, stamp_y), stamp_img)
+            stamp_key = (getattr(school, "id", 0), getattr(school, "stamp_filename", None), getattr(school, "primary_color", None))
+            if stamp_key in _CLEANED_STAMPS_CACHE:
+                stamp_img = _CLEANED_STAMPS_CACHE[stamp_key].copy()
+            else:
+                stamp_img = get_official_rubber_stamp(school, size=(150, 140), angle=-4)
+                if stamp_img:
+                    _CLEANED_STAMPS_CACHE[stamp_key] = stamp_img.copy()
+            if stamp_img:
+                stamp_x = 42 + max(0, (165 - stamp_img.width) // 2)
+                stamp_y = auth_box_y + max(0, (auth_box_h - stamp_img.height) // 2)
+                img.paste(stamp_img, (stamp_x, stamp_y), stamp_img)
+            else:
+                raise ValueError("No stamp")
         except Exception:
             # Fallback: draw a simple ink-circle so there's always a stamp placeholder
             fc_x = 42 + 75
@@ -1070,7 +1093,15 @@ class CardRenderer:
         line_y = auth_box_y2 - 58
 
         sig_drawn = False
-        if school.principal_signature_filename:
+        sig_cache_key = (getattr(school, "id", 0), getattr(school, "principal_signature_filename", None), sig_w, sig_h)
+        if sig_cache_key in _CLEANED_SIGS_CACHE:
+            cached_sig = _CLEANED_SIGS_CACHE[sig_cache_key]
+            if cached_sig is not None:
+                sig_paste_x = sig_x + max(0, (sig_w - cached_sig.width) // 2)
+                sig_paste_y = line_y - cached_sig.height - 4
+                img.paste(cached_sig, (sig_paste_x, sig_paste_y), cached_sig)
+                sig_drawn = True
+        elif school.principal_signature_filename:
             for s_folder in [Config.SIGNATURES_DIR, Config.LOGOS_DIR, Config.STAMPS_DIR]:
                 sig_path = s_folder / school.principal_signature_filename
                 if sig_path.exists():
@@ -1079,6 +1110,7 @@ class CardRenderer:
                         sig_img = clean_ink_signature(raw_sig, ink_color=(20, 50, 135))
                         if sig_img:
                             sig_img.thumbnail((sig_w - 20, sig_h), Image.Resampling.LANCZOS)
+                            _CLEANED_SIGS_CACHE[sig_cache_key] = sig_img.copy()
                             sig_paste_x = sig_x + max(0, (sig_w - sig_img.width) // 2)
                             sig_paste_y = line_y - sig_img.height - 4
                             img.paste(sig_img, (sig_paste_x, sig_paste_y), sig_img)
