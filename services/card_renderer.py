@@ -670,44 +670,41 @@ class CardRenderer:
 
         curr_hdr_y = logo_y + 2
         draw.text((name_x, curr_hdr_y), school_name, fill=(255, 255, 255), font=name_font)
-        curr_hdr_y += 42
+        curr_hdr_y += 38
         
         motto_text = f'"{school.motto}"' if school.motto else ""
         if motto_text:
-            motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=20, min_size=14, bold=True)
+            motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=18, min_size=13, bold=True)
             motto_w = int(draw.textlength(motto_text, font=motto_font))
             motto_x = text_x + max(0, (avail_header_w - motto_w) // 2)
             draw.text((motto_x, curr_hdr_y), motto_text, fill=(254, 240, 138), font=motto_font)
-            curr_hdr_y += 28
+            curr_hdr_y += 22
 
-        addr_parts = [p for p in [school.po_box, f"{school.town}, {school.county}" if school.town and school.county else (school.town or school.county)] if p]
-        addr_text = " • ".join(addr_parts)
-        if addr_text:
-            address_font, _ = fit_font_size(draw, addr_text, avail_header_w, initial_size=20, min_size=14, bold=True)
-            addr_w = int(draw.textlength(addr_text, font=address_font))
-            addr_x = text_x + max(0, (avail_header_w - addr_w) // 2)
-            draw.text((addr_x, curr_hdr_y), addr_text, fill=(255, 255, 255), font=address_font)
-            curr_hdr_y += 27
-
-        # Direct Contact Information in Header (email, phone, website without generic labels)
+        # Dynamic Header Address & Contacts with Minimal Spacing
         show_contacts = getattr(school, "show_header_contacts", True)
         if show_contacts:
-            contact_parts = []
-            if getattr(school, "email", None) and school.email.strip():
-                contact_parts.append(school.email.strip())
-            if getattr(school, "phone", None) and school.phone.strip():
-                contact_parts.append(school.phone.strip())
-            if getattr(school, "website", None) and school.website.strip():
-                web_clean = school.website.strip()
-                web_clean = re.sub(r"^https?://", "", web_clean).rstrip("/")
-                contact_parts.append(web_clean)
+            if hasattr(school, "get_header_contact_lines"):
+                hdr_lines = school.get_header_contact_lines()
+            else:
+                hdr_lines = []
+                addr_parts = [p for p in [school.po_box, f"{school.town}, {school.county}" if school.town and school.county else (school.town or school.county)] if p]
+                if addr_parts:
+                    hdr_lines.append(" • ".join(addr_parts))
+                if getattr(school, "website", None) and school.website.strip():
+                    hdr_lines.append(f"Website: {re.sub(r'^https?://', '', school.website.strip()).rstrip('/')}")
+                if getattr(school, "email", None) and school.email.strip():
+                    hdr_lines.append(f"Email: {school.email.strip()}")
+                if getattr(school, "phone", None) and school.phone.strip():
+                    hdr_lines.append(f"Mobile No: {school.phone.strip()}")
 
-            if contact_parts:
-                contact_text = " • ".join(contact_parts)
-                contact_font, _ = fit_font_size(draw, contact_text, avail_header_w, initial_size=18, min_size=13, bold=True)
-                c_w = int(draw.textlength(contact_text, font=contact_font))
+            # Minimal spacing between lines: 18px step if 4+ lines, 20px step if 2-3 lines
+            line_step = 18 if len(hdr_lines) >= 4 else 20
+            for line_str in hdr_lines:
+                c_font, _ = fit_font_size(draw, line_str, avail_header_w, initial_size=16, min_size=11, bold=True)
+                c_w = int(draw.textlength(line_str, font=c_font))
                 c_x = text_x + max(0, (avail_header_w - c_w) // 2)
-                draw.text((c_x, curr_hdr_y), contact_text, fill=(255, 255, 255), font=contact_font)
+                draw.text((c_x, curr_hdr_y), line_str, fill=(255, 255, 255), font=c_font)
+                curr_hdr_y += line_step
 
         # Student Photo Frame coordinates
         photo_y = header_height + stripe_h + 20

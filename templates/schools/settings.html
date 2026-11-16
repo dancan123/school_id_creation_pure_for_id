@@ -215,6 +215,16 @@
                   </div>
                 </div>
               </div>
+              <div class="col-12 mt-2">
+                <label class="form-label fw-bold small text-primary">
+                  <i class="fa-solid fa-address-book me-1"></i> ID Card Header Primary Address &amp; Contacts (Front Card Banner)
+                </label>
+                <textarea name="header_contact_text" id="inputHeaderContactText" class="form-control font-monospace" rows="4"
+                          placeholder="P.O. Box 13 - 902, Isiolo&#10;Website: info@high.ac.ke&#10;Email: high.ac.ke@gmail.com&#10;Mobile No: +254 722 0000000">{{ current_school.header_contact_text or '' }}</textarea>
+                <div class="form-text text-muted small">
+                  <strong>Custom Multiline Layout (Minimal Spacing):</strong> Enter your desired address and contact lines (one per line). Leave blank to automatically format from the Postal Address, Website, Email, and Phone fields above.
+                </div>
+              </div>
               <div class="col-12 mt-1 mb-2">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" name="auto_whiten_photo" value="1" id="switchAutoWhitenPhoto"
@@ -645,8 +655,10 @@
                     <div id="lpMotto" class="fst-italic text-truncate" style="font-size: 8px; color: #fef08a; opacity: 0.95;">
                       "{{ current_school.motto }}"
                     </div>
-                    <div id="lpAddress" class="text-truncate opacity-75" style="font-size: 7px;">
-                      {{ current_school.po_box }} • {{ current_school.town }}, {{ current_school.county }}
+                    <div id="lpAddress" class="opacity-90" style="font-size: 6px; line-height: 1.15; margin-top: 1px;">
+                      {% for line in current_school.get_header_contact_lines() %}
+                        <div class="text-truncate">{{ line }}</div>
+                      {% endfor %}
                     </div>
                   </div>
                 </div>
@@ -1000,20 +1012,54 @@ function bindRealtimePreview() {
     });
   }
 
-  // Address (P.O. Box, Town, County)
+  // Address & Contacts (Custom Multiline with Minimal Spacing or Auto Fields)
   function updateAddr() {
+    var customText = (document.getElementById('inputHeaderContactText')?.value || '').trim();
+    var addrEl = document.getElementById('lpAddress');
+    if (!addrEl) return;
+    addrEl.innerHTML = '';
+
+    if (customText) {
+      var lines = customText.split('\n');
+      lines.forEach(function(l) {
+        var trimmed = l.trim();
+        if (trimmed) {
+          var d = document.createElement('div');
+          d.className = 'text-truncate';
+          d.textContent = trimmed;
+          addrEl.appendChild(d);
+        }
+      });
+      return;
+    }
+
     var box = (document.getElementById('inputPoBox')?.value || '').trim();
     var town = (document.getElementById('inputTown')?.value || '').trim();
     var county = (document.getElementById('inputCounty')?.value || '').trim();
-    var addrEl = document.getElementById('lpAddress');
-    if (addrEl) {
-      var parts = [];
-      if (box) parts.push(box);
-      if (town || county) parts.push((town ? town : '') + (town && county ? ', ' : '') + (county ? county : ''));
-      addrEl.textContent = parts.join(' • ') || 'P.O. Box • Town, County';
-    }
+    var website = (document.getElementById('inputWebsite')?.value || '').trim();
+    var email = (document.getElementById('inputEmail')?.value || '').trim();
+    var phone = (document.getElementById('inputPhone')?.value || '').trim();
+
+    var lines = [];
+    var addrParts = [];
+    if (box) addrParts.push(box);
+    if (town || county) addrParts.push((town ? town : '') + (town && county ? ', ' : '') + (county ? county : ''));
+    if (addrParts.length > 0) lines.push(addrParts.join(' • '));
+
+    if (website) lines.push('Website: ' + website.replace(/^https?:\/\//i, '').replace(/\/$/, ''));
+    if (email) lines.push('Email: ' + email);
+    if (phone) lines.push('Mobile No: ' + phone);
+
+    if (lines.length === 0) lines.push('P.O. Box • Town, County');
+
+    lines.forEach(function(l) {
+      var d = document.createElement('div');
+      d.className = 'text-truncate';
+      d.textContent = l;
+      addrEl.appendChild(d);
+    });
   }
-  ['inputPoBox', 'inputTown', 'inputCounty'].forEach(function(id) {
+  ['inputHeaderContactText', 'inputPoBox', 'inputTown', 'inputCounty', 'inputWebsite', 'inputEmail', 'inputPhone'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.addEventListener('input', updateAddr);
   });

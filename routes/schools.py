@@ -248,6 +248,8 @@ def settings():
         school.academic_year = request.form.get("academic_year", school.academic_year).strip()
         school.validity_years = int(request.form.get("validity_years", school.validity_years))
         school.disclaimer_text = request.form.get("disclaimer_text", school.disclaimer_text).strip()
+        school.header_contact_text = request.form.get("header_contact_text", "").strip() or None
+        school.show_header_contacts = request.form.get("show_header_contacts") == "1"
         school.emergency_contact_phone = request.form.get("emergency_contact_phone", "").strip()
         school.auto_approve_onboarding = request.form.get("auto_approve_onboarding") == "1"
         school.onboarding_instructions = request.form.get("onboarding_instructions", "").strip()

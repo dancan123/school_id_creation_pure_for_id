@@ -66,6 +66,7 @@ class School(db.Model):
     security_notice = db.Column(db.String(255), nullable=True, default="Official institutional credential. Unlawful alteration or possession is prohibited.")
     show_security_notice = db.Column(db.Boolean, default=True)
     show_header_contacts = db.Column(db.Boolean, default=True)
+    header_contact_text = db.Column(db.Text, nullable=True)  # Custom multiline header contacts override
     auto_whiten_photo = db.Column(db.Boolean, default=False)
     
     # Self-onboarding settings
@@ -309,6 +310,43 @@ class School(db.Model):
             f"3. The card must be carried at all times within the premises.",
             f"4. The card must carried anytime when on official duty or uniform."
         ]
+
+    def get_header_contact_lines(self):
+        """Returns the list of contact lines to display in the card header.
+        If custom header_contact_text is defined in settings, splits and returns those lines.
+        Otherwise, builds structured lines with prefixes (P.O. Box, Website, Email, Mobile No)."""
+        import re
+        if getattr(self, "header_contact_text", None) and self.header_contact_text.strip():
+            lines = [ln.strip() for ln in self.header_contact_text.replace("\r", "").split("\n") if ln.strip()]
+            if lines:
+                return lines
+
+        lines = []
+        # Line 1: Postal & Town / County
+        addr_parts = []
+        if self.po_box and self.po_box.strip():
+            addr_parts.append(self.po_box.strip())
+        town_county = f"{self.town}, {self.county}" if self.town and self.county else (self.town or self.county or "")
+        if town_county.strip():
+            addr_parts.append(town_county.strip())
+        if addr_parts:
+            lines.append(" • ".join(addr_parts))
+
+        # Line 2: Website (e.g. Website: high.ac.ke)
+        if self.website and self.website.strip():
+            web_clean = re.sub(r"^https?://", "", self.website.strip()).rstrip("/")
+            lines.append(f"Website: {web_clean}")
+
+        # Line 3: Email (e.g. Email: info@high.ac.ke)
+        if self.email and self.email.strip():
+            lines.append(f"Email: {self.email.strip()}")
+
+        # Line 4: Mobile / Phone (e.g. Mobile No: +254 722 000000)
+        phone_val = (self.phone or self.alt_phone or "").strip()
+        if phone_val:
+            lines.append(f"Mobile No: {phone_val}")
+
+        return lines
 
     def to_dict(self):
         return {

@@ -84,6 +84,7 @@ def create_app(config_class=Config):
                         "custom_fields_json": "TEXT",
                         "terms_clauses_json": "TEXT",
                         "header_config_json": "TEXT",
+                        "header_contact_text": "TEXT",
                         "print_settings_json": "TEXT"
                     },
                     "admission_allowlist": {
