@@ -299,6 +299,19 @@ def clean_ink_signature(im, ink_color=(20, 50, 135)):
         return im
 
 
+def format_dob(dob_str):
+    """Formats date of birth into DD/MM/YYYY or passes through string."""
+    if not dob_str:
+        return ""
+    import re
+    s = str(dob_str).strip()
+    m = re.match(r"^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$", s)
+    if m:
+        year, month, day = m.groups()
+        return f"{int(day):02d}/{int(month):02d}/{year}"
+    return s
+
+
 def clean_rubber_stamp(im, target_size=(155, 145), angle=-4):
     """Isolates rubber stamp ink from paper backgrounds, removing rectangular photo borders
     and producing an authentic official institution stamp with clean transparency."""
@@ -801,12 +814,12 @@ class CardRenderer:
 
         # Information Block with Dynamic Labels and Perfect Harmonized Column Offsets
         info_x = photo_x + photo_w + 92
-        start_y = header_height + stripe_h + 56
-        line_spacing = 40
+        start_y = header_height + stripe_h + 46
+        line_spacing = 38
 
         # Smart Gold Contactless Security Chip beside photo - positioned clearly below the top badges lane
         if getattr(school, "enable_smart_chip", True):
-            draw_smart_chip(draw, photo_x + photo_w + 18, start_y + 16, w=56, h=44)
+            draw_smart_chip(draw, photo_x + photo_w + 18, start_y + 14, w=56, h=44)
 
         lbl_font = get_font(20, bold=True)
         val_font = get_font(24, bold=True)
@@ -824,8 +837,21 @@ class CardRenderer:
         name_font_to_use, _ = fit_font_size(draw, clean_full_name, avail_val_w, initial_size=30, min_size=18, bold=True)
         draw.text((col2_x, start_y - 3), clean_full_name, fill=pri_rgb, font=name_font_to_use)
 
+        # Date of Birth & Gender (directly below Name)
+        curr_y = start_y + line_spacing + 2
+        draw.text((info_x, curr_y), "D.O.B:", fill=(100, 116, 139), font=lbl_font)
+        dob_raw = getattr(student, "dob", "") or ""
+        dob_display = format_dob(dob_raw) or "-"
+        draw.text((col2_x, curr_y), dob_display, fill=text_rgb, font=val_font)
+
+        dob_w = int(draw.textlength(dob_display, font=val_font))
+        gender_col_x = col2_x + max(165, dob_w + 28)
+        draw.text((gender_col_x, curr_y), "GENDER:", fill=(100, 116, 139), font=lbl_font)
+        gender_display = (getattr(student, "gender", "") or "-").strip().upper()
+        draw.text((gender_col_x + 95, curr_y), gender_display, fill=text_rgb, font=val_font)
+
         # ID / Admission Number
-        curr_y = start_y + line_spacing + 4
+        curr_y += line_spacing
         draw.text((info_x, curr_y), id_lbl_text, fill=(100, 116, 139), font=lbl_font)
         draw.text((col2_x, curr_y), student.admission_number, fill=text_rgb, font=val_font)
 
