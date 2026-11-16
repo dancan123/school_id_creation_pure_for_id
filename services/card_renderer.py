@@ -726,20 +726,22 @@ class CardRenderer:
         # Badge: Dynamic Card Title (STUDENT / CORPORATE ID CARD)
         card_title_str = getattr(school, "get_card_title", lambda: "STUDENT IDENTITY CARD")()
         badge_w = max(260, len(card_title_str) * 12 + 36)
-        badge_h = 36
+        badge_h = 32
         badge_x = w - badge_w - 25
-        badge_y = header_height + stripe_h + 14
+        badge_y = header_height + stripe_h + 10
         draw.rounded_rectangle([badge_x, badge_y, badge_x + badge_w, badge_y + badge_h], radius=6, fill=pri_rgb)
-        badge_font = get_font(17, bold=True)
-        draw.text((badge_x + 16, badge_y + 8), card_title_str, fill=(255, 255, 255), font=badge_font)
+        badge_font, _ = fit_font_size(draw, card_title_str, max_width=badge_w - 20, initial_size=16, min_size=12, bold=True)
+        badge_lbl_w = int(draw.textlength(card_title_str, font=badge_font))
+        draw.text((badge_x + (badge_w - badge_lbl_w) // 2, badge_y + 6), card_title_str, fill=(255, 255, 255), font=badge_font)
 
         # Academic / Year Tag
-        year_w, year_h = 130, 36
-        year_x = badge_x - year_w - 12
+        year_w, year_h = 125, 32
+        year_x = badge_x - year_w - 10
         draw.rounded_rectangle([year_x, badge_y, year_x + year_w, badge_y + year_h], radius=6, fill=sec_rgb)
-        year_font = get_font(17, bold=True)
+        year_font = get_font(16, bold=True)
         year_label = f"YR {student.academic_year}" if getattr(school, "is_corporate", lambda: False)() else f"AY {student.academic_year}"
-        draw.text((year_x + 16, badge_y + 8), year_label, fill=(15, 23, 42), font=year_font)
+        year_lbl_w = int(draw.textlength(year_label, font=year_font))
+        draw.text((year_x + (year_w - year_lbl_w) // 2, badge_y + 6), year_label, fill=(15, 23, 42), font=year_font)
 
         # Renewal Stamp Badge (if card has been renewed) - Aligned cleanly in badge bar with zero overlap
         renewal_cnt = (getattr(card_record, "renewal_count", 0) or 0) if card_record else 0
@@ -814,12 +816,12 @@ class CardRenderer:
 
         # Information Block with Dynamic Labels and Perfect Harmonized Column Offsets
         info_x = photo_x + photo_w + 92
-        start_y = header_height + stripe_h + 46
-        line_spacing = 38
+        start_y = header_height + stripe_h + 60
+        line_spacing = 33
 
         # Smart Gold Contactless Security Chip beside photo - positioned clearly below the top badges lane
         if getattr(school, "enable_smart_chip", True):
-            draw_smart_chip(draw, photo_x + photo_w + 18, start_y + 14, w=56, h=44)
+            draw_smart_chip(draw, photo_x + photo_w + 18, start_y + 10, w=56, h=44)
 
         lbl_font = get_font(20, bold=True)
         val_font = get_font(24, bold=True)
@@ -831,26 +833,26 @@ class CardRenderer:
         col2_x = info_x + 175
         avail_val_w = (w - 35) - col2_x  # available width for values without margin collision
 
-        # Full Name with auto font-scaling for longer names
+        # 1. Full Name with auto font-scaling for longer names
         draw.text((info_x, start_y), "NAME:", fill=(100, 116, 139), font=lbl_font)
         clean_full_name = student.full_name.upper()
         name_font_to_use, _ = fit_font_size(draw, clean_full_name, avail_val_w, initial_size=30, min_size=18, bold=True)
         draw.text((col2_x, start_y - 3), clean_full_name, fill=pri_rgb, font=name_font_to_use)
 
-        # Date of Birth & Gender (directly below Name)
-        curr_y = start_y + line_spacing + 2
+        # 2. Date of Birth (fully aligned above ADM NO)
+        curr_y = start_y + line_spacing
         draw.text((info_x, curr_y), "D.O.B:", fill=(100, 116, 139), font=lbl_font)
         dob_raw = getattr(student, "dob", "") or ""
         dob_display = format_dob(dob_raw) or "-"
         draw.text((col2_x, curr_y), dob_display, fill=text_rgb, font=val_font)
 
-        dob_w = int(draw.textlength(dob_display, font=val_font))
-        gender_col_x = col2_x + max(165, dob_w + 28)
-        draw.text((gender_col_x, curr_y), "GENDER:", fill=(100, 116, 139), font=lbl_font)
+        # 3. Gender (fully aligned with all components above ADM NO)
+        curr_y += line_spacing
+        draw.text((info_x, curr_y), "GENDER:", fill=(100, 116, 139), font=lbl_font)
         gender_display = (getattr(student, "gender", "") or "-").strip().upper()
-        draw.text((gender_col_x + 95, curr_y), gender_display, fill=text_rgb, font=val_font)
+        draw.text((col2_x, curr_y), gender_display, fill=text_rgb, font=val_font)
 
-        # ID / Admission Number
+        # 4. ID / Admission Number
         curr_y += line_spacing
         draw.text((info_x, curr_y), id_lbl_text, fill=(100, 116, 139), font=lbl_font)
         draw.text((col2_x, curr_y), student.admission_number, fill=text_rgb, font=val_font)
