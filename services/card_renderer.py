@@ -50,26 +50,39 @@ def hex_to_rgb(hex_str):
         return (30, 58, 138)
 
 def get_font(size, bold=False):
-    """Attempt to load a clean system font or fallback to default."""
+    """Load scalable fonts consistently on Windows and Linux."""
     font_names = [
         "arialbd.ttf" if bold else "arial.ttf",
         "segoeuib.ttf" if bold else "segoeui.ttf",
         "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
-        "calibrib.ttf" if bold else "calibri.ttf"
     ]
-    # Windows font directories
+
     win_fonts = Path(os.environ.get("WINDIR", "C:\\Windows")) / "Fonts"
+
     for name in font_names:
-        p = win_fonts / name
-        if p.exists():
+        path = win_fonts / name
+        if path.exists():
             try:
-                return ImageFont.truetype(str(p), size)
+                return ImageFont.truetype(str(path), size)
             except Exception:
                 pass
-    try:
-        return ImageFont.load_default()
-    except Exception:
-        return None
+
+    linux_fonts = [
+        "/usr/share/fonts/truetype/croscore/Arimo-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    ] if bold else [
+        "/usr/share/fonts/truetype/croscore/Arimo-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    ]
+
+    for path in linux_fonts:
+        if Path(path).exists():
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                pass
+
+    return ImageFont.load_default()
 
 def fit_font_size(draw, text, max_width, initial_size, min_size=11, bold=False):
     """Dynamically steps down font size until text fits comfortably within max_width."""
@@ -219,90 +232,46 @@ def draw_smart_chip(draw, x, y, w=56, h=44):
     draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=gold_highlight, outline=gold_dark, width=1)
 
 def clean_ink_signature(im, ink_color=(20, 50, 135)):
-    """Isolates pen ink from paper, transparent canvas, or dark mode backgrounds, producing a crisp,
-    transparent, anti-aliased signature rendered in authentic deep institutional blue ink.
-    Completely eliminates rectangular dark boxes, canvas transparency artifacts, paper discoloration,
-    and dark backgrounds while preserving original pen stroke fidelity, pressure, and curves."""
+    """Extract blue signature ink and preserve transparency."""
     if im is None:
         return None
+
     try:
-        if im.mode != "RGBA":
-            im = im.convert("RGBA")
-        if np is not None:
-            arr = np.array(im, dtype=np.float32)
-            r, g, b, a = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2], arr[:, :, 3]
+        rgba = im.convert("RGBA")
+        arr = np.asarray(rgba, dtype=np.float32) if np is not None else None
 
-            # Sample perimeter/border pixels to determine true background color
-            borders = np.concatenate([
-                arr[0, :, :],      # top row
-                arr[-1, :, :],     # bottom row
-                arr[:, 0, :],      # left col
-                arr[:, -1, :]      # right col
-            ])
+        if arr is None:
+            return None
 
-            border_alpha = borders[:, 3]
-            has_alpha = np.any(border_alpha < 240)
+        r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+        source_alpha = arr[:, :, 3]
 
-            if has_alpha:
-                transparent_border_ratio = float(np.mean(border_alpha < 30))
-                if transparent_border_ratio > 0.6:
-                    # Digital canvas with transparent background
-                    ink_mask = a > 20
-                    out_a = np.where(ink_mask, np.clip(a * 1.05, 0.0, 255.0), 0.0)
+        blue_strength = np.maximum(0, b - np.maximum(r, g))
 
-                    target_r, target_g, target_b = ink_color
-                    new_r = np.full_like(r, target_r)
-                    new_g = np.full_like(g, target_g)
-                    new_b = np.full_like(b, target_b)
+        alpha_array = np.clip(
+            (blue_strength - 15) * 255.0 / 100.0,
+            0, 255
+        )
 
-                    out_arr = np.dstack([new_r, new_g, new_b, out_a]).astype(np.uint8)
-                    out = Image.fromarray(out_arr, "RGBA")
-                    bbox = out.getbbox()
-                    return out.crop(bbox) if bbox else out
+        alpha_array[blue_strength < 35] = 0
+        alpha_array = np.minimum(alpha_array, source_alpha)
 
-            # For opaque images or images where borders have solid background:
-            bg_r = float(np.median(borders[:, 0]))
-            bg_g = float(np.median(borders[:, 1]))
-            bg_b = float(np.median(borders[:, 2]))
-            bg_lum = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+        alpha = Image.fromarray(alpha_array.astype("uint8"), "L")
+        bbox = alpha.getbbox()
 
-            # Distance in RGB space from the background color
-            dist = np.sqrt((r - bg_r)**2 + (g - bg_g)**2 + (b - bg_b)**2)
+        if bbox is None:
+            return None
 
-            if bg_lum >= 120:
-                # Light paper (white or off-white)
-                lum = 0.299 * r + 0.587 * g + 0.114 * b
-                lum_diff = np.maximum(0.0, bg_lum - 8 - lum)
-                chroma_diff = dist
-                ink_strength = np.maximum(lum_diff * 1.8, chroma_diff * 1.4)
-                out_a = np.clip((ink_strength - 18.0) / 45.0 * 255.0, 0.0, 255.0)
-            else:
-                # Dark background (dark mode canvas, black screen, dark paper)
-                # Any pixel distinct from dark background is stroke ink
-                out_a = np.clip((dist - 14.0) / 32.0 * 255.0, 0.0, 255.0)
+        alpha = alpha.crop(bbox)
 
-            # Respect existing alpha channel if any
-            out_a = np.minimum(out_a, a)
+        result = Image.new("RGBA", alpha.size, ink_color + (0,))
+        result.putalpha(alpha)
 
-            # Map the ink stroke to deep institutional blue ink (20, 50, 135)
-            target_r, target_g, target_b = ink_color
-            new_r = np.full_like(r, target_r)
-            new_g = np.full_like(g, target_g)
-            new_b = np.full_like(b, target_b)
+        return result
 
-            out_arr = np.dstack([new_r, new_g, new_b, out_a]).astype(np.uint8)
-            out = Image.fromarray(out_arr, "RGBA")
-            bbox = out.getbbox()
-            return out.crop(bbox) if bbox else out
-        else:
-            gray = im.convert("L")
-            alpha = gray.point(lambda p: 255 if p < 140 else (int((215 - p) * 3.4) if p < 215 else 0))
-            im.putalpha(alpha)
-            bbox = im.getbbox()
-            return im.crop(bbox) if bbox else im
-    except Exception:
-        return im
-
+    except Exception as exc:
+        print(f"Signature processing error: {exc}")
+        return None
 
 def format_dob(dob_str):
     """Formats date of birth into DD/MM/YYYY or passes through string."""
@@ -1148,8 +1117,8 @@ class CardRenderer:
         signatory_name  = school.principal_name or "Principal"
         signatory_title = getattr(school, "get_signatory_title",
                                   lambda: "Principal / Head of Institution")()
-        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=16, min_size=12, bold=True)
-        title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=13, min_size=11, bold=False)
+        pname_font, _ = fit_font_size(draw, signatory_name, max_width=sig_w - 10, initial_size=22, min_size=17, bold=True)
+        title_font, _ = fit_font_size(draw, signatory_title, max_width=sig_w - 10, initial_size=15, min_size=13, bold=True)
         try:
             pname_w = int(draw.textlength(signatory_name, font=pname_font))
             title_w = int(draw.textlength(signatory_title, font=title_font))

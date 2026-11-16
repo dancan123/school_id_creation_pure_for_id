@@ -45,7 +45,7 @@
   <!-- Operational Stat Counters -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="card stat-card h-100 p-3">
+      <a href="{{ url_for('students.index') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View all registered student records">
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-muted small fw-semibold">REGISTERED</div>
@@ -55,11 +55,11 @@
             <i class="fa-solid fa-user-graduate"></i>
           </div>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="card stat-card h-100 p-3">
+      <a href="{{ url_for('print_queue.index', status='all') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View all generated ID cards">
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-muted small fw-semibold">GENERATED</div>
@@ -69,11 +69,11 @@
             <i class="fa-solid fa-id-card"></i>
           </div>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="card stat-card h-100 p-3">
+      <a href="{{ url_for('print_queue.index', status='pending') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View ID cards awaiting printing">
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-muted small fw-semibold">AWAITING PRINT</div>
@@ -83,11 +83,11 @@
             <i class="fa-solid fa-hourglass-half"></i>
           </div>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card stat-card h-100 p-3">
+      <a href="{{ url_for('print_queue.index', status='printed') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View successfully printed ID cards">
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-muted small fw-semibold">SUCCESSFULLY PRINTED</div>
@@ -97,11 +97,11 @@
             <i class="fa-solid fa-circle-check"></i>
           </div>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card stat-card h-100 p-3">
+      <a href="{{ url_for('students.index', missing_photo='1') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View students with missing photographs">
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-muted small fw-semibold">MISSING PHOTOS</div>
@@ -111,7 +111,7 @@
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
         </div>
-      </div>
+      </a>
     </div>
   </div>
 

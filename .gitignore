@@ -49,3 +49,25 @@ storage/backups/*
 instance/
 dev-cert.pem
 dev-key.pem
+
+# Institution uploaded branding assets - keep on server
+storage/logos/*
+storage/stamps/*
+!storage/logos/.gitkeep
+!storage/stamps/.gitkeep
+
+# Server backup files
+*.backup
+*.backup_*
+*.before_*
+
+# Institution uploaded branding assets - keep on server
+storage/logos/*
+storage/stamps/*
+!storage/logos/.gitkeep
+!storage/stamps/.gitkeep
+
+# Server backup files
+*.backup
+*.backup_*
+*.before_*
