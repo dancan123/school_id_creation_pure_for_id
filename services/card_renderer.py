@@ -597,7 +597,7 @@ class CardRenderer:
     """Production-grade Card Renderer producing high-res 300 DPI PNGs and ReportLab print PDFs."""
 
     @staticmethod
-    def render_front(school, student, card_record, template=None):
+    def render_front(school, student, card_record=None, template=None):
         """Generates Front ID card PIL Image (1011 x 638 px)."""
         w, h = LANDSCAPE_W, LANDSCAPE_H
         img = Image.new("RGB", (w, h), (255, 255, 255))
@@ -901,7 +901,7 @@ class CardRenderer:
         return img
 
     @staticmethod
-    def render_back(school, student, card_record, verify_base_url="http://localhost:5000"):
+    def render_back(school, student, card_record=None, verify_base_url="http://localhost:5000"):
         """Generates Back ID card PIL Image (1011 x 638 px) with Official School Stamp, Principal Signature, and QR code."""
         w, h = LANDSCAPE_W, LANDSCAPE_H
         img = Image.new("RGB", (w, h), (255, 255, 255))
