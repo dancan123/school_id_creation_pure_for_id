@@ -858,9 +858,6 @@ class CardRenderer:
         sig_paste_y = h - footer_height - 72
         sig_baseline_y = sig_paste_y + 34
 
-        # Dedicated pure white background box for cardholder signature to conform originality
-        draw.rounded_rectangle([sig_paste_x - 4, sig_paste_y - 8, sig_paste_x + sig_w + 4, sig_baseline_y + 1], radius=4, fill=(255, 255, 255), outline=(226, 232, 240), width=1)
-
         preview_signature = getattr(student, "preview_signature", None)
         if preview_signature is not None:
             try:
