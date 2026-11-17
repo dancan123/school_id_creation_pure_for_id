@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Quota Upgrade Requests — Super Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small">
+          <li class="breadcrumb-item"><a href="{{ url_for('superadmin.index') }}">Super Admin</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('superadmin.organizations') }}">Institutions</a></li>
+          <li class="breadcrumb-item active">Quota Upgrades</li>
+        </ol>
+      </nav>
+      <h3 class="fw-bold text-dark mb-0">
+        <i class="fa-solid fa-arrow-up-right-dots text-primary me-2"></i> In-App Quota Upgrade Requests
+      </h3>
+      <p class="text-muted small mb-0">Review, approve, or reject ID card generation limit requests from registered institutions.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('superadmin.organizations') }}" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-building-columns me-1"></i> All Institutions
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter tabs -->
+  <ul class="nav nav-pills mb-4 gap-2">
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" href="{{ url_for('superadmin.upgrade_requests', status='pending') }}">
+        <i class="fa-solid fa-clock me-1"></i> Pending Review
+        {% if pending_count > 0 %}<span class="badge bg-danger ms-1">{{ pending_count }}</span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}" href="{{ url_for('superadmin.upgrade_requests', status='approved') }}">
+        <i class="fa-solid fa-circle-check me-1"></i> Approved
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}" href="{{ url_for('superadmin.upgrade_requests', status='rejected') }}">
+        <i class="fa-solid fa-circle-xmark me-1"></i> Rejected
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" href="{{ url_for('superadmin.upgrade_requests', status='all') }}">
+        All Requests
+      </a>
+    </li>
+  </ul>
+
+  <!-- Requests Table -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th>
+            <th>Institution</th>
+            <th>Current Quota</th>
+            <th>Requested Allocation</th>
+            <th>Contact &amp; Notes</th>
+            <th>Status</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in requests %}
+          <tr>
+            <td class="small text-muted">{{ req.created_at.strftime('%d %b %Y, %H:%M') }}</td>
+            <td>
+              <div class="fw-bold text-dark">{{ req.school.name if req.school else 'Unknown' }}</div>
+              <div class="small text-muted">
+                <span class="badge bg-light text-dark border font-monospace">{{ req.school.code or req.school.id }}</span>
+                &bull; {{ req.school.get_institution_type_display() if req.school else '' }}
+              </div>
+            </td>
+            <td>
+              <span class="badge bg-secondary">{{ req.current_quota }} IDs</span>
+            </td>
+            <td>
+              <div class="fw-bold text-primary">
+                {% if req.requested_quota == 0 %}
+                <span class="badge bg-success fs-6"><i class="fa-solid fa-infinity me-1"></i> Unlimited</span>
+                {% else %}
+                <span class="badge bg-primary fs-6">{{ "{:,}".format(req.requested_quota) }} IDs</span>
+                {% endif %}
+              </div>
+              <div class="small text-muted text-capitalize">Plan: {{ req.requested_tier.replace('_', ' ') }}</div>
+            </td>
+            <td>
+              {% if req.contact_phone %}
+              <div class="small">
+                <a href="tel:{{ req.contact_phone }}" class="text-decoration-none">
+                  <i class="fa-solid fa-phone text-muted me-1"></i> {{ req.contact_phone }}
+                </a>
+                <a href="https://wa.me/{{ req.contact_phone.replace('+', '').replace(' ', '') }}" target="_blank" class="ms-1 text-success">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </a>
+              </div>
+              {% endif %}
+              {% if req.notes %}
+              <div class="small text-muted fst-italic" style="max-width: 260px;">"{{ req.notes }}"</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if req.status == 'pending' %}
+              <span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i> Pending</span>
+              {% elif req.status == 'approved' %}
+              <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Approved</span>
+              <div class="small text-muted mt-1">{{ req.resolved_at.strftime('%d %b %Y') if req.resolved_at else '' }}</div>
+              {% else %}
+              <span class="badge bg-danger"><i class="fa-solid fa-xmark me-1"></i> Rejected</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if req.status == 'pending' %}
+              <div class="d-flex gap-1 justify-content-end">
+                <form method="POST" action="{{ url_for('superadmin.approve_upgrade_request', req_id=req.id) }}" onsubmit="return confirm('Approve quota upgrade for {{ req.school.name }} to {{ req.requested_quota }} IDs?')">
+                  <button type="submit" class="btn btn-success btn-sm fw-bold">
+                    <i class="fa-solid fa-check me-1"></i> Approve
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('superadmin.reject_upgrade_request', req_id=req.id) }}" onsubmit="return confirm('Reject this upgrade request?')">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </form>
+              </div>
+              {% else %}
+              <span class="small text-muted">Resolved</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="fa-solid fa-inbox fa-3x mb-3 text-secondary opacity-25 d-block"></i>
+              No quota upgrade requests found under this filter.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

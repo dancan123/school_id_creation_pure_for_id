@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Security Guard Scanner - {{ school.name if school else 'EduID Gate Control' }}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <style>
+    :root {
+      --primary-color: {{ school.primary_color if school else '#1E3A8A' }};
+      --bg-dark: #0B1120;
+      --card-dark: #1E293B;
+    }
+    body {
+      background-color: var(--bg-dark);
+      color: #F8FAFC;
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .scanner-header {
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+    }
+    #reader {
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      background: #000;
+    }
+    #reader video {
+      border-radius: 14px;
+      object-fit: cover !important;
+    }
+    .hud-box {
+      border: 2px dashed #38BDF8;
+      border-radius: 16px;
+      position: relative;
+    }
+    .result-sheet {
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      background: #FFFFFF;
+      color: #0F172A;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="scanner-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <div class="p-2 rounded-3 bg-primary text-white" style="background-color: var(--primary-color) !important;">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div>
+        <h6 class="fw-bold mb-0 text-white">{{ school.name if school else 'Universal Security Gate' }}</h6>
+        <div class="text-white-50 small" style="font-size: 0.72rem;">Turnstile & Handheld Mobile Scanner</div>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-outline-light rounded-pill px-3" onclick="toggleManualInput()">
+        <i class="fa-solid fa-keyboard me-1"></i> Manual
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Viewport -->
+  <main class="container-fluid px-3 py-3 flex-grow-1 d-flex flex-column justify-content-center" style="max-width: 540px;">
+
+    <!-- Scanner Viewport Card -->
+    <div class="card border-0 bg-dark rounded-4 shadow-lg overflow-hidden position-relative mb-3">
+      <div id="reader"></div>
+
+      <!-- Overlay Scan Frame -->
+      <div id="scan-overlay-prompt" class="p-3 text-center text-white-50 small">
+        <i class="fa-solid fa-qrcode text-info me-1"></i> Point camera at student or employee card QR code
+      </div>
+    </div>
+
+    <!-- Manual Token Entry Card (Hidden by default) -->
+    <div id="manual-input-box" class="card border-0 p-3 rounded-4 mb-3 d-none" style="background: var(--card-dark);">
+      <h6 class="fw-bold text-white mb-2"><i class="fa-solid fa-i-cursor text-info me-1"></i> Manual Token Lookup</h6>
+      <div class="input-group">
+        <input type="text" id="manual_token_input" class="form-control bg-dark text-white border-secondary" placeholder="Enter QR Token or Card ID...">
+        <button class="btn btn-primary fw-bold" onclick="verifyManualToken()">Verify</button>
+      </div>
+    </div>
+
+    <!-- Active Status Indicator -->
+    <div id="status-bar" class="alert alert-secondary py-2 text-center small rounded-pill mb-0 border-0">
+      <span class="spinner-grow spinner-grow-sm text-info me-1" role="status"></span> Scanner Active & Ready
+    </div>
+
+  </main>
+
+  <!-- Result Modal / Bottom Drawer -->
+  <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+      <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
+        <div id="modal-header-banner" class="p-4 text-center text-white bg-success">
+          <div class="d-inline-flex p-3 rounded-circle bg-white bg-opacity-25 mb-2" id="modal-status-icon">
+            <i class="fa-solid fa-check fa-3x"></i>
+          </div>
+          <h4 class="fw-bold mb-0" id="modal-auth-title">ACCESS GRANTED</h4>
+          <div class="small text-white-50" id="modal-card-title">AUTHENTIC CREDENTIAL</div>
+        </div>
+
+        <div class="modal-body p-4 text-dark">
+
+          <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
+            <img id="modal-photo" src="" alt="Photo" class="rounded-3 border shadow-sm" style="width: 72px; height: 96px; object-fit: cover;">
+            <div>
+              <h5 class="fw-bold mb-0 text-dark" id="modal-member-name">Member Name</h5>
+              <div class="badge bg-primary font-monospace px-2 py-1 my-1" id="modal-member-id">ADM NO: 1001</div>
+              <div class="small text-muted" id="modal-member-role">Department / Role</div>
+            </div>
+          </div>
+
+          <div class="row g-2 small mb-3">
+            <div class="col-6">
+              <span class="text-muted d-block">Institution</span>
+              <strong id="modal-school-name">-</strong>
+            </div>
+            <div class="col-6">
+              <span class="text-muted d-block">Verification Scans</span>
+              <span class="badge bg-secondary" id="modal-scan-count">1 scans</span>
+            </div>
+          </div>
+
+          <div class="alert alert-light border small text-muted text-center mb-0">
+            <i class="fa-solid fa-shield text-success me-1"></i> Cryptographically verified with official registry.
+          </div>
+
+        </div>
+
+        <div class="modal-footer border-0 p-3 pt-0">
+          <button type="button" class="btn btn-dark w-100 py-3 rounded-pill fw-bold" onclick="dismissResult()">
+            <i class="fa-solid fa-qrcode me-2"></i> Ready for Next Scan
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Synthesized Audio Feedback via Web Audio API (Zero external MP3 dependencies)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playBeep(type) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.08); // A5
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } else {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      }
+    }
+
+    let html5QrCode = null;
+    let isProcessing = false;
+    const resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+
+    function onScanSuccess(decodedText, decodedResult) {
+      if (isProcessing) return;
+      isProcessing = true;
+      playBeep('success');
+      verifyToken(decodedText);
+    }
+
+    function verifyToken(token) {
+      document.getElementById('status-bar').innerHTML = '<span class="spinner-border spinner-border-sm text-info me-1"></span> Verifying credential with gate server...';
+
+      fetch('/api/v1/verify-credential', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+      })
+      .then(res => res.json())
+      .then(data => {
+        showVerificationResult(data);
+      })
+      .catch(err => {
+        playBeep('error');
+        alert('Verification request failed. Please check network connection.');
+        isProcessing = false;
+      });
+    }
+
+    function showVerificationResult(data) {
+      const banner = document.getElementById('modal-header-banner');
+      const icon = document.getElementById('modal-status-icon');
+      const authTitle = document.getElementById('modal-auth-title');
+      const cardTitle = document.getElementById('modal-card-title');
+
+      if (data.authorized) {
+        banner.className = 'p-4 text-center text-white bg-success';
+        icon.innerHTML = '<i class="fa-solid fa-check fa-3x"></i>';
+        authTitle.textContent = 'ACCESS GRANTED';
+        cardTitle.textContent = data.card_title || 'AUTHENTIC CREDENTIAL';
+
+        const m = data.member;
+        document.getElementById('modal-member-name').textContent = m.full_name;
+        document.getElementById('modal-member-id').textContent = (m.id_label || 'ID') + ': ' + m.id_number;
+        document.getElementById('modal-member-role').textContent = (m.department || '') + ' • ' + (m.role || '');
+        document.getElementById('modal-school-name').textContent = data.institution.name;
+        document.getElementById('modal-scan-count').textContent = (data.scan_count || 1) + ' scans';
+
+        const photoEl = document.getElementById('modal-photo');
+        if (m.photo_url) {
+          photoEl.src = m.photo_url;
+          photoEl.style.display = 'block';
+        } else {
+          photoEl.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(m.full_name) + '&background=random';
+        }
+      } else {
+        playBeep('error');
+        banner.className = 'p-4 text-center text-white bg-danger';
+        icon.innerHTML = '<i class="fa-solid fa-xmark fa-3x"></i>';
+        authTitle.textContent = 'ACCESS DENIED';
+        cardTitle.textContent = data.message || 'UNAUTHORIZED CREDENTIAL';
+
+        document.getElementById('modal-member-name').textContent = 'Invalid / Expired Card';
+        document.getElementById('modal-member-id').textContent = 'STATUS: ' + (data.status || 'REJECTED').toUpperCase();
+        document.getElementById('modal-member-role').textContent = data.message || 'Please direct person to Security Office.';
+        document.getElementById('modal-school-name').textContent = 'Unknown / Revoked';
+        document.getElementById('modal-scan-count').textContent = '0';
+        document.getElementById('modal-photo').style.display = 'none';
+      }
+
+      resultModal.show();
+    }
+
+    function dismissResult() {
+      resultModal.hide();
+      setTimeout(() => {
+        isProcessing = false;
+        document.getElementById('status-bar').innerHTML = '<span class="spinner-grow spinner-grow-sm text-info me-1" role="status"></span> Scanner Active & Ready';
+      }, 300);
+    }
+
+    function toggleManualInput() {
+      const box = document.getElementById('manual-input-box');
+      box.classList.toggle('d-none');
+    }
+
+    function verifyManualToken() {
+      const val = document.getElementById('manual_token_input').value.trim();
+      if (val) {
+        verifyToken(val);
+      }
+    }
+
+    // Initialize Camera on load
+    window.addEventListener('DOMContentLoaded', () => {
+      html5QrCode = new Html5Qrcode("reader");
+      const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          // Prefer back environment camera
+          const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')) || devices[0];
+          html5QrCode.start({ deviceId: { exact: backCam.id } }, config, onScanSuccess)
+            .catch(err => {
+              // Fallback to generic facingMode
+              html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+            });
+        }
+      }).catch(err => {
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+      });
+    });
+  </script>
+</body>
+</html>

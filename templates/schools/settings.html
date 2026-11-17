@@ -98,6 +98,7 @@
           <a class="nav-link" href="#sec-labels"><i class="fa-solid fa-tag me-2"></i>Field Labels</a>
           <a class="nav-link" href="#sec-card-rules"><i class="fa-solid fa-id-card me-2"></i>Card Rules</a>
           <a class="nav-link" href="#sec-onboarding"><i class="fa-solid fa-link me-2"></i>Onboarding</a>
+          <a class="nav-link" href="#sec-turnstiles"><i class="fa-solid fa-shield-halved me-2"></i>Gate API Keys</a>
           <hr class="my-1">
           <a class="nav-link text-primary" href="#" data-bs-toggle="modal" data-bs-target="#helpModal">
             <i class="fa-solid fa-circle-question me-2"></i>Help Guide
@@ -124,12 +125,15 @@
               <div class="col-md-6">
                 <label class="form-label fw-bold small">Institution Type</label>
                 <select name="institution_type" id="institutionType" class="form-select" onchange="onInstTypeChange(this.value)">
-                  <option value="school" {% if (current_school.institution_type or 'school') == 'school' %}selected{% endif %}>School / College</option>
-                  <option value="company" {% if current_school.institution_type == 'company' %}selected{% endif %}>Company / Organisation</option>
+                  <option value="school" {% if (current_school.institution_type or 'school') == 'school' %}selected{% endif %}>School (Primary / Secondary)</option>
+                  <option value="university" {% if current_school.institution_type in ['university', 'college'] %}selected{% endif %}>College / University</option>
+                  <option value="tvet" {% if current_school.institution_type == 'tvet' %}selected{% endif %}>TVET / Vocational Institute</option>
+                  <option value="company" {% if current_school.institution_type in ['company', 'corporate'] %}selected{% endif %}>Company / Corporate</option>
+                  <option value="ngo" {% if current_school.institution_type in ['ngo', 'organization'] %}selected{% endif %}>NGO / Community Organization</option>
                   <option value="church" {% if current_school.institution_type == 'church' %}selected{% endif %}>Church / Faith Institution</option>
                   <option value="hospital" {% if current_school.institution_type == 'hospital' %}selected{% endif %}>Hospital / Clinic</option>
-                  <option value="ngo" {% if current_school.institution_type == 'ngo' %}selected{% endif %}>NGO / CBO</option>
-                  <option value="other" {% if current_school.institution_type == 'other' %}selected{% endif %}>Other</option>
+                  <option value="government" {% if current_school.institution_type == 'government' %}selected{% endif %}>Government Agency / Ministry</option>
+                  <option value="other" {% if current_school.institution_type == 'other' %}selected{% endif %}>Other Registered Institution</option>
                 </select>
                 <div class="setting-tip mt-2">
                   Changing type auto-adapts field labels on ID cards (e.g. Class becomes Department for companies).
@@ -547,14 +551,24 @@
                        value="{{ current_school.onboarding_base_url or '' }}" placeholder="https://ids.example.org or http://203.0.113.20:5000">
                 <small class="text-muted d-block mb-3">Set this to the public address students use. Leave blank to use the system PUBLIC_BASE_URL or the current address. Configure DNS/firewall and HTTPS at your host as needed.</small>
                 <label class="form-label fw-bold small">Shareable Onboarding Link</label>
-                <div class="input-group">
+                <div class="input-group mb-2">
                   <input type="text" id="onboardLink" class="form-control font-monospace small"
                     value="{{ onboard_url }}" readonly>
                   <button class="btn btn-outline-primary" type="button" onclick="copyOnboardLink()">
-                    <i class="fa-solid fa-copy"></i>
+                    <i class="fa-solid fa-copy me-1"></i> Copy
                   </button>
                 </div>
-                <small class="text-muted mt-1 d-block">{% if current_school.allow_self_onboarding %}Share while onboarding is open.{% else %}The link remains closed until activated above.{% endif %}</small>
+                <small class="text-muted mb-3 d-block">{% if current_school.allow_self_onboarding %}Share with members to self-onboard.{% else %}The link remains closed until activated above.{% endif %}</small>
+
+                <label class="form-label fw-bold small">Staff &amp; Workspace Login Link</label>
+                <div class="input-group">
+                  <input type="text" id="staffLoginLink" class="form-control font-monospace small"
+                    value="{{ staff_login_url }}" readonly>
+                  <button class="btn btn-outline-dark" type="button" onclick="navigator.clipboard.writeText(document.getElementById('staffLoginLink').value); alert('Staff workspace login link copied to clipboard!');">
+                    <i class="fa-solid fa-copy me-1"></i> Copy
+                  </button>
+                </div>
+                <small class="text-muted mt-1 d-block">Share with administrators to log in directly to your branded workspace.</small>
               </div>
               <div class="col-12">
                 <a class="btn btn-outline-primary btn-sm" href="{{ url_for('enrolment.admission_allowlist') }}">
@@ -601,6 +615,114 @@
         </div>
 
       </form>
+
+        {# 7. PHYSICAL ACCESS TURNSTILES & GATE API KEYS #}
+        <div class="card section-card mb-4" id="sec-turnstiles">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fa-solid fa-shield-halved" style="color:#0ea5e9"></i>
+              <span class="fw-bold">Turnstiles, Security Gates &amp; API Keys</span>
+            </div>
+            <a href="{{ url_for('verification.guard_scanner_portal', school_code=current_school.code) }}" target="_blank" class="btn btn-outline-success btn-sm fw-bold">
+              <i class="fa-solid fa-expand me-1"></i> Open Guard Scanner Portal
+            </a>
+          </div>
+          <div class="card-body p-4">
+            {% if new_api_key_revealed %}
+            <div class="alert alert-warning alert-dismissible fade show border-2 shadow-sm mb-4">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="fa-solid fa-key text-warning fa-lg"></i>
+                <strong class="fs-6">New Gate API Key Generated</strong>
+              </div>
+              <p class="small mb-2">Copy this secret key immediately. For strict zero-knowledge security, it is hashed with SHA-256 and will never be shown again.</p>
+              <div class="input-group">
+                <input type="text" id="revealedKeyInput" class="form-control font-monospace bg-white fw-bold text-dark" value="{{ new_api_key_revealed }}" readonly>
+                <button class="btn btn-dark fw-bold px-3" type="button" onclick="navigator.clipboard.writeText(document.getElementById('revealedKeyInput').value); alert('API Key copied to clipboard!');">
+                  <i class="fa-solid fa-copy me-1"></i> Copy Secret Key
+                </button>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <p class="text-muted small mb-3">
+              Connect automated turnstiles, RFID/NFC gates, barcode reader hardware, or mobile handheld tablets directly to your institution's access verification engine.
+            </p>
+
+            <!-- Generate Key Form -->
+            <form method="POST" action="{{ url_for('schools.create_api_key') }}" class="p-3 bg-light rounded-3 border mb-4">
+              <h6 class="fw-bold mb-2 small"><i class="fa-solid fa-plus-circle text-primary me-1"></i> Provision New Gate Scanner Key</h6>
+              <div class="row g-2 align-items-center">
+                <div class="col-sm-8">
+                  <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Main Gate Turnstile #1, Library Entrance Scanner" required>
+                </div>
+                <div class="col-sm-4">
+                  <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
+                    <i class="fa-solid fa-key me-1"></i> Generate Key
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <!-- Active Keys Table -->
+            <h6 class="fw-bold mb-2 small text-uppercase text-muted" style="letter-spacing: 0.5px;">Active Scanner Keys</h6>
+            {% if api_keys %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light small">
+                  <tr>
+                    <th>Scanner Name</th>
+                    <th>Key Prefix</th>
+                    <th>Created</th>
+                    <th>Last Scanned</th>
+                    <th>Status</th>
+                    <th class="text-end">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="small">
+                  {% for k in api_keys %}
+                  <tr>
+                    <td class="fw-bold text-dark">{{ k.name }}</td>
+                    <td><code class="text-primary">{{ k.key_prefix }}...</code></td>
+                    <td class="text-muted">{{ k.created_at.strftime('%d %b %Y') if k.created_at else 'N/A' }}</td>
+                    <td class="text-muted">{{ k.last_used_at.strftime('%d %b %H:%M') if k.last_used_at else 'Never' }}</td>
+                    <td>
+                      {% if k.is_active %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Active</span>
+                      {% else %}
+                      <span class="badge bg-secondary">Revoked</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      {% if k.is_active %}
+                      <form method="POST" action="{{ url_for('schools.revoke_api_key', key_id=k.id) }}" onsubmit="return confirm('Revoke access for this scanner key? Turnstiles using it will be blocked immediately.');" style="display:inline;">
+                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">Revoke</button>
+                      </form>
+                      {% else %}
+                      <span class="text-muted small">&mdash;</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center py-3 text-muted small bg-light rounded-3 border">
+              No API keys created yet. Generate one above to connect turnstiles or access gates.
+            </div>
+            {% endif %}
+
+            <!-- API Documentation Snippet -->
+            <div class="mt-4 pt-3 border-top">
+              <h6 class="fw-bold small mb-1"><i class="fa-solid fa-code text-secondary me-1"></i> Hardware Integration API (cURL)</h6>
+              <pre class="bg-dark text-light p-3 rounded-3 small font-monospace mb-0" style="font-size: 0.76rem; overflow-x: auto;">curl -X POST {{ request.host_url.rstrip('/') }}/api/v1/verify-credential \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{"token": "CARD_QR_TOKEN"}'</pre>
+            </div>
+          </div>
+        </div>
     </div> {# end col-xxl-6 #}
 
     {# ── RIGHT COLUMN: REAL-TIME LIVE CARD PREVIEW & OPERATIONS ── #}
@@ -1235,12 +1357,17 @@ function bindRealtimePreview() {
 
 function onInstTypeChange(type) {
   var map = {
-    school:   { badge:'School',   cls:'badge-inst-school', auth:'Principal / Headteacher', title:'STUDENT IDENTIFICATION CARD', idLbl:'ADM NO', clsLbl:'CLASS / GRADE' },
-    company:  { badge:'Company',  cls:'badge-inst-corp',   auth:'CEO / Managing Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF ID', clsLbl:'DEPARTMENT' },
-    church:   { badge:'Church',   cls:'badge-inst-school', auth:'Bishop / Senior Pastor', title:'MEMBER IDENTIFICATION CARD', idLbl:'MEMBER NO', clsLbl:'FELLOWSHIP' },
-    hospital: { badge:'Hospital', cls:'badge-inst-corp',   auth:'Medical Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF NO', clsLbl:'WARD / DEPT' },
-    ngo:      { badge:'NGO',      cls:'badge-inst-corp',   auth:'Executive Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF ID', clsLbl:'PROGRAM / UNIT' },
-    other:    { badge:'Other',    cls:'badge-inst-school', auth:'Authorised Signatory', title:'IDENTIFICATION CARD', idLbl:'ID NO', clsLbl:'CATEGORY' }
+    school:     { badge:'School',     cls:'badge-inst-school', auth:'Principal / Headteacher', title:'STUDENT IDENTIFICATION CARD', idLbl:'ADM NO', clsLbl:'CLASS / GRADE' },
+    university: { badge:'University', cls:'badge-inst-corp',   auth:'Vice Chancellor / Registrar', title:'STUDENT IDENTIFICATION CARD', idLbl:'REG NO', clsLbl:'FACULTY / DEPT' },
+    college:    { badge:'College',    cls:'badge-inst-corp',   auth:'Principal / Registrar', title:'STUDENT IDENTIFICATION CARD', idLbl:'REG NO', clsLbl:'DEPARTMENT' },
+    tvet:       { badge:'TVET',       cls:'badge-inst-corp',   auth:'Director / Principal', title:'TRAINEE IDENTIFICATION CARD', idLbl:'REG NO', clsLbl:'DEPARTMENT' },
+    company:    { badge:'Company',    cls:'badge-inst-corp',   auth:'CEO / Managing Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF ID', clsLbl:'DEPARTMENT' },
+    corporate:  { badge:'Corporate',  cls:'badge-inst-corp',   auth:'Managing Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF ID', clsLbl:'DEPARTMENT' },
+    church:     { badge:'Church',     cls:'badge-inst-school', auth:'Bishop / Senior Pastor', title:'MEMBER IDENTIFICATION CARD', idLbl:'MEMBER NO', clsLbl:'FELLOWSHIP' },
+    hospital:   { badge:'Hospital',   cls:'badge-inst-corp',   auth:'Medical Director', title:'STAFF IDENTIFICATION CARD', idLbl:'STAFF NO', clsLbl:'WARD / DEPT' },
+    ngo:        { badge:'NGO',        cls:'badge-inst-corp',   auth:'Executive Director', title:'MEMBER IDENTIFICATION CARD', idLbl:'MEMBER NO', clsLbl:'PROGRAM / UNIT' },
+    government: { badge:'Government', cls:'badge-inst-corp',   auth:'Director General / PS', title:'OFFICIAL IDENTIFICATION CARD', idLbl:'SVC NO', clsLbl:'DIRECTORATE' },
+    other:      { badge:'Other',      cls:'badge-inst-school', auth:'Authorised Signatory', title:'IDENTIFICATION CARD', idLbl:'ID NO', clsLbl:'CATEGORY' }
   };
   var d = map[type] || map.other;
   var badge = document.getElementById('instBadge');
@@ -1376,7 +1503,7 @@ function saveAuthSig() {
   }
   var dataUrl = authSigCanvas.toDataURL('image/png');
   document.getElementById('authority_signature_data').value = dataUrl;
-  
+
   // Update preview image in settings form
   var prev = document.getElementById('settings-sig-preview');
   if (prev) {
@@ -1388,7 +1515,7 @@ function saveAuthSig() {
   if (icon) icon.classList.add('d-none');
   var txt = document.getElementById('settings-sig-text');
   if (txt) txt.textContent = 'Digital signature applied (click Save Settings)';
-  
+
   var modal = bootstrap.Modal.getInstance(document.getElementById('authoritySigModal'));
   if (modal) modal.hide();
 }

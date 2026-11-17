@@ -375,26 +375,31 @@
   <div class="hub-header">
     <div class="brand-badge">
       <i class="fa-solid fa-id-card-clip"></i>
-      <span>EduID Kenya &bull; Student ID Onboarding System</span>
+      <span>EduID Kenya &bull; Universal Institutional Credential Platform</span>
     </div>
-    <h1 class="hub-title">Find Your School to <span>Generate Your ID</span></h1>
+    <h1 class="hub-title">Access Your <span>Dedicated Institution Portal</span></h1>
     <p class="hub-subtitle">
-      Self-onboard in minutes with your passport photo, admission number, and curriculum details. Your school administration verifies and prints your official CR80 ID card.
+      Universal credential &amp; ID generation platform for Schools, Colleges, Universities, TVETs, Corporates &amp; NGOs. Enter your unique institution code to begin member onboarding or sign in to your workspace.
     </p>
 
-    <!-- Search Form -->
+    <!-- Search / Institution Code Entry Form -->
     <div class="direct-search-box">
       <form method="GET" action="{{ url_for('enrolment.onboard_hub') }}">
         <div class="search-row">
           <div class="search-input-wrap">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" name="q" class="search-input"
-                   placeholder="Search by School Name, Code (e.g. AHS-001), Town or County..."
-                   value="{{ search }}">
+            <i class="fa-solid fa-hashtag"></i>
+            <input type="text" name="code" class="search-input"
+                   placeholder="Enter Unique Institution Code (e.g. AHS-001, STR-01, UON-01, CORP-1)..."
+                   value="{{ search }}" required autofocus>
           </div>
-          <button type="submit" class="btn-search">
-            <i class="fa-solid fa-arrow-right"></i> Find School
-          </button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="submit" name="action" value="onboard" class="btn-search">
+              <i class="fa-solid fa-id-card"></i> Member Onboarding
+            </button>
+            <button type="submit" name="action" value="login" class="btn-search" style="background: linear-gradient(135deg, #0284C7, #0369A1); color: white;">
+              <i class="fa-solid fa-right-to-bracket"></i> Staff Login
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -405,8 +410,8 @@
     <div class="step-card">
       <div class="step-num">1</div>
       <div>
-        <h4>Select Your School</h4>
-        <p>Choose your institution from the list or use the direct link shared by your school.</p>
+        <h4>Enter Institution Code</h4>
+        <p>Use your organisation's unique code or the direct private link provided by your administration.</p>
       </div>
     </div>
     <div class="step-card">
@@ -419,7 +424,7 @@
     <div class="step-card">
       <div class="step-num">3</div>
       <div>
-        <h4>Review & Collect ID</h4>
+        <h4>Review &amp; Issue ID</h4>
         <p>Inspect your card preview live before submitting. Receive an instant submission reference.</p>
       </div>
     </div>
@@ -440,7 +445,7 @@
     <div class="school-card">
       <div class="card-top-banner" style="background: linear-gradient(135deg, {{ s.primary_color or '#1E3A8A' }} 0%, #0F172A 100%);">
         <span class="school-code-tag"><i class="fa-solid fa-hashtag me-1"></i>{{ s.code or ('SCH-' ~ s.id) }}</span>
-        
+
         <div class="school-logo-badge" style="background: {{ s.primary_color or '#1E3A8A' }};">
           {% if s.logo_filename %}
           <img src="/media/logos/{{ s.logo_filename }}" alt="{{ s.name }}">
@@ -496,9 +501,9 @@
     <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(245, 158, 11, 0.15); border-radius: 50%; color: var(--secondary); margin-bottom: 16px;">
       <i class="fa-solid fa-building-shield fa-2x"></i>
     </div>
-    <h3 style="font-weight: 700; margin-bottom: 8px; font-size: 1.4rem;">Dedicated Institution ID Portal</h3>
-    <p style="color: rgba(255,255,255,0.75); max-width: 580px; margin: 0 auto 24px; font-size: 0.95rem; line-height: 1.5;">
-      Each registered school and organisation operates an independent, private onboarding workspace. Please enter your <strong>School Code</strong> above or use the direct link provided by your administration.
+    <h3 style="font-weight: 700; margin-bottom: 8px; font-size: 1.4rem;">Private Institutional Portal</h3>
+    <p style="color: rgba(255,255,255,0.75); max-width: 600px; margin: 0 auto 24px; font-size: 0.95rem; line-height: 1.5;">
+      Each registered school, college, university, company, or NGO operates an independent, private workspace. Please enter your <strong>Institution Code</strong> above or use the direct private link provided by your administration.
     </p>
     <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
       <a href="{{ url_for('auth.login') }}" style="display: inline-flex; align-items: center; gap: 8px; background: #1E3A8A; color: white; padding: 10px 24px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
@@ -514,15 +519,15 @@
   <!-- Check Existing Application Banner -->
   <div class="track-banner">
     <h4><i class="fa-solid fa-search me-2"></i> Already Submitted an Application?</h4>
-    <p>Enter your Submission Reference (e.g. ENR-2026-XXXX) or Admission Number to check your ID card status.</p>
+    <p>Enter your Submission Reference (e.g. ENR-2026-XXXX) or ID Number to check your card issuance status.</p>
     <form class="track-form" onsubmit="event.preventDefault(); var t = document.getElementById('trackRef').value.trim(); if(t) window.location.href='/onboard/status/' + encodeURIComponent(t);">
       <input type="text" id="trackRef" class="track-input" placeholder="e.g. ENR-2026-A1B2 or 2024001" required>
-      <button type="submit" class="btn-track"><i class="fa-solid fa-arrow-right"></i> Track</button>
+      <button type="submit" class="btn-track"><i class="fa-solid fa-arrow-right"></i> Track Status</button>
     </form>
   </div>
 
   <p style="text-align: center; color: rgba(255,255,255,0.4); font-size: 0.75rem; margin-top: 36px;">
-    Official Student Identification Management System &bull; Republic of Kenya
+    Official Institutional Identification &amp; Credential Platform &bull; Republic of Kenya
   </p>
 
 </div>

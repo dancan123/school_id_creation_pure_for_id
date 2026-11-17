@@ -23,6 +23,13 @@ def verify_card(token):
     result = QRService.verify_token(token)
     return render_template("verification/verify.html", token=token, result=result)
 
+@verification_bp.route("/pass/<token>")
+@verification_bp.route("/digital-pass/<token>")
+def digital_pass(token):
+    """Mobile-first secure digital credential pass with live anti-tamper watermark."""
+    result = QRService.verify_token(token)
+    return render_template("verification/digital_pass.html", token=token, result=result)
+
 @verification_bp.route("/verify", methods=["GET", "POST"])
 def manual_verify():
     """Manual token entry page for security personnel or administration."""
@@ -36,3 +43,16 @@ def manual_verify():
             flash("Please enter a verification token.", "warning")
 
     return render_template("verification/verify.html", token=token, result=result, is_manual=True)
+
+@verification_bp.route("/scanner")
+@verification_bp.route("/scanner/<school_code>")
+def guard_scanner_portal(school_code=None):
+    """Direct mobile QR scanner for security guards, turnstiles, and gate personnel."""
+    from flask_login import current_user
+    from utils import get_current_school
+    school = None
+    if school_code:
+        school = School.query.filter((School.code == school_code) | (School.name == school_code)).first()
+    elif current_user and current_user.is_authenticated:
+        school = get_current_school()
+    return render_template("verification/guard_scanner.html", school=school)

@@ -17,14 +17,14 @@ class School(db.Model):
     phone = db.Column(db.String(50), nullable=True, default="+254 700 000000")
     email = db.Column(db.String(100), nullable=True, default="info@school.ac.ke")
     website = db.Column(db.String(120), nullable=True)
-    
+
     # Institution Profile & Classification
     institution_type = db.Column(db.String(30), nullable=False, default="school") # 'school', 'university', 'tvet', 'company', 'ngo', 'government', 'other'
     registration_number = db.Column(db.String(100), nullable=True) # Official Registration / Incorporation No.
     physical_address = db.Column(db.String(255), nullable=True)    # Campus / Building / Floor / Road
     alt_email = db.Column(db.String(120), nullable=True)
     alt_phone = db.Column(db.String(50), nullable=True)
-    
+
     # Visual Branding & Color adjustment per school
     primary_color = db.Column(db.String(20), nullable=False, default="#1E3A8A")  # Deep blue
     secondary_color = db.Column(db.String(20), nullable=False, default="#F59E0B") # Gold / Amber
@@ -33,14 +33,14 @@ class School(db.Model):
     text_color = db.Column(db.String(20), nullable=False, default="#0F172A")      # Dark slate
     enable_watermark = db.Column(db.Boolean, default=True)
     enable_smart_chip = db.Column(db.Boolean, default=True)
-    
+
     # Media paths
     logo_filename = db.Column(db.String(255), nullable=True)
     stamp_filename = db.Column(db.String(255), nullable=True) # Official school/company rubber stamp or seal
     principal_signature_filename = db.Column(db.String(255), nullable=True)
     principal_name = db.Column(db.String(100), nullable=True, default="Principal / Headteacher")
     principal_title = db.Column(db.String(100), nullable=True, default="Principal / Head of Institution")
-    
+
     # Dynamic Field Labels for School vs Corporate / Company Cards
     card_title = db.Column(db.String(100), nullable=True, default="STUDENT IDENTIFICATION CARD")
     id_label = db.Column(db.String(50), nullable=True, default="ADM NO")
@@ -48,19 +48,20 @@ class School(db.Model):
     class_label = db.Column(db.String(50), nullable=True, default="CLASS / GRADE")
     stream_label = db.Column(db.String(50), nullable=True, default="STREAM")
     upi_label = db.Column(db.String(50), nullable=True, default="NEMIS / UPI")
-    
+
     # Extensible Configurations (JSON)
     custom_fields_json = db.Column(db.Text, nullable=True)  # JSON list of custom field definitions
     terms_clauses_json = db.Column(db.Text, nullable=True)  # JSON list of enabled/custom terms clauses
     header_config_json = db.Column(db.Text, nullable=True)  # JSON configuration for header layout
     print_settings_json = db.Column(db.Text, nullable=True) # JSON configuration for printer margins
-    
+
     # ID Generation Rules
     academic_year = db.Column(db.String(20), nullable=False, default=str(datetime.datetime.now().year))
     card_prefix = db.Column(db.String(20), nullable=True, default="ID-")
     validity_years = db.Column(db.Integer, nullable=False, default=4)
+    card_orientation = db.Column(db.String(20), nullable=False, default="landscape") # 'landscape' or 'portrait'
     default_template_id = db.Column(db.Integer, nullable=True)
-    
+
     # Back-of-card settings
     disclaimer_text = db.Column(db.Text, nullable=True, default="1. This card remains the property of the school.\n2. If found, please return to the school administration or nearest police station.\n3. The card must be carried at all times within the school premises.\n4. The card must carried anytime when on school uniform anywhere.")
     emergency_contact_phone = db.Column(db.String(50), nullable=True)
@@ -69,7 +70,7 @@ class School(db.Model):
     show_header_contacts = db.Column(db.Boolean, default=True)
     header_contact_text = db.Column(db.Text, nullable=True)  # Custom multiline header contacts override
     auto_whiten_photo = db.Column(db.Boolean, default=False)
-    
+
     # Self-onboarding settings
     allow_self_onboarding = db.Column(db.Boolean, default=True)
     auto_approve_onboarding = db.Column(db.Boolean, default=False)
@@ -77,7 +78,7 @@ class School(db.Model):
     onboarding_base_url = db.Column(db.String(255), nullable=True)
     admission_number_prefix = db.Column(db.String(20), nullable=True)
     admission_number_length = db.Column(db.Integer, nullable=True)
-    
+
     # Multi-Tenant SaaS Lifecycle & Quota Management
     tenant_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     status = db.Column(db.String(20), nullable=False, default="active")  # 'pending', 'active', 'suspended', 'inactive'
@@ -221,7 +222,7 @@ class School(db.Model):
         return "Student Records"
 
     def get_id_label(self):
-        if self.id_label and self.id_label.strip():
+        if self.id_label and self.id_label.strip() and self.id_label.strip() != "ADM NO":
             return self.id_label.strip()
         if self.is_corporate():
             return "EMP NO"
@@ -231,11 +232,11 @@ class School(db.Model):
             return "MEMBER NO"
         elif self.is_government():
             return "SVC NO"
-        return "ADM NO"
+        return self.id_label or "ADM NO"
 
     def get_sub_photo_label(self):
         """Label placed directly below the passport picture (e.g. ADM NO: 556 or REG NO: 556)."""
-        if self.sub_photo_label and self.sub_photo_label.strip():
+        if self.sub_photo_label and self.sub_photo_label.strip() and self.sub_photo_label.strip() != "ADM NO":
             return self.sub_photo_label.strip()
         if self.is_corporate():
             return "EMP NO"
@@ -243,10 +244,10 @@ class School(db.Model):
             return "REG NO"
         elif self.is_government():
             return "SVC NO"
-        return "ADM NO"
+        return self.sub_photo_label or "ADM NO"
 
     def get_class_label(self):
-        if self.class_label and self.class_label.strip():
+        if self.class_label and self.class_label.strip() and self.class_label.strip() != "CLASS / GRADE":
             return self.class_label.strip()
         if self.is_corporate():
             return "DEPARTMENT"
@@ -258,10 +259,10 @@ class School(db.Model):
             return "CHAPTER / DEPT"
         elif self.is_government():
             return "DIRECTORATE"
-        return "CLASS / GRADE"
+        return self.class_label or "CLASS / GRADE"
 
     def get_stream_label(self):
-        if self.stream_label and self.stream_label.strip():
+        if self.stream_label and self.stream_label.strip() and self.stream_label.strip() != "STREAM":
             return self.stream_label.strip()
         if self.is_corporate():
             return "DESIGNATION / ROLE"
@@ -273,7 +274,7 @@ class School(db.Model):
             return "ROLE / CATEGORY"
         elif self.is_government():
             return "RANK / STATION"
-        return "STREAM"
+        return self.stream_label or "STREAM"
 
     def get_academic_year_label(self):
         if self.is_corporate() or self.is_government():
@@ -288,7 +289,7 @@ class School(db.Model):
         return "EMERGENCY CONTACT"
 
     def get_upi_label(self):
-        if self.upi_label and self.upi_label.strip():
+        if self.upi_label and self.upi_label.strip() and self.upi_label.strip() != "NEMIS / UPI":
             return self.upi_label.strip()
         if self.is_school():
             return "NEMIS / UPI"
@@ -297,7 +298,7 @@ class School(db.Model):
         return "NATIONAL ID / SSN"
 
     def get_card_title(self):
-        if self.card_title and self.card_title.strip():
+        if self.card_title and self.card_title.strip() and self.card_title.strip() != "STUDENT IDENTIFICATION CARD":
             return self.card_title.strip()
         if self.is_corporate():
             return "EMPLOYEE IDENTIFICATION CARD"
@@ -309,7 +310,7 @@ class School(db.Model):
             return "MEMBERSHIP IDENTIFICATION CARD"
         elif self.is_government():
             return "OFFICIAL IDENTIFICATION CREDENTIAL"
-        return "STUDENT IDENTIFICATION CARD"
+        return self.card_title or "STUDENT IDENTIFICATION CARD"
 
     def get_signatory_title(self):
         if self.principal_title and self.principal_title.strip():
@@ -336,7 +337,7 @@ class School(db.Model):
                     return [c.strip() for c in clauses if isinstance(c, str) and c.strip()]
             except Exception:
                 pass
-        
+
         # Fall back to disclaimer_text
         if self.disclaimer_text:
             lines = [ln.strip() for ln in self.disclaimer_text.replace("\r", "").split("\n") if ln.strip()]
@@ -554,7 +555,7 @@ class Student(db.Model):
 # ── Self-Service Student Enrolment Portal ────────────────────────────────────
 class SelfEnrolment(db.Model):
     """Holds intake submissions from the public /onboard/<school_code> or /enrol/<school_code> portal.
-    
+
     Students fill in their details with live camera/cropping and digital signature tools; an admin reviews and either:
     - approves  → creates/updates a Student row and optionally generates their ID card instantly
     - rejects   → marks this record rejected with an explanatory note
@@ -637,11 +638,11 @@ class IdTemplate(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     is_default = db.Column(db.Boolean, default=False)
-    
+
     orientation = db.Column(db.String(20), nullable=False, default="landscape")
     width_mm = db.Column(db.Float, nullable=False, default=85.60)
     height_mm = db.Column(db.Float, nullable=False, default=53.98)
-    
+
     layout_config = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
@@ -656,18 +657,18 @@ class CardRecord(db.Model):
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     template_id = db.Column(db.Integer, db.ForeignKey("id_templates.id", ondelete="SET NULL"), nullable=True)
-    
+
     card_number = db.Column(db.String(50), nullable=False, index=True)
     qr_token = db.Column(db.String(64), nullable=False, unique=True, index=True)
-    
+
     issue_date = db.Column(db.Date, nullable=False, default=datetime.date.today)
     expiry_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(30), nullable=False, default="active")
-    
+
     front_image_filename = db.Column(db.String(255), nullable=True)
     back_image_filename = db.Column(db.String(255), nullable=True)
     single_pdf_filename = db.Column(db.String(255), nullable=True)
-    
+
     print_status = db.Column(db.String(30), nullable=False, default="pending")
     printed_at = db.Column(db.DateTime, nullable=True)
     print_count = db.Column(db.Integer, default=0)
@@ -693,7 +694,7 @@ class QRVerificationToken(db.Model):
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False)
     student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     card_record_id = db.Column(db.Integer, db.ForeignKey("card_records.id", ondelete="CASCADE"), nullable=True)
-    
+
     is_valid = db.Column(db.Boolean, default=True)
     scan_count = db.Column(db.Integer, default=0)
     last_scanned_at = db.Column(db.DateTime, nullable=True)
@@ -796,6 +797,117 @@ class PlatformAnnouncement(db.Model):
     target_tier = db.Column(db.String(30), default="all")  # 'all', 'starter', 'standard', 'enterprise'
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class QuotaUpgradeRequest(db.Model):
+    """In-app request submitted by an institution administrator to upgrade card quota or tier."""
+    __tablename__ = "quota_upgrade_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
+    requested_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    current_quota = db.Column(db.Integer, default=2)
+    requested_quota = db.Column(db.Integer, nullable=False) # e.g. 500, 1000, 5000, or 0 (unlimited)
+    requested_tier = db.Column(db.String(50), default="standard") # 'starter', 'standard', 'enterprise'
+    contact_phone = db.Column(db.String(50), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default="pending", index=True) # 'pending', 'approved', 'rejected'
+    resolved_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    resolution_notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
+
+    school = db.relationship("School", backref=db.backref("upgrade_requests", cascade="all, delete-orphan", lazy="dynamic"))
+    requested_by = db.relationship("User", foreign_keys=[requested_by_user_id])
+    resolved_by = db.relationship("User", foreign_keys=[resolved_by_user_id])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class PaymentTransaction(db.Model):
+    """M-Pesa / Automated payment transaction record per tenant."""
+    __tablename__ = "payment_transactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    reference_id = db.Column(db.String(64), unique=True, nullable=False, index=True) # internal tracking UUID
+    merchant_request_id = db.Column(db.String(100), nullable=True, index=True)
+    checkout_request_id = db.Column(db.String(100), nullable=True, index=True)
+
+    amount = db.Column(db.Float, nullable=False)
+    phone_number = db.Column(db.String(30), nullable=False)
+    package_key = db.Column(db.String(50), nullable=False) # e.g. 'pack_100', 'pack_500', 'pack_2000', 'pack_unlimited'
+    package_name = db.Column(db.String(100), nullable=False)
+    cards_credited = db.Column(db.Integer, nullable=False) # 100, 500, 2000, or 0 (unlimited)
+    tier_allocated = db.Column(db.String(30), default="standard")
+
+    status = db.Column(db.String(30), default="pending", index=True) # 'pending', 'completed', 'failed', 'cancelled'
+    mpesa_receipt_number = db.Column(db.String(50), nullable=True, index=True)
+    result_code = db.Column(db.Integer, nullable=True)
+    result_description = db.Column(db.String(255), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    school = db.relationship("School", backref=db.backref("payment_transactions", cascade="all, delete-orphan", lazy="dynamic"))
+    user = db.relationship("User", foreign_keys=[user_id])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class ApiKey(db.Model):
+    """API Keys for Turnstiles, RFID/NFC Hardware, and Security Guard handheld scanners."""
+    __tablename__ = "api_keys"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    name = db.Column(db.String(100), nullable=False) # e.g. "Main Gate Turnstile 1"
+    key_prefix = db.Column(db.String(20), nullable=False, index=True) # e.g. "eduid_live_abc1"
+    key_hash = db.Column(db.String(255), nullable=False) # SHA-256 hash of secret key
+    is_active = db.Column(db.Boolean, default=True)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    school = db.relationship("School", backref=db.backref("api_keys", cascade="all, delete-orphan", lazy="dynamic"))
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class GateScanLog(db.Model):
+    """Real-time log of security gate, turnstile, and mobile scanner verifications."""
+    __tablename__ = "gate_scan_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="SET NULL"), nullable=True, index=True)
+    card_record_id = db.Column(db.Integer, db.ForeignKey("card_records.id", ondelete="SET NULL"), nullable=True)
+    api_key_id = db.Column(db.Integer, db.ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True)
+
+    token = db.Column(db.String(64), nullable=True, index=True)
+    member_name = db.Column(db.String(150), nullable=True)
+    admission_number = db.Column(db.String(60), nullable=True)
+    department = db.Column(db.String(100), nullable=True)
+    role_title = db.Column(db.String(100), nullable=True)
+    photo_filename = db.Column(db.String(255), nullable=True)
+    scan_status = db.Column(db.String(30), default="granted", index=True)  # 'granted', 'denied', 'expired'
+    gate_device = db.Column(db.String(100), default="Mobile Gate Scanner")
+    ip_address = db.Column(db.String(50), nullable=True)
+    scanned_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
+
+    school = db.relationship("School", backref=db.backref("gate_scans", cascade="all, delete-orphan", lazy="dynamic"))
+    student = db.relationship("Student", backref=db.backref("gate_scans", lazy="dynamic"))
+    api_key = db.relationship("ApiKey")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

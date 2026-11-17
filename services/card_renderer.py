@@ -160,12 +160,12 @@ def draw_guilloche_watermark(draw, width, height, pri_rgb):
     # 3. High-Security Parametric Spirograph Rosette Medallion (Epitrochoid / Hypotrochoid)
     center_rosette_x = int(width * 0.67)
     center_rosette_y = int(height * 0.54)
-    
+
     for radius in (140, 165, 190):
         draw.ellipse([center_rosette_x - radius, center_rosette_y - radius,
                       center_rosette_x + radius, center_rosette_y + radius],
                      outline=line_color_2, width=1)
-    
+
     R = 120.0
     r = 35.0
     d = 45.0
@@ -585,7 +585,13 @@ class CardRenderer:
 
     @staticmethod
     def render_front(school, student, card_record=None, template=None):
-        """Generates Front ID card PIL Image (1011 x 638 px)."""
+        """Generates Front ID card PIL Image (1011 x 638 px Landscape or 638 x 1011 px Portrait)."""
+        is_portrait = (getattr(school, "card_orientation", "landscape") or "landscape").lower() == "portrait"
+        if template and hasattr(template, "orientation") and template.orientation:
+            is_portrait = template.orientation.lower() == "portrait"
+        if is_portrait:
+            return CardRenderer.render_front_portrait(school, student, card_record, template)
+
         w, h = LANDSCAPE_W, LANDSCAPE_H
         img = Image.new("RGB", (w, h), (255, 255, 255))
         draw = ImageDraw.Draw(img)
@@ -602,7 +608,7 @@ class CardRenderer:
         # Top Header Banner
         header_height = int(h * 0.27)
         draw.rectangle([0, 0, w, header_height], fill=pri_rgb)
-        
+
         # Diagonal / Accent stripe under header
         stripe_h = 14
         draw.rectangle([0, header_height, w, header_height + stripe_h], fill=sec_rgb)
@@ -667,7 +673,7 @@ class CardRenderer:
         curr_hdr_y = logo_y + 2
         draw.text((name_x, curr_hdr_y), school_name, fill=(255, 255, 255), font=name_font)
         curr_hdr_y += 38
-        
+
         motto_text = f'"{school.motto}"' if school.motto else ""
         if motto_text:
             motto_font, _ = fit_font_size(draw, motto_text, avail_header_w, initial_size=18, min_size=13, bold=True)
@@ -912,8 +918,14 @@ class CardRenderer:
         return img
 
     @staticmethod
-    def render_back(school, student, card_record=None, verify_base_url="http://localhost:5000"):
-        """Generates Back ID card PIL Image (1011 x 638 px) with Official School Stamp, Principal Signature, and QR code."""
+    def render_back(school, student, card_record=None, verify_base_url="http://localhost:5000", template=None):
+        """Generates Back ID card PIL Image (1011 x 638 px Landscape or 638 x 1011 px Portrait)."""
+        is_portrait = (getattr(school, "card_orientation", "landscape") or "landscape").lower() == "portrait"
+        if template and hasattr(template, "orientation") and template.orientation:
+            is_portrait = template.orientation.lower() == "portrait"
+        if is_portrait:
+            return CardRenderer.render_back_portrait(school, student, card_record, verify_base_url, template)
+
         w, h = LANDSCAPE_W, LANDSCAPE_H
         img = Image.new("RGB", (w, h), (255, 255, 255))
         draw = ImageDraw.Draw(img)
@@ -930,7 +942,7 @@ class CardRenderer:
         top_h = int(h * 0.12)
         draw.rectangle([0, 0, w, top_h], fill=pri_rgb)
         draw.rectangle([0, top_h, w, top_h + 8], fill=sec_rgb)
-        
+
         top_hdr_str = "CARD TERMS, OFFICIAL STAMP & VERIFICATION"
         top_font, _ = fit_font_size(draw, top_hdr_str, max_width=w - 60, initial_size=25, min_size=18, bold=True)
         top_hdr_w = int(draw.textlength(top_hdr_str, font=top_font))
@@ -1277,6 +1289,316 @@ class CardRenderer:
         return img
 
     @staticmethod
+    def render_front_portrait(school, student, card_record=None, template=None):
+        """Generates Vertical (Portrait) Front ID card PIL Image (638 x 1011 px).
+        Ideal for Hospitals, Banks, Universities, and Corporate Staff wearing Lanyards.
+        """
+        w, h = PORTRAIT_W, PORTRAIT_H
+        img = Image.new("RGB", (w, h), (255, 255, 255))
+        draw = ImageDraw.Draw(img)
+
+        pri_rgb = hex_to_rgb(school.primary_color)
+        sec_rgb = hex_to_rgb(school.secondary_color)
+        acc_rgb = hex_to_rgb(school.accent_color)
+        text_rgb = hex_to_rgb(school.text_color or "#0F172A")
+
+        if getattr(school, "enable_watermark", True):
+            draw_guilloche_watermark(draw, w, h, pri_rgb)
+
+        # Lanyard Slot Punch Guide (subtle rounded rect at top center)
+        slot_w, slot_h = 80, 14
+        slot_x = (w - slot_w) // 2
+        draw.rounded_rectangle([slot_x, 12, slot_x + slot_w, 12 + slot_h], radius=5, outline=(203, 213, 225), width=1)
+
+        # Top Header Banner
+        header_h = 195
+        draw.rectangle([0, 32, w, header_h], fill=pri_rgb)
+        draw.rectangle([0, header_h, w, header_h + 10], fill=sec_rgb)
+        draw.rectangle([0, header_h + 10, w, header_h + 14], fill=acc_rgb)
+
+        # Centered School Logo
+        logo_drawn = False
+        logo_box_w, logo_box_h = 110, 65
+        logo_x = (w - logo_box_w) // 2
+        logo_y = 40
+
+        if school.logo_filename:
+            logo_path = Config.LOGOS_DIR / school.logo_filename
+            if logo_path.exists():
+                try:
+                    raw_logo = Image.open(logo_path)
+                    logo_img = clean_logo_image(raw_logo)
+                    logo_img.thumbnail((logo_box_w, logo_box_h), Image.Resampling.LANCZOS)
+                    actual_logo_x = logo_x + (logo_box_w - logo_img.width) // 2
+                    actual_logo_y = logo_y + (logo_box_h - logo_img.height) // 2
+                    img.paste(logo_img, (actual_logo_x, actual_logo_y), logo_img)
+                    logo_drawn = True
+                except Exception:
+                    pass
+
+        if not logo_drawn:
+            emblem_diam = 55
+            emblem_x = (w - emblem_diam) // 2
+            emblem_y = logo_y + (logo_box_h - emblem_diam) // 2
+            draw.ellipse([emblem_x, emblem_y, emblem_x + emblem_diam, emblem_y + emblem_diam], fill=sec_rgb, outline=(255, 255, 255), width=2)
+            abbr = "".join([part[0] for part in school.name.split() if part][:2]).upper() or "ID"
+            abbr_font = get_font(20, bold=True)
+            draw.text((emblem_x + 12, emblem_y + 14), abbr, fill=(255, 255, 255), font=abbr_font)
+
+        # Institution Name - Centered
+        name_font, _ = fit_font_size(draw, school.name.upper(), max_width=w - 50, initial_size=20, min_size=13, bold=True)
+        name_w = int(draw.textlength(school.name.upper(), font=name_font))
+        draw.text(((w - name_w) // 2, 115), school.name.upper(), fill=(255, 255, 255), font=name_font)
+
+        # Town / Address - Centered
+        town_str = f"P.O. BOX {school.po_box} • {school.town.upper()}" if school.po_box else f"{school.town.upper()} COUNTY"
+        town_font, _ = fit_font_size(draw, town_str, max_width=w - 60, initial_size=12, min_size=9, bold=False)
+        town_w = int(draw.textlength(town_str, font=town_font))
+        draw.text(((w - town_w) // 2, 145), town_str, fill=(241, 245, 249), font=town_font)
+
+        # Card Title Capsule
+        card_title = (school.get_card_title() if hasattr(school, "get_card_title") else "IDENTIFICATION PASS").upper()
+        title_font, _ = fit_font_size(draw, card_title, max_width=w - 80, initial_size=13, min_size=10, bold=True)
+        title_w = int(draw.textlength(card_title, font=title_font))
+        badge_pad_x = 16
+        bx1 = (w - (title_w + badge_pad_x * 2)) // 2
+        bx2 = bx1 + title_w + badge_pad_x * 2
+        by1, by2 = 168, 194
+        draw.rounded_rectangle([bx1, by1, bx2, by2], radius=10, fill=sec_rgb)
+        draw.text((bx1 + badge_pad_x, by1 + 4), card_title, fill=text_rgb, font=title_font)
+
+        # ── Passport Photo Frame (Centered in upper-middle) ─────────────────
+        photo_w, photo_h = 280, 350
+        photo_x = (w - photo_w) // 2
+        photo_y = 230
+
+        # Photo Frame Border with shadow
+        draw.rounded_rectangle([photo_x - 3, photo_y - 3, photo_x + photo_w + 3, photo_y + photo_h + 3], radius=12, fill=pri_rgb)
+        draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_w, photo_y + photo_h], radius=10, fill=(248, 250, 252))
+
+        photo_loaded = False
+        photo_fn = getattr(student, "photo_cropped_filename", None) or getattr(student, "photo_filename", None)
+        if photo_fn:
+            p_path = Config.PHOTOS_DIR / photo_fn
+            if p_path.exists():
+                try:
+                    p_img = Image.open(p_path)
+                    p_img = ImageOps.exif_transpose(p_img).convert("RGB")
+                    # Crop / resize to 3:4 passport aspect ratio
+                    target_ratio = photo_w / photo_h
+                    img_ratio = p_img.width / p_img.height
+                    if img_ratio > target_ratio:
+                        new_w = int(p_img.height * target_ratio)
+                        offset = (p_img.width - new_w) // 2
+                        p_img = p_img.crop((offset, 0, offset + new_w, p_img.height))
+                    else:
+                        new_h = int(p_img.width / target_ratio)
+                        offset = (p_img.height - new_h) // 2
+                        p_img = p_img.crop((0, offset, p_img.width, offset + new_h))
+                    p_img = p_img.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
+                    img.paste(p_img, (photo_x, photo_y))
+                    photo_loaded = True
+                except Exception:
+                    pass
+
+        if not photo_loaded:
+            draw.text((photo_x + 85, photo_y + 160), "PHOTO", fill=(148, 163, 184), font=get_font(26, bold=True))
+
+        # Sub-photo ID Capsule (Pinned beneath photo)
+        sub_lbl = school.get_sub_photo_label() if hasattr(school, "get_sub_photo_label") else "ID NO"
+        badge_str = f"{sub_lbl}: {student.admission_number}"
+        badge_font, _ = fit_font_size(draw, badge_str, max_width=photo_w + 20, initial_size=15, min_size=11, bold=True)
+        badge_txt_w = int(draw.textlength(badge_str, font=badge_font))
+        bbx1 = (w - (badge_txt_w + 28)) // 2
+        bbx2 = bbx1 + badge_txt_w + 28
+        bby1, bby2 = photo_y + photo_h - 14, photo_y + photo_h + 16
+        draw.rounded_rectangle([bbx1, bby1, bbx2, bby2], radius=10, fill=pri_rgb, outline=(255, 255, 255), width=2)
+        draw.text((bbx1 + 14, bby1 + 5), badge_str, fill=(255, 255, 255), font=badge_font)
+
+        # ── Member Identification Text Block (Centered) ─────────────────────
+        detail_y = photo_y + photo_h + 35
+
+        # Full Name
+        name_str = student.full_name.upper()
+        s_name_font, _ = fit_font_size(draw, name_str, max_width=w - 50, initial_size=28, min_size=16, bold=True)
+        s_name_w = int(draw.textlength(name_str, font=s_name_font))
+        draw.text(((w - s_name_w) // 2, detail_y), name_str, fill=(15, 23, 42), font=s_name_font)
+        detail_y += 38
+
+        # Class / Department Pill
+        cls_lbl = school.get_class_label() if hasattr(school, "get_class_label") else "CLASS"
+        cls_str = f"{cls_lbl.upper()}: {student.class_name.upper()}"
+        cls_font, _ = fit_font_size(draw, cls_str, max_width=w - 60, initial_size=17, min_size=12, bold=True)
+        cls_w = int(draw.textlength(cls_str, font=cls_font))
+        draw.text(((w - cls_w) // 2, detail_y), cls_str, fill=pri_rgb, font=cls_font)
+        detail_y += 32
+
+        # Role / Stream / Job Title
+        if student.stream_name and student.stream_name != "N/A":
+            st_lbl = school.get_stream_label() if hasattr(school, "get_stream_label") else "ROLE"
+            st_str = f"{st_lbl.upper()}: {student.stream_name.upper()}"
+            st_font, _ = fit_font_size(draw, st_str, max_width=w - 60, initial_size=16, min_size=11, bold=False)
+            st_w = int(draw.textlength(st_str, font=st_font))
+            draw.text(((w - st_w) // 2, detail_y), st_str, fill=(51, 65, 85), font=st_font)
+            detail_y += 30
+
+        # UPI / National ID
+        if getattr(student, "nemis_upi", None):
+            upi_lbl = school.get_upi_label() if hasattr(school, "get_upi_label") else "UPI / ID"
+            upi_str = f"{upi_lbl.upper()}: {student.nemis_upi}"
+            upi_font, _ = fit_font_size(draw, upi_str, max_width=w - 70, initial_size=15, min_size=11, bold=True)
+            upi_w = int(draw.textlength(upi_str, font=upi_font))
+            draw.text(((w - upi_w) // 2, detail_y), upi_str, fill=(185, 28, 28), font=upi_font)
+            detail_y += 28
+
+        # Card Serial Number
+        card_no = (card_record.card_number if card_record else getattr(student, "card_number", None)) or f"ID-{student.admission_number}"
+        cno_str = f"CARD SERIAL: {card_no}"
+        cno_font, _ = fit_font_size(draw, cno_str, max_width=w - 80, initial_size=14, min_size=10, bold=False)
+        cno_w = int(draw.textlength(cno_str, font=cno_font))
+        draw.text(((w - cno_w) // 2, detail_y), cno_str, fill=(100, 116, 139), font=cno_font)
+        detail_y += 26
+
+        # Validity Dates
+        iss_date = getattr(card_record, "issue_date", None) or getattr(student, "issue_date", None) or datetime.date.today()
+        exp_date = getattr(card_record, "expiry_date", None) or getattr(student, "expiry_date", None) or (datetime.date.today() + datetime.timedelta(days=365*4))
+        dates_str = f"ISSUED: {iss_date.strftime('%d/%m/%Y') if hasattr(iss_date, 'strftime') else iss_date}   •   EXPIRES: {exp_date.strftime('%d/%m/%Y') if hasattr(exp_date, 'strftime') else exp_date}"
+        dates_font, _ = fit_font_size(draw, dates_str, max_width=w - 60, initial_size=13, min_size=10, bold=True)
+        dates_w = int(draw.textlength(dates_str, font=dates_font))
+        draw.text(((w - dates_w) // 2, detail_y), dates_str, fill=(220, 38, 38), font=dates_font)
+        detail_y += 35
+
+        # Cardholder signature line
+        draw.line([w // 2 - 80, detail_y + 15, w // 2 + 80, detail_y + 15], fill=(203, 213, 225), width=1)
+        draw.text((w // 2 - 50, detail_y - 2), "Mwangi D.", fill=(30, 58, 138), font=get_font(18, bold=True))
+        draw.text((w // 2 - 45, detail_y + 18), "Cardholder Signature", fill=(148, 163, 184), font=get_font(10, bold=False))
+
+        # Bottom Footer Bar
+        footer_h = 55
+        draw.rectangle([0, h - footer_h, w, h], fill=pri_rgb)
+        draw.rectangle([0, h - footer_h - 4, w, h - footer_h], fill=sec_rgb)
+        draw.text((25, h - footer_h + 18), "OFFICIAL CREDENTIAL", fill=(255, 255, 255), font=get_font(14, bold=True))
+        draw.text((w - 180, h - footer_h + 18), f"{student.admission_number}", fill=(254, 240, 138), font=get_font(14, bold=True))
+
+        return img
+
+    @staticmethod
+    def render_back_portrait(school, student, card_record=None, verify_base_url="http://localhost:5000", template=None):
+        """Generates Vertical (Portrait) Back ID card PIL Image (638 x 1011 px).
+        Includes Conditions of Issue, Contacts, QR Code, Code-128 Barcode, and Authority Seal.
+        """
+        w, h = PORTRAIT_W, PORTRAIT_H
+        img = Image.new("RGB", (w, h), (255, 255, 255))
+        draw = ImageDraw.Draw(img)
+
+        pri_rgb = hex_to_rgb(school.primary_color)
+        sec_rgb = hex_to_rgb(school.secondary_color)
+
+        if getattr(school, "enable_watermark", True):
+            draw_guilloche_watermark(draw, w, h, pri_rgb)
+
+        # Lanyard Slot Punch Guide
+        slot_w, slot_h = 80, 14
+        slot_x = (w - slot_w) // 2
+        draw.rounded_rectangle([slot_x, 12, slot_x + slot_w, 12 + slot_h], radius=5, outline=(203, 213, 225), width=1)
+
+        # Top Bar
+        draw.rectangle([0, 32, w, 75], fill=pri_rgb)
+        draw.rectangle([0, 75, w, 79], fill=sec_rgb)
+        draw.text((w // 2 - 95, 45), "CONDITIONS OF ISSUE", fill=(255, 255, 255), font=get_font(15, bold=True))
+
+        # Terms & Conditions Box
+        t_box_y1, t_box_y2 = 90, 240
+        draw.rounded_rectangle([25, t_box_y1, w - 25, t_box_y2], radius=8, fill=(248, 250, 252), outline=(226, 232, 240))
+        terms = [
+            "1. This card remains the property of the issuing institution.",
+            "2. If found, please return to the administration or nearest police station.",
+            "3. The card must be carried at all times within institutional premises.",
+            "4. Alteration, unauthorized transfer, or forging is strictly punishable by law."
+        ]
+        term_y = t_box_y1 + 12
+        for t in terms:
+            t_font, _ = fit_font_size(draw, t, max_width=w - 70, initial_size=12, min_size=9, bold=False)
+            draw.text((36, term_y), t, fill=(30, 41, 59), font=t_font)
+            term_y += 30
+
+        # Administrative Contacts
+        draw.text((36, 250), f"Hotline: {school.emergency_contact_phone or school.phone or 'N/A'}", fill=pri_rgb, font=get_font(13, bold=True))
+        draw.text((36, 272), f"Email: {school.email or 'N/A'}", fill=(71, 85, 105), font=get_font(12, bold=False))
+        draw.text((36, 292), f"Website: {school.website or 'N/A'}", fill=(71, 85, 105), font=get_font(12, bold=False))
+
+        # ── Central Verification QR Code ─────────────────────────────────────
+        token_str = (card_record.qr_token if card_record else getattr(student, "pending_card_qr_token", None)) or "demo_token_123"
+        qr_size = 180
+        qr_x = (w - qr_size) // 2
+        qr_y = 325
+
+        qr_url = f"{verify_base_url.rstrip('/')}/verify/{token_str}"
+        qr_img = generate_qr_code(qr_url, size=qr_size)
+        img.paste(qr_img, (qr_x, qr_y))
+
+        # QR Label & Token
+        draw.text((w // 2 - 95, qr_y + qr_size + 8), "SCAN TO VERIFY AUTHENTICITY", fill=pri_rgb, font=get_font(12, bold=True))
+        draw.text((w // 2 - 70, qr_y + qr_size + 26), f"TOKEN: {token_str[:12]}...", fill=(148, 163, 184), font=get_font(10, bold=False))
+
+        # ── Optical Code-128 Barcode (Library & Gate Scanner Gun) ───────────
+        bc_w, bc_h = 420, 65
+        bc_x = (w - bc_w) // 2
+        bc_y = qr_y + qr_size + 52
+        bc_img = generate_barcode_img(student.admission_number, width=bc_w, height=bc_h)
+        if bc_img:
+            img.paste(bc_img, (bc_x, bc_y))
+            draw.text((w // 2 - 80, bc_y + bc_h + 4), f"● {student.admission_number} ● BARCODE", fill=(51, 65, 85), font=get_font(11, bold=True))
+
+        # ── Authority Stamp & Signature Block ───────────────────────────────
+        auth_y = bc_y + bc_h + 30
+
+        # Stamp (Left side)
+        if school.stamp_filename:
+            stamp_path = Config.STAMPS_DIR / school.stamp_filename
+            if stamp_path.exists():
+                try:
+                    s_raw = Image.open(stamp_path)
+                    s_clean = clean_rubber_stamp(s_raw, target_size=(130, 120), angle=-6)
+                    if s_clean:
+                        img.paste(s_clean, (40, auth_y), s_clean)
+                except Exception:
+                    pass
+
+        # Signature & Title (Right side)
+        sig_x = w // 2 + 10
+        if school.principal_signature_filename:
+            sig_path = Config.SIGNATURES_DIR / school.principal_signature_filename
+            if sig_path.exists():
+                try:
+                    sig_raw = Image.open(sig_path)
+                    sig_clean = clean_ink_signature(sig_raw)
+                    if sig_clean:
+                        sig_clean.thumbnail((160, 50), Image.Resampling.LANCZOS)
+                        img.paste(sig_clean, (sig_x, auth_y + 10), sig_clean)
+                except Exception:
+                    pass
+
+        p_title = (school.principal_title or "Principal / Head of Institution").upper()
+        p_name = school.principal_name or ""
+        draw.line([sig_x, auth_y + 65, w - 30, auth_y + 65], fill=(148, 163, 184), width=1)
+        draw.text((sig_x, auth_y + 70), p_title, fill=pri_rgb, font=get_font(10, bold=True))
+        if p_name:
+            draw.text((sig_x, auth_y + 85), p_name, fill=(71, 85, 105), font=get_font(9, bold=False))
+
+        # Security Warning Notice
+        sec_notice = getattr(school, "security_notice", "Official institutional credential. Unlawful alteration or possession is prohibited.")
+        draw.text((25, h - 70), sec_notice, fill=(220, 38, 38), font=get_font(10, bold=True))
+
+        # Bottom Bar
+        draw.rectangle([0, h - 50, w, h], fill=pri_rgb)
+        draw.rectangle([0, h - 54, w, h - 50], fill=sec_rgb)
+        draw.text((25, h - 35), f"{school.name.upper()} • {school.town.upper()}", fill=(255, 255, 255), font=get_font(12, bold=True))
+        draw.text((w - 180, h - 35), "DIGITALLY VERIFIED", fill=(254, 240, 138), font=get_font(12, bold=True))
+
+        return img
+
+    @staticmethod
     def save_card_images(school, student, card_record, verify_base_url="http://localhost:5000"):
         """Renders and saves high-resolution front and back PNG images."""
         front = CardRenderer.render_front(school, student, card_record)
@@ -1300,14 +1622,25 @@ class CardRenderer:
     @staticmethod
     def generate_single_cr80_pdf(front_img_path, back_img_path, output_pdf_path):
         """Generates exact CR80 physical dimension PDF (85.60mm x 53.98mm) for PVC Card Printers.
+           Automatically detects Landscape vs Portrait orientation.
            Page 1: Front
            Page 2: Back
         """
-        w_pt = CR80_W_MM * mm
-        h_pt = CR80_H_MM * mm
+        try:
+            im_front = Image.open(str(front_img_path))
+            is_portrait = im_front.height > im_front.width
+        except Exception:
+            is_portrait = False
+
+        if is_portrait:
+            w_pt = CR80_H_MM * mm  # 53.98mm
+            h_pt = CR80_W_MM * mm  # 85.60mm
+        else:
+            w_pt = CR80_W_MM * mm  # 85.60mm
+            h_pt = CR80_H_MM * mm  # 53.98mm
 
         c = canvas.Canvas(str(output_pdf_path), pagesize=(w_pt, h_pt))
-        
+
         # Page 1: Front
         c.drawImage(str(front_img_path), 0, 0, width=w_pt, height=h_pt)
         c.showPage()
@@ -1392,7 +1725,7 @@ class CardRenderer:
                 row = idx // cols
                 x = margin_x + col * (card_w + gap_x)
                 y = a4_h - margin_y - (row + 1) * card_h - row * gap_y
-                
+
                 # Draw card
                 c.drawImage(str(f_path), x, y, width=card_w, height=card_h)
                 draw_crop_marks(c, x, y, card_w, card_h)

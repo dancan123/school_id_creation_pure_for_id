@@ -19,8 +19,8 @@
     <div class="col-lg-5">
       <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-header bg-white border-0 py-3">
-          <h6 class="fw-bold mb-0"><i class="fa-solid fa-swatchbook text-warning me-2"></i> Standard Kenyan School Color Presets</h6>
-          <small class="text-muted">Click "Apply Theme" to instantly brand the active school's ID cards.</small>
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-swatchbook text-warning me-2"></i> Industry &amp; Institutional Color Themes</h6>
+          <small class="text-muted">Select an industry-tailored color preset to instantly rebrand all credentials.</small>
         </div>
         <div class="card-body p-4 pt-0">
           {% for p in presets %}
@@ -28,7 +28,10 @@
             <div class="card-body p-3">
               <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
-                  <h6 class="fw-bold mb-0">{{ p.name }}</h6>
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <h6 class="fw-bold mb-0">{{ p.name }}</h6>
+                    <span class="badge bg-light text-secondary border" style="font-size: 0.68rem;">{{ p.category }}</span>
+                  </div>
                   <p class="small text-muted mb-0">{{ p.description }}</p>
                 </div>
                 <form method="POST" action="{{ url_for('templates_designer.apply_preset', preset_id=p.id) }}">
@@ -60,13 +63,13 @@
           <span class="badge" style="background-color: {{ current_school.primary_color }}; color: #fff;">ACTIVE PALETTE</span>
         </div>
         <div class="card-body p-4 pt-0">
-          
+
           <div class="id-preview-box">
             <!-- Front Card Preview -->
             <div>
               <div class="text-center text-white small fw-bold mb-2">FRONT DESIGN</div>
               <div class="card-sample-view shadow-lg position-relative" style="background-color: #FFFFFF; border: 2px solid {{ current_school.primary_color }};">
-                
+
                 <!-- Front Header Banner -->
                 <div style="background-color: {{ current_school.primary_color }}; height: 60px; padding: 6px 12px; display: flex; align-items: center; gap: 10px;">
                   {% if current_school.logo_filename %}
@@ -96,7 +99,7 @@
                   <!-- Details -->
                   <div style="flex-grow: 1; font-size: 11px; line-height: 1.4; color: #0F172A;">
                     <div style="font-size: 8px; font-weight: bold; background: {{ current_school.primary_color }}; color: white; display: inline-block; padding: 2px 6px; border-radius: 4px; margin-bottom: 4px;">STUDENT ID CARD</div>
-                    
+
                     <div style="font-size: 13px; font-weight: 800; color: {{ current_school.primary_color }}; margin-bottom: 2px;">JOHN KAMAU MAINA</div>
                     <div><span style="color: #64748B;">Adm No:</span> <strong style="font-family: monospace; font-size: 12px;">10245</strong></div>
                     <div><span style="color: #64748B;">Class:</span> <strong>Form 3 East</strong></div>
@@ -152,8 +155,8 @@
                   <div style="width: 100px; text-align: center; background: #FFFFFF; border: 2px solid {{ current_school.secondary_color }}; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.15); flex-shrink: 0;">
                     <div style="background: {{ current_school.primary_color }}; color: #FFFFFF; font-size: 6.5px; font-weight: bold; padding: 2px 0; text-transform: uppercase;">&#11044; DIGITAL ID VERIFICATION &#11044;</div>
                     <div style="padding: 4px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
-                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ (request.host_url ~ 'verify/DEMO-PRESET-2026')|urlencode }}&color=000000" 
-                           alt="QR Code" style="width: 72px; height: 72px; image-rendering: pixelated;" 
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data={{ (request.host_url ~ 'verify/DEMO-PRESET-2026')|urlencode }}&color=000000"
+                           alt="QR Code" style="width: 72px; height: 72px; image-rendering: pixelated;"
                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                       <i class="fa-solid fa-qrcode fa-3x text-dark" style="display: none;"></i>
                     </div>

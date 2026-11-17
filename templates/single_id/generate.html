@@ -25,10 +25,10 @@
   <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
       <h4 class="fw-bold mb-1"><i class="fa-solid fa-id-card text-primary me-2"></i> Individual ID Card Generation</h4>
-      <p class="text-muted small mb-0">Select or search for a student to preview and generate an instant, print-ready CR80 PVC ID card.</p>
+      <p class="text-muted small mb-0">Select or search for a {{ current_school.get_member_label().lower() }} to preview and generate an instant, print-ready CR80 PVC ID card.</p>
     </div>
     <a href="{{ url_for('students.new_student') }}" class="btn btn-outline-primary btn-sm">
-      <i class="fa-solid fa-user-plus me-1"></i> Register New Student
+      <i class="fa-solid fa-user-plus me-1"></i> Register New {{ current_school.get_member_label() }}
     </a>
   </div>
 
@@ -83,13 +83,13 @@
     <div class="col-lg-4">
       <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-header bg-white border-0 py-3">
-          <h6 class="fw-bold mb-0"><i class="fa-solid fa-user-check text-primary me-2"></i> Select Student</h6>
+          <h6 class="fw-bold mb-0"><i class="fa-solid fa-user-check text-primary me-2"></i> Select {{ current_school.get_member_label() }}</h6>
         </div>
         <div class="card-body p-4 pt-0">
           <form method="GET" action="{{ url_for('single_id.index') }}" class="mb-4">
-            <label class="form-label small fw-bold">Student Record</label>
+            <label class="form-label small fw-bold">{{ current_school.get_member_label() }} Record</label>
             <select name="student_id" class="form-select form-select-lg shadow-sm" onchange="this.form.submit()">
-              <option value="">-- Choose Student --</option>
+              <option value="">-- Choose {{ current_school.get_member_label() }} --</option>
               {% for s in students %}
               <option value="{{ s.id }}" {% if selected_student and selected_student.id == s.id %}selected{% endif %}>
                 {{ s.admission_number }} - {{ s.full_name }} ({{ s.class_name }})
@@ -110,8 +110,8 @@
               {% endif %}
               <div>
                 <h6 class="fw-bold mb-0">{{ selected_student.full_name }}</h6>
-                <div class="small text-muted">Adm No: <strong class="text-dark">{{ selected_student.admission_number }}</strong></div>
-                <div class="small text-muted">Class: {{ selected_student.class_name }} {{ selected_student.stream_name or '' }}</div>
+                <div class="small text-muted">{{ current_school.get_id_label() }}: <strong class="text-dark">{{ selected_student.admission_number }}</strong></div>
+                <div class="small text-muted">{{ current_school.get_class_label().title() }}: {{ selected_student.class_name }} {{ selected_student.stream_name or '' }}</div>
               </div>
             </div>
 
@@ -134,7 +134,7 @@
           <!-- Generate Action Form -->
           <form method="POST" action="{{ url_for('single_id.generate_card') }}">
             <input type="hidden" name="student_id" value="{{ selected_student.id }}">
-            
+
             <button type="submit" class="btn btn-school-primary w-100 py-2 fw-bold shadow-sm mb-2">
               <i class="fa-solid fa-wand-magic-sparkles me-2"></i> {{ 'Regenerate Card' if existing_card else 'Generate ID Card' }}
             </button>
@@ -153,7 +153,7 @@
           {% if selected_student.parent_phone and clean_whatsapp_phone(selected_student.parent_phone) %}
           <a href="{{ get_whatsapp_parent_card_notice_url(selected_student, current_school, existing_card) }}"
              target="_blank" class="btn btn-outline-success w-100 py-2 fw-semibold btn-sm mb-2 shadow-sm">
-            <i class="fa-brands fa-whatsapp me-1"></i> Notify Parent on WhatsApp
+            <i class="fa-brands fa-whatsapp me-1"></i> Notify {{ 'Contact / Next of Kin' if current_school.is_corporate() else 'Parent' }} on WhatsApp
           </a>
           {% endif %}
 
@@ -166,7 +166,7 @@
           {% else %}
           <div class="text-center py-4 text-muted">
             <i class="fa-solid fa-arrow-up-long fa-2x mb-2 text-secondary"></i>
-            <p class="small mb-0">Select a student from the dropdown above to preview and generate their ID card.</p>
+            <p class="small mb-0">Select a {{ current_school.get_member_label().lower() }} from the dropdown above to preview and generate their ID card.</p>
           </div>
           {% endif %}
         </div>
@@ -244,12 +244,12 @@
 
             {% else %}
 
-            <!-- ── No student selected placeholder ───────────────────────────────────── -->
+            <!-- ── No member selected placeholder ───────────────────────────────────── -->
             <div class="col-span-2 d-flex flex-column align-items-center justify-content-center py-5 text-muted"
                  style="min-height: 220px;">
               <i class="fa-solid fa-id-card fa-3x mb-3 text-secondary d-block"></i>
-              <h5 class="mb-1">No Student Selected</h5>
-              <p class="small text-muted mb-0">Select a student from the left panel to see their pixel-perfect card preview.</p>
+              <h5 class="mb-1">No {{ current_school.get_member_label() }} Selected</h5>
+              <p class="small text-muted mb-0">Select a {{ current_school.get_member_label().lower() }} from the left panel to see their pixel-perfect card preview.</p>
             </div>
 
             {% endif %}
@@ -321,18 +321,18 @@
       <form method="POST" action="{{ url_for('single_id.generate_card') }}">
         <div class="modal-body p-4">
           <p class="small text-muted">
-            You are replacing the existing card for <strong>{{ selected_student.full_name }}</strong> (Adm: {{ selected_student.admission_number }}).
+            You are replacing the existing card for <strong>{{ selected_student.full_name }}</strong> ({{ current_school.get_id_label() }}: {{ selected_student.admission_number }}).
             The existing card status will be updated to <em>replaced</em> and a new secure verification QR token will be generated.
           </p>
           <input type="hidden" name="student_id" value="{{ selected_student.id }}">
           <input type="hidden" name="is_reprint" value="1">
-          
+
           <div class="mb-3">
             <label class="form-label small fw-bold">Reason for Replacement / Reprint</label>
             <select name="reprint_reason" class="form-select" required>
               <option value="Card Lost or Stolen">Card Lost or Stolen</option>
               <option value="Card Damaged or Broken">Card Damaged or Broken</option>
-              <option value="Student Details or Class Updated">Student Details or Class Updated</option>
+              <option value="Member Details or Category Updated">{{ current_school.get_member_label() }} Details or {{ current_school.get_class_label().title() }} Updated</option>
               <option value="Print Defect / Quality Error">Print Defect / Quality Error</option>
             </select>
           </div>

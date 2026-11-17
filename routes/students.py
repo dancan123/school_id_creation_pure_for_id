@@ -134,7 +134,7 @@ def export_excel():
     # Title Header Block
     ws.merge_cells("A1:Q1")
     title_cell = ws["A1"]
-    title_cell.value = f"{school.name.upper()} - OFFICIAL STUDENT REGISTER"
+    title_cell.value = f"{school.name.upper()} - OFFICIAL {school.get_member_label_plural().upper()} REGISTER"
     title_cell.font = Font(name="Segoe UI", size=14, bold=True, color=primary_hex)
     title_cell.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 32
@@ -143,22 +143,22 @@ def export_excel():
     ws.merge_cells("A2:Q2")
     sub_cell = ws["A2"]
     filter_desc = []
-    if filters["class_filter"]: filter_desc.append(f"Class: {filters['class_filter']}")
-    if filters["stream_filter"]: filter_desc.append(f"Stream: {filters['stream_filter']}")
+    if filters["class_filter"]: filter_desc.append(f"{school.get_class_label().title()}: {filters['class_filter']}")
+    if filters["stream_filter"]: filter_desc.append(f"{school.get_stream_label().title()}: {filters['stream_filter']}")
     if filters["status_filter"]: filter_desc.append(f"Card Status: {filters['status_filter']}")
     if filters["missing_photo"] == "1": filter_desc.append("Missing Photos Only")
     scope_txt = f" (Scope: {', '.join(filter_desc)})" if filter_desc else " (All Records)"
-    
-    sub_cell.value = f"Academic Year: {school.academic_year} | Export Date: {datetime.date.today().strftime('%d %B %Y')} | Total Exported: {len(students)}{scope_txt}"
+
+    sub_cell.value = f"{school.get_academic_year_label()}: {school.academic_year} | Export Date: {datetime.date.today().strftime('%d %B %Y')} | Total Exported: {len(students)}{scope_txt}"
     sub_cell.font = Font(name="Segoe UI", size=9, italic=True, color="475569")
     sub_cell.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 18
 
     # Table Column Headers
     headers = [
-        "#", "Admission No", "Full Name", "Class / Grade", "Stream", "Curriculum",
-        "Gender", "Date of Birth", "UPI / NEMIS", "Parent / Guardian", "Emergency Contact",
-        "Blood Group", "House / Dorm", "Card Status", "Card Number", "Card Expiry", "Photo Uploaded"
+        "#", school.get_id_label(), f"{school.get_member_label()} Full Name", school.get_class_label().title(), school.get_stream_label().title(), "Curriculum / Category",
+        "Gender", "Date of Birth", school.get_upi_label(), "Contact / Kin" if school.is_corporate() else "Parent / Guardian", "Phone Number",
+        "Blood Group", "Station / Dorm", "Card Status", "Card Number", "Card Expiry", "Photo Uploaded"
     ]
 
     header_fill = PatternFill(start_color=primary_hex, end_color=primary_hex, fill_type="solid")
@@ -229,9 +229,10 @@ def export_excel():
     excel_buffer.seek(0)
 
     clean_school = "".join(c for c in school.name if c.isalnum() or c in (" ", "_")).rstrip().replace(" ", "_")
-    download_name = f"{clean_school}_Students_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
-    
-    log_audit("EXPORT_STUDENTS_EXCEL", f"Exported {len(students)} students to Excel for {school.name}")
+    member_slug = school.get_member_label_plural().replace(" ", "_")
+    download_name = f"{clean_school}_{member_slug}_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+
+    log_audit("EXPORT_STUDENTS_EXCEL", f"Exported {len(students)} {school.get_member_label_plural().lower()} to Excel for {school.name}")
     return send_file(
         excel_buffer,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -299,8 +300,8 @@ def export_pdf():
     )
 
     filter_desc = []
-    if filters["class_filter"]: filter_desc.append(f"Class: {filters['class_filter']}")
-    if filters["stream_filter"]: filter_desc.append(f"Stream: {filters['stream_filter']}")
+    if filters["class_filter"]: filter_desc.append(f"{school.get_class_label().title()}: {filters['class_filter']}")
+    if filters["stream_filter"]: filter_desc.append(f"{school.get_stream_label().title()}: {filters['stream_filter']}")
     if filters["status_filter"]: filter_desc.append(f"Status: {filters['status_filter']}")
     if filters["missing_photo"] == "1": filter_desc.append("Missing Photos Only")
     scope_txt = f" &bull; Scope: {', '.join(filter_desc)}" if filter_desc else " &bull; Scope: All Records"
@@ -309,14 +310,14 @@ def export_pdf():
     story.append(Paragraph(f"<b>{school.name.upper()}</b>", title_style))
     story.append(Spacer(1, 1.5 * mm))
     story.append(Paragraph(
-        f"<b>OFFICIAL STUDENT IDENTIFICATION ROSTER & REGISTER</b><br/>"
-        f"Academic Year: {school.academic_year} &bull; Generated: {datetime.date.today().strftime('%d %B %Y')} &bull; "
-        f"Total Students: <b>{len(students)}</b>{scope_txt}",
+        f"<b>OFFICIAL {school.get_member_label_plural().upper()} IDENTIFICATION ROSTER & REGISTER</b><br/>"
+        f"{school.get_academic_year_label()}: {school.academic_year} &bull; Generated: {datetime.date.today().strftime('%d %B %Y')} &bull; "
+        f"Total {school.get_member_label_plural()}: <b>{len(students)}</b>{scope_txt}",
         meta_style
     ))
     story.append(Spacer(1, 4 * mm))
 
-    pdf_headers = ["#", "Adm No", "Full Name", "Class", "Stream", "Curriculum", "Gender", "UPI / NEMIS", "Emergency Contact", "Card Status", "Card Number", "Photo"]
+    pdf_headers = ["#", school.get_id_label(), f"{school.get_member_label()} Name", school.get_class_label().title(), school.get_stream_label().title(), "Curriculum", "Gender", school.get_upi_label(), "Phone / Contact", "Card Status", "Card Number", "Photo"]
     data = [[Paragraph(h, header_style) for h in pdf_headers]]
 
     for idx, s in enumerate(students, 1):
@@ -357,9 +358,10 @@ def export_pdf():
     pdf_buffer.seek(0)
 
     clean_school = "".join(c for c in school.name if c.isalnum() or c in (" ", "_")).rstrip().replace(" ", "_")
-    download_name = f"{clean_school}_Student_Register_{datetime.date.today().strftime('%Y%m%d')}.pdf"
+    member_slug = school.get_member_label_plural().replace(" ", "_")
+    download_name = f"{clean_school}_{member_slug}_Register_{datetime.date.today().strftime('%Y%m%d')}.pdf"
 
-    log_audit("EXPORT_STUDENTS_PDF", f"Exported {len(students)} students to PDF register for {school.name}")
+    log_audit("EXPORT_STUDENTS_PDF", f"Exported {len(students)} {school.get_member_label_plural().lower()} to PDF register for {school.name}")
     return send_file(
         pdf_buffer,
         mimetype="application/pdf",

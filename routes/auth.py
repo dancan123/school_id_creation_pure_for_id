@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db, login_manager
 from models import User, School, AuditLog
-from utils import log_audit
+from utils import log_audit, find_institution_by_code_or_id
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -18,6 +18,15 @@ def login():
         if getattr(current_user, "is_platform_admin", False) or current_user.role == "superadmin":
             return redirect(url_for("superadmin.index"))
         return redirect(url_for("dashboard.index"))
+
+    # Resolve scoped institution if code is passed
+    inst_param = (
+        request.args.get("code") or
+        request.args.get("institution") or
+        request.args.get("school_code") or
+        request.form.get("institution_code", "")
+    ).strip()
+    scoped_school = find_institution_by_code_or_id(inst_param) if inst_param else None
 
     # If no users exist, create default superadmin user
     if User.query.count() == 0:
@@ -45,12 +54,21 @@ def login():
         if user and user.locked_until and user.locked_until > now:
             minutes_left = int((user.locked_until - now).total_seconds() / 60) + 1
             flash(f"Account is temporarily locked due to repeated failed logins. Please try again in {minutes_left} minute(s).", "danger")
-            return render_template("auth/login.html")
+            return render_template("auth/login.html", scoped_school=scoped_school)
 
         if user and user.check_password(password):
             # Reset failed attempts on success
             user.failed_login_attempts = 0
             user.locked_until = None
+
+            # Multi-Tenant Workspace Boundary Check:
+            # If logging in at a scoped institution page, only users belonging to that institution
+            # or platform super administrators are permitted.
+            if scoped_school and not (getattr(user, "is_platform_admin", False) or user.role == "superadmin"):
+                if user.school_id != scoped_school.id:
+                    flash(f"Access Denied: Account '{username}' belongs to another institution and cannot access {scoped_school.name}. Please log in at your assigned workspace.", "danger")
+                    log_audit("CROSS_TENANT_LOGIN_BLOCKED", f"User {username} attempted login at {scoped_school.name} (Code: {scoped_school.code})", school_id=scoped_school.id)
+                    return render_template("auth/login.html", scoped_school=scoped_school)
 
             if not user.is_active:
                 # Check if it's tied to an unapproved institution
@@ -63,7 +81,7 @@ def login():
                         flash("Your institution account has been suspended. Please contact platform support.", "danger")
                         return redirect(url_for("auth.tenant_suspended"))
                 flash("Your account has been deactivated. Please contact your administrator.", "danger")
-                return render_template("auth/login.html")
+                return render_template("auth/login.html", scoped_school=scoped_school)
 
             # Check tenant status if user belongs to a school
             if user.school_id and not (getattr(user, "is_platform_admin", False) or user.role == "superadmin"):
@@ -86,6 +104,8 @@ def login():
             # Set active school context
             if user.school_id:
                 session["active_school_id"] = user.school_id
+            elif scoped_school:
+                session["active_school_id"] = scoped_school.id
             else:
                 first_school = School.query.filter_by(is_active=True).first()
                 if first_school:
@@ -113,7 +133,7 @@ def login():
             else:
                 flash("Invalid username or password.", "danger")
 
-    return render_template("auth/login.html")
+    return render_template("auth/login.html", scoped_school=scoped_school)
 
 @auth_bp.route("/logout")
 @login_required

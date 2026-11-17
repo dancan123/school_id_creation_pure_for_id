@@ -109,7 +109,12 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-muted">Password <span class="text-danger">*</span></label>
-                  <input type="password" name="password" class="form-control" placeholder="Minimum 6 characters" required>
+                  <div class="input-group">
+                    <input type="password" name="password" id="regPassword" class="form-control border-end-0" placeholder="Minimum 6 characters" required>
+                    <button class="btn btn-light border border-start-0 text-muted px-3" type="button" onclick="toggleRegPasswordVisibility()" title="Show/Hide password" tabindex="-1">
+                      <i class="fa-solid fa-eye" id="regToggleIcon"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -132,4 +137,21 @@
     </div>
   </div>
 </div>
+
+<script>
+function toggleRegPasswordVisibility() {
+  const pwdInput = document.getElementById('regPassword');
+  const icon = document.getElementById('regToggleIcon');
+  if (!pwdInput || !icon) return;
+  if (pwdInput.type === 'password') {
+    pwdInput.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    pwdInput.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+</script>
 {% endblock %}

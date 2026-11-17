@@ -3,7 +3,7 @@ import secrets
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 from flask_login import login_required, current_user
 from extensions import db
-from models import School, User, Student, CardRecord, AuditLog, PlatformAnnouncement
+from models import School, User, Student, CardRecord, AuditLog, PlatformAnnouncement, QuotaUpgradeRequest
 from utils import superadmin_required, log_audit
 
 superadmin_bp = Blueprint("superadmin", __name__, url_prefix="/superadmin")
@@ -31,6 +31,7 @@ def index():
 
     # Recent pending applications
     pending_list = School.query.filter_by(status="pending").order_by(School.created_at.desc()).limit(5).all()
+    pending_upgrades_count = QuotaUpgradeRequest.query.filter_by(status="pending").count()
 
     # Recent platform audit entries
     recent_audits = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(10).all()
@@ -55,6 +56,7 @@ def index():
         total_cards=total_cards,
         total_printed_cards=total_printed_cards,
         pending_list=pending_list,
+        pending_upgrades_count=pending_upgrades_count,
         recent_audits=recent_audits,
         type_counts=type_counts
     )
@@ -377,3 +379,71 @@ def announcements():
 
     all_announcements = PlatformAnnouncement.query.order_by(PlatformAnnouncement.created_at.desc()).all()
     return render_template("superadmin/announcements.html", announcements=all_announcements)
+
+
+@superadmin_bp.route("/upgrade-requests")
+def upgrade_requests():
+    """Manage in-app quota upgrade requests from registered institutions."""
+    status_filter = request.args.get("status", "pending")
+    query = QuotaUpgradeRequest.query
+    if status_filter != "all":
+        query = query.filter_by(status=status_filter)
+    requests_list = query.order_by(QuotaUpgradeRequest.created_at.desc()).all()
+    pending_count = QuotaUpgradeRequest.query.filter_by(status="pending").count()
+    return render_template(
+        "superadmin/upgrade_requests.html",
+        requests=requests_list,
+        status_filter=status_filter,
+        pending_count=pending_count
+    )
+
+
+@superadmin_bp.route("/upgrade-requests/<int:req_id>/approve", methods=["POST"])
+def approve_upgrade_request(req_id):
+    """Approve quota upgrade request and automatically apply the requested quota."""
+    upgrade_req = db.session.get(QuotaUpgradeRequest, req_id)
+    if not upgrade_req:
+        flash("Upgrade request not found.", "danger")
+        return redirect(url_for("superadmin.upgrade_requests"))
+
+    school = db.session.get(School, upgrade_req.school_id)
+    if not school:
+        flash("Associated institution not found.", "danger")
+        return redirect(url_for("superadmin.upgrade_requests"))
+
+    # Apply new quota
+    school.max_cards_quota = max(0, upgrade_req.requested_quota)
+    if upgrade_req.requested_tier:
+        school.subscription_tier = upgrade_req.requested_tier
+    # Refresh actual generated count from DB
+    school.cards_generated_count = CardRecord.query.filter_by(school_id=school.id).count()
+
+    upgrade_req.status = "approved"
+    upgrade_req.resolved_by_user_id = current_user.id
+    upgrade_req.resolved_at = datetime.datetime.utcnow()
+    upgrade_req.resolution_notes = request.form.get("notes", "Approved by Super Administrator")
+    db.session.commit()
+
+    quota_disp = "Unlimited (Infinite)" if school.max_cards_quota == 0 else f"{school.max_cards_quota:,} ID cards"
+    log_audit("SUPERADMIN_APPROVE_QUOTA_UPGRADE", f"Approved upgrade request for {school.name} to {quota_disp}", school_id=school.id)
+    flash(f"Approved quota upgrade for '{school.name}'! Allocation is now {quota_disp}.", "success")
+    return redirect(url_for("superadmin.upgrade_requests"))
+
+
+@superadmin_bp.route("/upgrade-requests/<int:req_id>/reject", methods=["POST"])
+def reject_upgrade_request(req_id):
+    """Reject quota upgrade request with a reason."""
+    upgrade_req = db.session.get(QuotaUpgradeRequest, req_id)
+    if not upgrade_req:
+        flash("Upgrade request not found.", "danger")
+        return redirect(url_for("superadmin.upgrade_requests"))
+
+    upgrade_req.status = "rejected"
+    upgrade_req.resolved_by_user_id = current_user.id
+    upgrade_req.resolved_at = datetime.datetime.utcnow()
+    upgrade_req.resolution_notes = request.form.get("reason", "Rejected by Super Administrator")
+    db.session.commit()
+
+    log_audit("SUPERADMIN_REJECT_QUOTA_UPGRADE", f"Rejected upgrade request #{upgrade_req.id} for school #{upgrade_req.school_id}")
+    flash(f"Upgrade request #{upgrade_req.id} has been rejected.", "info")
+    return redirect(url_for("superadmin.upgrade_requests"))

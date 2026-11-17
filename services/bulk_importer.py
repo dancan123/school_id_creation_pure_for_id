@@ -22,27 +22,101 @@ def normalize_adm(val):
 
 class BulkImporter:
     @staticmethod
-    def generate_sample_excel(output_path):
-        """Generates a professional sample Excel template with Kenyan school headers and sample rows."""
+    def generate_sample_excel(output_path, school=None):
+        """Generates a professional sample Excel template adapted dynamically to the institution type."""
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Students"
 
-        headers = [
-            "Admission Number",
-            "Full Name",
-            "Class",
-            "Stream",
-            "Gender",
-            "Date of Birth (YYYY-MM-DD)",
-            "Parent Phone",
-            "Blood Group",
-            "House/Dorm"
-        ]
+        if school and school.is_corporate():
+            ws.title = "Employees"
+            headers = [
+                "Employee ID",
+                "Full Name",
+                "Department",
+                "Job Title / Role",
+                "Gender",
+                "Date of Birth (YYYY-MM-DD)",
+                "Phone Number",
+                "Blood Group",
+                "Station / Branch"
+            ]
+            samples = [
+                ["EMP-1001", "David Maina", "Engineering", "Senior Software Engineer", "Male", "1990-04-12", "0712345678", "O+", "Nairobi HQ"],
+                ["EMP-1002", "Grace Achieng", "Human Resources", "HR Manager", "Female", "1992-09-21", "0723456789", "A+", "Nairobi HQ"],
+                ["EMP-1003", "Emmanuel Otieno", "Operations", "Logistics Officer", "Male", "1988-02-15", "0734567890", "B+", "Mombasa Branch"],
+                ["EMP-1004", "Faith Muthoni", "Finance", "Senior Accountant", "Female", "1994-11-05", "0745678901", "AB+", "Nairobi HQ"],
+                ["EMP-1005", "Kevin Mutua", "Marketing", "Brand Specialist", "Male", "1991-07-30", "0756789012", "O-", "Kisumu Branch"],
+            ]
+        elif school and (school.is_university() or school.is_tvet()):
+            ws.title = school.get_member_label_plural() or "Students"
+            headers = [
+                school.get_id_label() or "Registration Number",
+                "Full Name",
+                school.get_class_label().title() if school.get_class_label() else "Faculty / Department",
+                school.get_stream_label().title() if school.get_stream_label() else "Course / Programme",
+                "Gender",
+                "Date of Birth (YYYY-MM-DD)",
+                "Phone Number",
+                "Blood Group",
+                "Campus"
+            ]
+            samples = [
+                ["CIT/001/2024", "Brian Kiprop", "School of Computing", "BSc Computer Science", "Male", "2003-04-12", "0712345678", "O+", "Main Campus"],
+                ["BBA/014/2024", "Faith Wanjiku", "School of Business", "Bachelor of Commerce", "Female", "2004-09-21", "0723456789", "A+", "Town Campus"],
+                ["ENG/088/2023", "Emmanuel Otieno", "School of Engineering", "BSc Civil Engineering", "Male", "2002-02-15", "0734567890", "B+", "Main Campus"],
+                ["MED/022/2024", "Mercy Chebet", "Health Sciences", "BSc Nursing", "Female", "2003-11-05", "0745678901", "AB+", "Medical Complex"],
+                ["LAW/007/2023", "Kevin Mutua", "School of Law", "Bachelor of Laws", "Male", "2002-07-30", "0756789012", "O-", "Parklands Campus"],
+            ]
+        elif school and (school.is_ngo() or school.is_government()):
+            ws.title = school.get_member_label_plural() or "Members"
+            headers = [
+                school.get_id_label() or "Member ID",
+                "Full Name",
+                school.get_class_label().title() if school.get_class_label() else "Department / Chapter",
+                school.get_stream_label().title() if school.get_stream_label() else "Role / Position",
+                "Gender",
+                "Date of Birth (YYYY-MM-DD)",
+                "Phone Number",
+                "Blood Group",
+                "Station / Station"
+            ]
+            samples = [
+                ["MEM-1001", "Alice Nduta", "Community Outreach", "Field Officer", "Female", "1991-05-14", "0712345678", "O+", "Nairobi Central"],
+                ["MEM-1002", "Dennis Barasa", "Programmes", "Project Lead", "Male", "1987-10-22", "0723456789", "A+", "Western Hub"],
+                ["MEM-1003", "Cynthia Moraa", "Advocacy", "Communications Officer", "Female", "1993-01-30", "0734567890", "B+", "Coast Region"],
+                ["MEM-1004", "Geoffrey Kibet", "Operations", "Regional Coordinator", "Male", "1985-08-19", "0745678901", "AB+", "Rift Valley"],
+            ]
+        else:
+            ws.title = "Students"
+            headers = [
+                "Admission Number",
+                "Full Name",
+                "Class",
+                "Stream",
+                "Gender",
+                "Date of Birth (YYYY-MM-DD)",
+                "Parent Phone",
+                "Blood Group",
+                "House/Dorm"
+            ]
+            samples = [
+                ["1001", "Brian Kiprop", "Form 1", "East", "Male", "2010-04-12", "0712345678", "O+", "Simba"],
+                ["1002", "Faith Wanjiku", "Form 1", "West", "Female", "2010-09-21", "0723456789", "A+", "Chui"],
+                ["1003", "Emmanuel Otieno", "Form 2", "North", "Male", "2009-02-15", "0734567890", "B+", "Kifaru"],
+                ["1004", "Mercy Chebet", "Form 2", "South", "Female", "2009-11-05", "0745678901", "AB+", "Twiga"],
+                ["1005", "Kevin Mutua", "Form 3", "East", "Male", "2008-07-30", "0756789012", "O-", "Nyati"],
+            ]
+
         ws.append(headers)
 
         # Style header
-        header_fill = openpyxl.styles.PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+        primary_hex = "1E3A8A"
+        if school and getattr(school, "primary_color", None):
+            cleaned_hex = school.primary_color.lstrip("#").upper()
+            if len(cleaned_hex) == 6:
+                primary_hex = cleaned_hex
+
+        header_fill = openpyxl.styles.PatternFill(start_color=primary_hex, end_color=primary_hex, fill_type="solid")
         header_font = openpyxl.styles.Font(color="FFFFFF", bold=True)
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_num)
@@ -50,14 +124,6 @@ class BulkImporter:
             cell.font = header_font
             ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(len(header) + 4, 16)
 
-        # Sample data
-        samples = [
-            ["1001", "Brian Kiprop", "Form 1", "East", "Male", "2010-04-12", "0712345678", "O+", "Simba"],
-            ["1002", "Faith Wanjiku", "Form 1", "West", "Female", "2010-09-21", "0723456789", "A+", "Chui"],
-            ["1003", "Emmanuel Otieno", "Form 2", "North", "Male", "2009-02-15", "0734567890", "B+", "Kifaru"],
-            ["1004", "Mercy Chebet", "Form 2", "South", "Female", "2009-11-05", "0745678901", "AB+", "Twiga"],
-            ["1005", "Kevin Mutua", "Form 3", "East", "Male", "2008-07-30", "0756789012", "O-", "Nyati"],
-        ]
         for row in samples:
             ws.append(row)
 
@@ -84,6 +150,13 @@ class BulkImporter:
                     out_path = target_dir / filename
                     with zf.open(member) as source, open(out_path, "wb") as target:
                         shutil.copyfileobj(source, target)
+
+                    # Automated Smart Headshot Centering & 3:4 Normalization
+                    try:
+                        from services.photo_enhancer import PhotoEnhancer
+                        PhotoEnhancer.enhance_passport_photo(out_path, output_path=out_path)
+                    except Exception:
+                        pass
 
                     base_stem = Path(filename).stem
                     norm_stem = normalize_adm(base_stem)
@@ -135,23 +208,43 @@ class BulkImporter:
 
     @staticmethod
     def auto_detect_mapping(headers):
-        """Auto detects column mapping for common Kenyan spreadsheet variations."""
+        """Auto detects column mapping for schools, universities, companies, and organizations."""
         mapping = {}
         patterns = {
-            "admission_number": [r"adm.*no", r"admission.*no", r"adm_no", r"admission", r"reg.*no", r"student.*id"],
-            "full_name": [r"full.*name", r"student.*name", r"name", r"names"],
-            "class_name": [r"class", r"form", r"grade", r"standard"],
-            "stream_name": [r"stream", r"section", r"track"],
+            "admission_number": [
+                r"adm.*no", r"admission.*no", r"adm_no", r"admission", r"reg.*no", r"registration.*no",
+                r"student.*id", r"emp.*no", r"employee.*no", r"employee.*id", r"staff.*no", r"staff.*id",
+                r"payroll.*no", r"member.*no", r"member.*id", r"officer.*id", r"id.*no", r"national.*id",
+                r"serial.*no", r"matric.*no", r"identifier"
+            ],
+            "full_name": [
+                r"full.*name", r"student.*name", r"employee.*name", r"staff.*name", r"member.*name",
+                r"name", r"names", r"person.*name"
+            ],
+            "class_name": [
+                r"class", r"form", r"grade", r"standard", r"department", r"dept", r"faculty",
+                r"unit", r"division", r"branch", r"cohort", r"team", r"directorate"
+            ],
+            "stream_name": [
+                r"stream", r"section", r"track", r"job.*title", r"title", r"position", r"role",
+                r"designation", r"course", r"programme", r"cadre", r"rank"
+            ],
             "gender": [r"gender", r"sex"],
-            "dob": [r"dob", r"date.*of.*birth", r"birth.*date"],
-            "parent_phone": [r"parent.*phone", r"phone", r"guardian.*phone", r"mobile", r"contact"],
-            "blood_group": [r"blood.*group", r"blood"],
-            "house_or_dorm": [r"house", r"dorm", r"dormitory"]
+            "dob": [r"dob", r"date.*of.*birth", r"birth.*date", r"birthdate"],
+            "parent_phone": [
+                r"parent.*phone", r"phone", r"telephone", r"mobile", r"contact", r"emergency.*contact",
+                r"guardian.*phone", r"cell", r"phone.*no"
+            ],
+            "blood_group": [r"blood.*group", r"blood.*type", r"blood"],
+            "house_or_dorm": [
+                r"house", r"dorm", r"dormitory", r"station", r"campus", r"building", r"office",
+                r"location", r"zone"
+            ]
         }
 
         for field, pat_list in patterns.items():
             for h in headers:
-                h_clean = h.lower().replace("_", " ").replace("-", " ")
+                h_clean = h.lower().replace("_", " ").replace("-", " ").strip()
                 if any(re.search(p, h_clean) for p in pat_list):
                     mapping[field] = h
                     break

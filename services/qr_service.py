@@ -4,7 +4,7 @@ import datetime
 import qrcode
 from PIL import Image, ImageDraw  # type: ignore
 from extensions import db
-from models import QRVerificationToken, CardRecord, Student, School
+from models import QRVerificationToken, CardRecord, Student, School, GateScanLog
 
 class QRService:
     @staticmethod
@@ -15,7 +15,7 @@ class QRService:
     @staticmethod
     def generate_qr_image(data_url, size_px=240, add_shield=True):
         """Generates a high-contrast, ISO/IEC 18004 compliant QR code PIL Image.
-        
+
         Features:
         - ERROR_CORRECT_H (30% error recovery): Ensures flawless scanning even on
           worn/scratched PVC cards, laminated plastic glare, and camera tilt.
@@ -110,7 +110,20 @@ class QRService:
         """Looks up verification record and increments scan counter safely."""
         token_entry = QRVerificationToken.query.filter_by(token=token_str).first()
         if not token_entry:
-            return {"valid": False, "message": "Invalid or unrecognized verification token."}
+            card_alt = CardRecord.query.filter_by(qr_token=token_str).first()
+            if card_alt:
+                token_entry = QRVerificationToken(
+                    token=token_str,
+                    school_id=card_alt.school_id,
+                    student_id=card_alt.student_id,
+                    card_record_id=card_alt.id,
+                    is_valid=True,
+                    scan_count=0
+                )
+                db.session.add(token_entry)
+                db.session.commit()
+            else:
+                return {"valid": False, "message": "Invalid or unrecognized verification token."}
 
         token_entry.scan_count += 1
         token_entry.last_scanned_at = datetime.datetime.utcnow()
@@ -132,21 +145,58 @@ class QRService:
 
         status_text = "ACTIVE & AUTHENTIC" if (is_active and not is_expired) else ("EXPIRED" if is_expired else "INACTIVE / REVOKED")
 
+        # Automatically record gate entry scan for security analytics & attendance
+        scan_record_id = None
+        try:
+            scan_status = "granted" if (is_active and not is_expired) else ("expired" if is_expired else "denied")
+            scan_entry = GateScanLog(
+                school_id=school.id,
+                student_id=student.id,
+                card_record_id=card.id if card else None,
+                token=token_str,
+                member_name=student.full_name,
+                admission_number=student.admission_number,
+                department=student.class_name,
+                role_title=student.stream_name or student.class_name,
+                photo_filename=student.photo_cropped_filename or student.photo_filename,
+                scan_status=scan_status,
+                gate_device="Mobile Gate Scanner",
+                scanned_at=datetime.datetime.utcnow()
+            )
+            db.session.add(scan_entry)
+            db.session.commit()
+            scan_record_id = scan_entry.id
+        except Exception:
+            db.session.rollback()
+
         return {
             "valid": is_active and not is_expired,
             "status_text": status_text,
             "status": card.status if card else student.card_status,
+            "scan_log_id": scan_record_id,
             "student_name": student.full_name,
             "admission_number": student.admission_number,
             "class_name": student.class_name,
             "stream_name": student.stream_name or "N/A",
             "academic_year": student.academic_year,
             "school_name": school.name,
+            "school_code": school.code or f"ID-{school.id}",
             "school_county": school.county,
             "school_phone": school.phone,
+            "school_logo": school.logo_filename,
+            "primary_color": school.primary_color or "#1E3A8A",
+            "institution_type": school.institution_type or "school",
+            "card_title": school.get_card_title() if hasattr(school, "get_card_title") else "IDENTITY CARD",
+            "id_label": school.get_id_label() if hasattr(school, "get_id_label") else "ID NO",
+            "member_label": school.get_member_label() if hasattr(school, "get_member_label") else "Member",
+            "class_label": school.get_class_label() if hasattr(school, "get_class_label") else "Department / Unit",
+            "stream_label": school.get_stream_label() if hasattr(school, "get_stream_label") else "Job Title / Role",
             "card_number": card.card_number if card else "N/A",
             "issue_date": str(card.issue_date) if card and card.issue_date else "N/A",
             "expiry_date": str(card.expiry_date) if card and card.expiry_date else "N/A",
             "scan_count": token_entry.scan_count,
-            "last_scanned": token_entry.last_scanned_at.strftime("%Y-%m-%d %H:%M:%S UTC") if token_entry.last_scanned_at else "First scan"
+            "last_scanned": token_entry.last_scanned_at.strftime("%Y-%m-%d %H:%M:%S UTC") if token_entry.last_scanned_at else "First scan",
+            "student": student,
+            "school": school,
+            "card": card
         }

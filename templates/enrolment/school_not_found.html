@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>School Not Found — EduID Kenya</title>
+  <title>Institution Not Found — EduID Kenya</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -21,70 +21,132 @@
     }
     .box-card {
       background: white;
-      border-radius: 20px;
-      max-width: 580px;
+      border-radius: 24px;
+      max-width: 520px;
       width: 100%;
-      padding: 36px 30px;
+      padding: 40px 32px;
       text-align: center;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35);
     }
-    .box-card h2 { font-size: 1.35rem; font-weight: 800; margin-bottom: 8px; }
-    .box-card p { font-size: 0.88rem; color: #64748B; margin-bottom: 24px; line-height: 1.5; }
-    .btn-hub {
+    .icon-badge {
+      width: 68px;
+      height: 68px;
+      background: #FEE2E2;
+      color: #DC2626;
+      border-radius: 50%;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
-      background: #1E3A8A;
-      color: white;
-      border-radius: 12px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .box-card h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 10px; color: #0F172A; }
+    .box-card p { font-size: 0.9rem; color: #64748B; margin-bottom: 24px; line-height: 1.55; }
+    .code-tag {
+      display: inline-block;
+      background: #F1F5F9;
+      border: 1px solid #CBD5E1;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-family: monospace;
       font-weight: 700;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-    .schools-mini-list {
-      text-align: left;
-      margin: 20px 0;
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #E2E8F0;
-      border-radius: 12px;
-      padding: 8px;
-    }
-    .mini-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 12px;
-      border-radius: 8px;
-      text-decoration: none;
       color: #0F172A;
+    }
+    .retry-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .retry-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+    .retry-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #CBD5E1;
+      font-family: monospace;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .retry-input:focus {
+      border-color: #2563EB;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+    }
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .btn-action {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
       font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-onboard { background: #1E3A8A; color: white; }
+    .btn-login { background: #0F172A; color: white; }
+    .btn-action:hover { opacity: 0.92; transform: translateY(-1px); }
+    .footer-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: #64748B;
+      text-decoration: none;
       font-weight: 600;
     }
-    .mini-item:hover { background: #F1F5F9; }
+    .footer-link:hover { color: #1E3A8A; }
   </style>
 </head>
 <body>
 <div class="box-card">
-  <i class="fa-solid fa-school-circle-xmark fa-3x text-danger mb-3"></i>
-  <h2>School Not Found</h2>
-  <p>We could not find an active school matching code or ID "<strong>{{ searched_code }}</strong>". Please select from the registered institutions below or visit our directory.</p>
-
-  {% if available_schools %}
-  <div class="schools-mini-list">
-    {% for s in available_schools %}
-    <a href="/onboard/{{ s.code or s.id }}" class="mini-item">
-      <span><i class="fa-solid fa-school text-primary me-2"></i>{{ s.name }}</span>
-      <span class="badge" style="background:#E2E8F0; color:#475569; padding:3px 8px; border-radius:50px; font-size:0.72rem;">{{ s.code or s.town }}</span>
-    </a>
-    {% endfor %}
+  <div class="icon-badge">
+    <i class="fa-solid fa-building-circle-xmark fa-2x"></i>
   </div>
-  {% endif %}
+  <h2>Institution Not Found</h2>
+  <p>
+    We could not find an active school or organisation matching code <span class="code-tag">{{ searched_code }}</span>. Please double-check the unique code or link provided by your administration.
+  </p>
 
-  <a href="/onboard" class="btn-hub">
-    <i class="fa-solid fa-magnifying-glass"></i> Browse All Schools in Directory
-  </a>
+  <div class="retry-box">
+    <form method="GET" action="/portal">
+      <label class="retry-label">Re-enter Unique Institution Code</label>
+      <input type="text" name="code" class="retry-input" placeholder="e.g. AHS-001, STR-01, UON-01" required autofocus>
+
+      <div class="actions-grid">
+        <button type="submit" name="action" value="onboard" class="btn-action btn-onboard">
+          <i class="fa-solid fa-id-card"></i> Onboarding
+        </button>
+        <button type="submit" name="action" value="login" class="btn-action btn-login">
+          <i class="fa-solid fa-right-to-bracket"></i> Staff Login
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div>
+    <a href="/portal" class="footer-link">
+      <i class="fa-solid fa-arrow-left"></i> Return to Universal Portal Hub
+    </a>
+  </div>
 </div>
 </body>
 </html>

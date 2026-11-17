@@ -46,7 +46,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from extensions import db
 from models import School, Student, SelfEnrolment, CardRecord, AdmissionAllowlist
 from config import Config
-from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url
+from utils import (get_current_school, log_audit, save_uploaded_file, save_base64_image,
+                   build_public_url, find_institution_by_code_or_id,
+                   require_org_admin, require_same_institution)
 from services.card_renderer import CardRenderer
 from services.qr_service import QRService
 
@@ -77,19 +79,21 @@ BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PUBLIC: Multi-School Onboarding Directory / Hub (Strict White-Label Isolation)
+# PUBLIC: Universal Multi-Institution Onboarding Portal & Hub (Strict White-Label Isolation)
 # ─────────────────────────────────────────────────────────────────────────────
 
+@enrolment_bp.route("/portal", methods=["GET"])
 @enrolment_bp.route("/onboard", methods=["GET"])
 @enrolment_bp.route("/enrol", methods=["GET"])
 def onboard_hub():
-    """Private White-Label Onboarding Router.
+    """Universal Institutional Credential Portal & Router.
     - Logged-in tenant users are automatically routed to their own institution portal.
-    - Public visitors with a code are routed to that exact institution.
-    - Public visitors without a code see a private portal search (no competitor listing).
+    - Public visitors with an institution code are routed to that exact institution
+      (either for member onboarding or workspace staff login depending on action).
+    - Public visitors without a code see a private search & code entry interface (no competitor listing).
     - Only Super Admin can view all institutions across the platform."""
     from flask_login import current_user
-    
+
     # If logged in as an institution user, redirect directly to their own school's portal
     if current_user and current_user.is_authenticated:
         if not (getattr(current_user, "is_platform_admin", False) or current_user.role == "superadmin"):
@@ -97,13 +101,21 @@ def onboard_hub():
             if school:
                 return redirect(url_for("enrolment.self_enrol", school_code=school.code or school.id))
 
-    search = request.args.get("q", "").strip()
+    search = (request.args.get("code") or request.args.get("q") or "").strip()
+    action = request.args.get("action", "onboard").strip().lower()
 
-    # If code/search query is provided, find that exact school and redirect directly to it
+    # If code/search query is provided, find that exact institution and route directly
     if search:
-        exact_school = _find_school_by_code_or_id(search)
+        exact_school = find_institution_by_code_or_id(search)
         if exact_school:
+            if action == "login":
+                return redirect(url_for("auth.login", code=exact_school.code or exact_school.id))
             return redirect(url_for("enrolment.self_enrol", school_code=exact_school.code or exact_school.id))
+        else:
+            return render_template(
+                "enrolment/school_not_found.html",
+                searched_code=search
+            ), 404
 
     is_sa = current_user and current_user.is_authenticated and (getattr(current_user, "is_platform_admin", False) or current_user.role == "superadmin")
 
@@ -118,7 +130,7 @@ def onboard_hub():
         )
 
     # Super Admin view only
-    query = School.query.filter_by(is_active=True, allow_self_onboarding=True)
+    query = School.query.filter_by(is_active=True)
     if search:
         query = query.filter(
             (School.name.ilike(f"%{search}%")) |
@@ -138,46 +150,23 @@ def onboard_hub():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PUBLIC: School-Specific Student Self-Onboarding Portal
+# PUBLIC: Institution-Specific Member / Student Self-Onboarding Portal
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _find_school_by_code_or_id(school_code):
-    """Case-insensitive lookup for school code, ID, or fallback name."""
-    s_code = str(school_code).strip()
-    # Check numeric ID
-    if s_code.isdigit():
-        sch = School.query.filter_by(id=int(s_code), is_active=True).first()
-        if sch:
-            return sch
-
-    # Check case-insensitive code
-    sch = School.query.filter(
-        db.func.lower(School.code) == s_code.lower(),
-        School.is_active == True
-    ).first()
-    if sch:
-        return sch
-
-    # Fallback: check by exact code or name
-    sch = School.query.filter(
-        (School.code == s_code) | (School.name.ilike(f"%{s_code}%")),
-        School.is_active == True
-    ).first()
-    return sch
+    """Case-insensitive lookup delegating to shared find_institution_by_code_or_id."""
+    return find_institution_by_code_or_id(school_code)
 
 
 @enrolment_bp.route("/onboard/<school_code>", methods=["GET", "POST"])
 @enrolment_bp.route("/enrol/<school_code>", methods=["GET", "POST"])
 def self_enrol(school_code):
-    """Public intake portal for a specific school — no login required."""
-    school = _find_school_by_code_or_id(school_code)
+    """Public intake portal for a specific institution — no login required."""
+    school = find_institution_by_code_or_id(school_code)
     if not school:
-        # Suggest available schools
-        all_schools = School.query.filter_by(is_active=True, allow_self_onboarding=True).order_by(School.name).all()
         return render_template(
             "enrolment/school_not_found.html",
-            searched_code=school_code,
-            available_schools=all_schools
+            searched_code=school_code
         ), 404
 
     # Check if school has enabled online onboarding
@@ -515,11 +504,16 @@ def preview_public_card(school_code):
 @enrolment_bp.route("/enrolment/admission-allowlist", methods=["GET", "POST"])
 @login_required
 def admission_allowlist():
-    """School-admin tool for managing admission numbers eligible for public intake."""
-    if current_user.role not in ("admin", "superadmin"):
+    """Institution-admin tool for managing admission / member IDs eligible for public intake.
+    Accessible by any org-level admin or higher for their own institution only.
+    """
+    if not require_org_admin():
         abort(403)
 
     school = get_current_school()
+    # Strict tenant isolation: non-superadmin users can only manage their own institution
+    if not require_same_institution(current_user, school):
+        abort(403)
     if request.method == "POST":
         action = request.form.get("action", "add")
         newly_generated = []
@@ -531,7 +525,7 @@ def admission_allowlist():
             prefix = (school.admission_number_prefix or "").strip().upper()
             digits = school.admission_number_length
             if not digits or not 4 <= digits <= 10:
-                flash("Set the random admission-number digit length in School Settings first. A prefix is optional.", "danger")
+                flash(f"Set the {school.get_id_label()} digit length in Institution Settings first. A prefix is optional.", "danger")
                 return redirect(url_for("enrolment.admission_allowlist"))
             if not 1 <= quantity <= 500:
                 flash("Choose a quantity between 1 and 500.", "danger")
@@ -582,7 +576,18 @@ def admission_allowlist():
                 AdmissionAllowlist.school_id == school.id,
                 AdmissionAllowlist.allocation_batch_id.isnot(None)
             ).group_by(AdmissionAllowlist.allocation_batch_id).order_by(db.func.min(AdmissionAllowlist.created_at).desc()).all()
-            return render_template("enrolment/admission_allowlist.html", current_school=school, entries=entry_rows, newly_generated=newly_generated, latest_batch_id=batch_id, batches=batches)
+            return render_template(
+                "enrolment/admission_allowlist.html",
+                current_school=school,
+                entries=entry_rows,
+                newly_generated=newly_generated,
+                latest_batch_id=batch_id,
+                batches=batches,
+                id_label=school.get_id_label(),
+                member_label=school.get_member_label(),
+                member_label_plural=school.get_member_label_plural(),
+                class_label=school.get_class_label(),
+            )
 
         raw_numbers = request.form.get("admission_numbers", "")
         numbers = {line.strip().upper() for line in raw_numbers.replace(",", "\n").replace(";", "\n").splitlines() if line.strip()}
@@ -623,7 +628,7 @@ def admission_allowlist():
             added += 1
 
         db.session.commit()
-        flash(f"Added or reactivated {added} admission number(s); skipped {skipped} duplicate, registered, or invalid number(s).", "success" if added else "warning")
+        flash(f"Added or reactivated {added} {school.get_id_label()}(s); skipped {skipped} duplicate, registered, or invalid number(s).", "success" if added else "warning")
         log_audit("UPDATE_ADMISSION_ALLOWLIST", f"Added/reactivated {added}; skipped {skipped} admissions", school_id=school.id)
         return redirect(url_for("enrolment.admission_allowlist"))
 
@@ -637,16 +642,27 @@ def admission_allowlist():
         AdmissionAllowlist.school_id == school.id,
         AdmissionAllowlist.allocation_batch_id.isnot(None)
     ).group_by(AdmissionAllowlist.allocation_batch_id).order_by(db.func.min(AdmissionAllowlist.created_at).desc()).all()
-    return render_template("enrolment/admission_allowlist.html", current_school=school, entries=entry_rows, batches=batches)
+    return render_template(
+        "enrolment/admission_allowlist.html",
+        current_school=school,
+        entries=entry_rows,
+        batches=batches,
+        id_label=school.get_id_label(),
+        member_label=school.get_member_label(),
+        member_label_plural=school.get_member_label_plural(),
+        class_label=school.get_class_label(),
+    )
 
 
 @enrolment_bp.route("/enrolment/admission-allowlist/batch/<batch_id>/pdf")
 @login_required
 def admission_batch_pdf(batch_id):
-    """Download a printable, school-scoped assignment register for an allocated batch."""
-    if current_user.role not in ("admin", "superadmin"):
+    """Download a printable, institution-scoped assignment register for an allocated batch."""
+    if not require_org_admin():
         abort(403)
     school = get_current_school()
+    if not require_same_institution(current_user, school):
+        abort(403)
     query = AdmissionAllowlist.query.filter_by(school_id=school.id, source="random")
     if batch_id != "all":
         query = query.filter_by(allocation_batch_id=batch_id)
@@ -655,19 +671,21 @@ def admission_batch_pdf(batch_id):
         abort(404)
 
     buffer = io.BytesIO()
+    id_label = school.get_id_label()
+    member_label = school.get_member_label()
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name="SchoolTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=16, leading=20, textColor=colors.HexColor(school.primary_color or "#1E3A8A"), alignment=1, spaceAfter=4))
     styles.add(ParagraphStyle(name="RegisterSubtitle", parent=styles["Normal"], fontSize=10, leading=14, alignment=1, textColor=colors.HexColor("#475569")))
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=18 * mm, bottomMargin=18 * mm, title="Admission Number Assignment Register")
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=18 * mm, bottomMargin=18 * mm, title=f"{id_label} Assignment Register")
     story = [
         Paragraph(school.name, styles["SchoolTitle"]),
-        Paragraph("ADMISSION NUMBER ASSIGNMENT REGISTER", styles["Heading2"]),
+        Paragraph(f"{id_label.upper()} ASSIGNMENT REGISTER", styles["Heading2"]),
         Paragraph(f"Allocation batch: {'ALL RANDOM ALLOCATIONS' if batch_id == 'all' else batch_id[:8].upper()} &nbsp; | &nbsp; Generated: {datetime.date.today().strftime('%d %B %Y')} &nbsp; | &nbsp; Numbers: {len(entries)}", styles["RegisterSubtitle"]),
         Spacer(1, 8 * mm),
-        Paragraph("Assign each number to one student using an official school letter. Once approved in the ID system, the admission number becomes permanent and must not be reassigned.", styles["BodyText"]),
+        Paragraph(f"Assign each number to one {member_label.lower()} using an official institution letter. Once approved in the ID system, the {id_label} becomes permanent and must not be reassigned.", styles["BodyText"]),
         Spacer(1, 5 * mm)
     ]
-    rows = [["No.", "Admission number", "Assigned student / letter reference"]]
+    rows = [["No.", id_label, f"Assigned {member_label} / letter reference"]]
     rows.extend([[str(index), entry.admission_number, ""] for index, entry in enumerate(entries, start=1)])
     table = Table(rows, colWidths=[15 * mm, 48 * mm, 115 * mm], repeatRows=1, rowHeights=[10 * mm] + [12 * mm] * len(entries))
     table.setStyle(TableStyle([
@@ -687,15 +705,18 @@ def admission_batch_pdf(batch_id):
     buffer.seek(0)
     safe_school = re.sub(r"[^A-Za-z0-9_-]+", "_", school.code or school.name).strip("_")
     filename_batch = "all" if batch_id == "all" else batch_id[:8]
-    return send_file(buffer, mimetype="application/pdf", as_attachment=True, download_name=f"{safe_school}_admission_assignments_{filename_batch}.pdf")
+    safe_label = re.sub(r"[^A-Za-z0-9_-]+", "_", id_label).lower()
+    return send_file(buffer, mimetype="application/pdf", as_attachment=True, download_name=f"{safe_school}_{safe_label}_assignments_{filename_batch}.pdf")
 
 
 @enrolment_bp.route("/enrolment/admission-allowlist/<int:entry_id>/deactivate", methods=["POST"])
 @login_required
 def deactivate_admission(entry_id):
-    if current_user.role not in ("admin", "superadmin"):
+    if not require_org_admin():
         abort(403)
     school = get_current_school()
+    if not require_same_institution(current_user, school):
+        abort(403)
     entry = AdmissionAllowlist.query.filter_by(id=entry_id, school_id=school.id).first_or_404()
     entry.is_active = False
     db.session.commit()
@@ -851,7 +872,7 @@ def queue():
     query = SelfEnrolment.query.filter_by(school_id=school.id)
     if status_filter in ("pending", "approved", "rejected"):
         query = query.filter_by(status=status_filter)
-    
+
     if search:
         query = query.filter(
             (SelfEnrolment.full_name.ilike(f"%{search}%")) |

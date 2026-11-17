@@ -1,21 +1,55 @@
 {% extends "base.html" %}
 
-{% block title %}Sign In - Kenyan School ID System{% endblock %}
+{% block title %}
+  {% if scoped_school %}
+    Sign In — {{ scoped_school.name }}
+  {% else %}
+    Sign In — EduID Kenya Universal ID Platform
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container py-5">
   <div class="row justify-content-center">
-    <div class="col-md-5 col-lg-4">
+    <div class="col-md-6 col-lg-5 col-xl-4">
       <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
-        <div class="card-header bg-dark text-white text-center py-4 border-0" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);">
+
+        {# Header: Custom Institutional Branding or Universal EduID Kenya #}
+        {% if scoped_school %}
+        <div class="card-header text-white text-center py-4 border-0 position-relative"
+             style="background: linear-gradient(135deg, {{ scoped_school.primary_color or '#1E3A8A' }} 0%, #0F172A 100%);">
+          {% if scoped_school.logo_filename %}
+          <img src="/media/logos/{{ scoped_school.logo_filename }}" alt="{{ scoped_school.name }}"
+               style="width: 64px; height: 64px; object-fit: contain;" class="rounded-3 bg-white p-1 mb-2 shadow-sm">
+          {% else %}
+          <div class="d-inline-flex p-3 rounded-circle bg-white bg-opacity-10 mb-2">
+            <i class="fa-solid fa-building-columns fa-2x text-warning"></i>
+          </div>
+          {% endif %}
+          <h5 class="fw-bold mb-1 text-white">{{ scoped_school.name }}</h5>
+          <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+            <span class="badge bg-warning text-dark fw-bold font-monospace">{{ scoped_school.code or ('ID-' ~ scoped_school.id) }}</span>
+            <span class="text-white-50 small">{{ scoped_school.get_institution_type_display() }}</span>
+          </div>
+          <p class="text-white-50 small mt-2 mb-0">Staff &amp; Management Workspace</p>
+        </div>
+        {% else %}
+        <div class="card-header bg-dark text-white text-center py-4 border-0"
+             style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);">
           <div class="d-inline-flex p-3 rounded-circle bg-white bg-opacity-10 mb-2">
             <i class="fa-solid fa-id-card-clip fa-2x text-warning"></i>
           </div>
           <h4 class="fw-bold mb-0">EduID Kenya</h4>
-          <p class="text-white-50 small mb-0">School ID Card Generation System</p>
+          <p class="text-white-50 small mb-0">Universal Institutional Credential Platform</p>
         </div>
+        {% endif %}
+
         <div class="card-body p-4 bg-white">
-          <form method="POST" action="{{ url_for('auth.login') }}">
+          <form method="POST" action="{{ url_for('auth.login', code=scoped_school.code if scoped_school else None) }}">
+            {% if scoped_school %}
+            <input type="hidden" name="institution_code" value="{{ scoped_school.code or scoped_school.id }}">
+            {% endif %}
+
             <div class="mb-3">
               <label class="form-label small fw-bold text-muted">Username or Email</label>
               <div class="input-group">
@@ -28,28 +62,78 @@
               <label class="form-label small fw-bold text-muted">Password</label>
               <div class="input-group">
                 <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
-                <input type="password" name="password" class="form-control border-start-0 ps-0" placeholder="••••••••" required>
+                <input type="password" name="password" id="loginPassword" class="form-control border-start-0 border-end-0 ps-0" placeholder="••••••••" required autocomplete="current-password">
+                <button class="btn btn-light border border-start-0 text-muted px-3" type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" title="Show/Hide password" tabindex="-1">
+                  <i class="fa-solid fa-eye" id="togglePasswordIcon"></i>
+                </button>
               </div>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm" style="background-color: #1E3A8A; border-color: #1E3A8A;">
-              <i class="fa-solid fa-right-to-bracket me-2"></i> Sign In to System
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm"
+                    style="background-color: {{ (scoped_school.primary_color if scoped_school else '#1E3A8A') }}; border-color: {{ (scoped_school.primary_color if scoped_school else '#1E3A8A') }};">
+              <i class="fa-solid fa-right-to-bracket me-2"></i>
+              {% if scoped_school %}Sign In to Workspace{% else %}Sign In to System{% endif %}
             </button>
           </form>
 
-          <div class="mt-4 pt-3 border-top text-center">
-            <p class="text-muted small mb-2">Want to manage ID cards for your organisation?</p>
-            <a href="{{ url_for('auth.register_institution') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
-              <i class="fa-solid fa-building-columns me-1"></i> Register Your Institution
+          {% if scoped_school %}
+          <div class="text-center mt-3">
+            <a href="{{ url_for('auth.login') }}" class="small text-muted text-decoration-none">
+              <i class="fa-solid fa-arrow-left me-1"></i> Switch Institution / Platform Login
+            </a>
+          </div>
+          {% else %}
+          {# Institution Code Quick Switcher #}
+          <div class="mt-4 pt-3 border-top">
+            <label class="form-label small fw-bold text-dark d-flex align-items-center gap-1 mb-1">
+              <i class="fa-solid fa-hashtag text-warning"></i> Access Your Institution Workspace
+            </label>
+            <p class="text-muted" style="font-size: 0.76rem; line-height: 1.35; margin-bottom: 8px;">
+              Have a unique institution code? Jump straight to your dedicated branded workspace:
+            </p>
+            <form method="GET" action="{{ url_for('auth.login') }}" class="d-flex gap-2">
+              <input type="text" name="code" class="form-control form-control-sm font-monospace text-uppercase" placeholder="e.g. AHS-001, UON-01" required>
+              <button type="submit" class="btn btn-dark btn-sm px-3 fw-bold">Open</button>
+            </form>
+          </div>
+          {% endif %}
+
+          <div class="mt-3 pt-3 border-top text-center">
+            <p class="text-muted small mb-2">Need to self-onboard for your ID?</p>
+            <a href="{{ url_for('enrolment.onboard_hub') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-semibold">
+              <i class="fa-solid fa-id-card me-1"></i> Go to Universal Onboarding Portal
+            </a>
+          </div>
+
+          <div class="mt-2 text-center">
+            <a href="{{ url_for('auth.register_institution') }}" class="small text-primary text-decoration-none fw-semibold">
+              <i class="fa-solid fa-building-columns me-1"></i> Register New School or Organisation
             </a>
           </div>
 
           <div class="alert alert-light border mt-3 mb-0 py-2 text-center text-muted small">
-            <i class="fa-solid fa-shield-halved text-success me-1"></i> Multi-Tenant SaaS Platform (EduID Kenya)
+            <i class="fa-solid fa-shield-halved text-success me-1"></i> Strict Multi-Tenant Isolation &bull; EduID Kenya
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+function togglePasswordVisibility() {
+  const pwdInput = document.getElementById('loginPassword');
+  const icon = document.getElementById('togglePasswordIcon');
+  if (!pwdInput || !icon) return;
+  if (pwdInput.type === 'password') {
+    pwdInput.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    pwdInput.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+</script>
 {% endblock %}

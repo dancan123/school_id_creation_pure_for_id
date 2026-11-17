@@ -1,10 +1,12 @@
 import io
+import secrets
+import hashlib
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 from flask_login import login_required, current_user
 from urllib.parse import urlsplit
 import re
 from extensions import db
-from models import School, Student, CardRecord, User
+from models import School, Student, CardRecord, User, QuotaUpgradeRequest, ApiKey
 from config import Config
 from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url, tenant_active_required
 from services.card_renderer import CardRenderer
@@ -105,7 +107,7 @@ def add_user():
     if current_user.role not in ["org_owner", "org_admin", "superadmin"] and not getattr(current_user, "is_platform_admin", False):
         flash("Only Organisation Administrators can add staff members.", "danger")
         return redirect(url_for("schools.users"))
-    
+
     username = request.form.get("username", "").strip()
     email = request.form.get("email", "").strip().lower()
     full_name = request.form.get("full_name", "").strip()
@@ -177,7 +179,7 @@ def create_school():
         registration_number = request.form.get("registration_number", "").strip()
         phone = request.form.get("phone", "").strip()
         email = request.form.get("email", "").strip()
-        
+
         # Colors
         primary_color = request.form.get("primary_color", "#1E3A8A")
         secondary_color = request.form.get("secondary_color", "#F59E0B")
@@ -319,7 +321,7 @@ def settings():
         school.sub_photo_label = request.form.get("sub_photo_label", getattr(school, "sub_photo_label", "") or "").strip()
         if request.form.get("institution_type"):
             school.institution_type = request.form.get("institution_type").strip()
-        
+
         # Color adjustments
         school.primary_color = request.form.get("primary_color", school.primary_color)
         school.secondary_color = request.form.get("secondary_color", school.secondary_color)
@@ -425,4 +427,127 @@ def settings():
 
     onboard_path = url_for("enrolment.self_enrol", school_code=school.code or school.id)
     onboard_url = build_public_url(onboard_path, school)
-    return render_template("schools/settings.html", current_school=school, all_schools=all_schools, onboard_url=onboard_url)
+    staff_login_url = build_public_url(f"auth/login?code={school.code or school.id}", school)
+    api_keys = ApiKey.query.filter_by(school_id=school.id).order_by(ApiKey.created_at.desc()).all()
+    new_api_key_revealed = session.pop("newly_created_api_key", None)
+
+    return render_template(
+        "schools/settings.html",
+        current_school=school,
+        all_schools=all_schools,
+        onboard_url=onboard_url,
+        staff_login_url=staff_login_url,
+        api_keys=api_keys,
+        new_api_key_revealed=new_api_key_revealed
+    )
+
+
+@schools_bp.route("/toggle-onboarding", methods=["POST"])
+@login_required
+@tenant_active_required
+def toggle_onboarding():
+    """Toggle public self-onboarding access on or off for the current organisation."""
+    school = get_current_school()
+    if current_user.role not in ["org_owner", "org_admin", "superadmin"] and not getattr(current_user, "is_platform_admin", False):
+        flash("Permission denied. Only Organisation Administrators can change public access settings.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    school.allow_self_onboarding = not school.allow_self_onboarding
+    db.session.commit()
+    state = "opened" if school.allow_self_onboarding else "closed"
+    log_audit("TOGGLE_SELF_ONBOARDING", f"Public onboarding {state} by {current_user.username}", school_id=school.id)
+    flash(f"Public onboarding access has been {state} for {school.name}.", "success")
+    return redirect(request.referrer or url_for("dashboard.index"))
+
+
+@schools_bp.route("/request-quota-upgrade", methods=["POST"])
+@login_required
+@tenant_active_required
+def request_quota_upgrade():
+    """Allows an organisation administrator to submit an in-app request for an ID card quota upgrade."""
+    school = get_current_school()
+    if not school:
+        flash("No active institution found.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    try:
+        requested_quota = int(request.form.get("requested_quota", 500))
+    except (ValueError, TypeError):
+        requested_quota = 500
+
+    requested_tier = request.form.get("requested_tier", "standard").strip()
+    contact_phone = request.form.get("contact_phone", "").strip() or school.phone
+    notes = request.form.get("notes", "").strip()
+
+    upgrade_req = QuotaUpgradeRequest(
+        school_id=school.id,
+        requested_by_user_id=current_user.id,
+        current_quota=school.max_cards_quota or 2,
+        requested_quota=requested_quota,
+        requested_tier=requested_tier,
+        contact_phone=contact_phone,
+        notes=notes,
+        status="pending"
+    )
+    db.session.add(upgrade_req)
+    db.session.commit()
+
+    quota_disp = "Unlimited (Infinite)" if requested_quota == 0 else f"{requested_quota:,} ID cards"
+    log_audit("REQUEST_QUOTA_UPGRADE", f"Requested upgrade to {quota_disp} ({requested_tier}) for {school.name}", school_id=school.id)
+    flash(f"Upgrade request for {quota_disp} has been submitted! Our Platform Super Administration team has been notified.", "success")
+    return redirect(request.referrer or url_for("dashboard.index"))
+
+
+@schools_bp.route("/api-keys/create", methods=["POST"])
+@login_required
+@tenant_active_required
+def create_api_key():
+    """Generates a secure API Key for turnstiles, gate hardware, and handheld scanners."""
+    school = get_current_school()
+    if current_user.role not in ["org_owner", "org_admin", "superadmin"] and not getattr(current_user, "is_platform_admin", False):
+        flash("Only Organisation Administrators can generate gate API keys.", "danger")
+        return redirect(url_for("schools.settings"))
+
+    name = request.form.get("name", "").strip() or "Turnstile Gate Scanner"
+    raw_secret = secrets.token_urlsafe(32)
+    full_key = f"eduid_live_{raw_secret}"
+    key_prefix = full_key[:16]
+    key_hash = hashlib.sha256(full_key.encode("utf-8")).hexdigest()
+
+    new_key = ApiKey(
+        school_id=school.id,
+        created_by_user_id=current_user.id,
+        name=name,
+        key_prefix=key_prefix,
+        key_hash=key_hash,
+        is_active=True
+    )
+    db.session.add(new_key)
+    db.session.commit()
+
+    session["newly_created_api_key"] = full_key
+    log_audit("CREATE_API_KEY", f"Created Gate API key '{name}' ({key_prefix}...) for {school.name}", school_id=school.id)
+    flash(f"Gate API key '{name}' generated successfully! Please copy and store it safely now.", "success")
+    return redirect(url_for("schools.settings") + "#turnstile-keys")
+
+
+@schools_bp.route("/api-keys/<int:key_id>/revoke", methods=["POST"])
+@login_required
+@tenant_active_required
+def revoke_api_key(key_id):
+    """Revokes access for a turnstile or scanner API key."""
+    school = get_current_school()
+    if current_user.role not in ["org_owner", "org_admin", "superadmin"] and not getattr(current_user, "is_platform_admin", False):
+        flash("Only Organisation Administrators can revoke API keys.", "danger")
+        return redirect(url_for("schools.settings"))
+
+    key_record = ApiKey.query.filter_by(id=key_id, school_id=school.id).first()
+    if not key_record:
+        flash("API Key not found or does not belong to your organisation.", "danger")
+        return redirect(url_for("schools.settings"))
+
+    key_record.is_active = False
+    db.session.commit()
+    log_audit("REVOKE_API_KEY", f"Revoked Gate API key '{key_record.name}' for {school.name}", school_id=school.id)
+    flash(f"Gate API key '{key_record.name}' has been revoked.", "info")
+    return redirect(url_for("schools.settings") + "#turnstile-keys")

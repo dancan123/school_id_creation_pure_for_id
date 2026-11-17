@@ -32,14 +32,14 @@
           </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-primary btn-sm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#quotaUpgradeModal">
+            <i class="fa-solid fa-arrow-up-right-dots me-1"></i> Request Upgrade In-App
+          </button>
           <a href="https://wa.me/254746908674?text=Hello%20EduID%20Kenya%20Management,%20we%20have%20reached%20our%20ID%20limit%20for%20{{ current_school.name|urlencode }}.%20Please%20upgrade%20our%20allocation." target="_blank" class="btn btn-success btn-sm fw-bold px-3 shadow-sm">
-            <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp Support (+254 746 908674)
+            <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp Support
           </a>
           <a href="tel:+254746908674" class="btn btn-dark btn-sm fw-bold px-3 shadow-sm">
             <i class="fa-solid fa-phone me-1"></i> Call +254 746 908674
-          </a>
-          <a href="mailto:dancanmbaabu1@gmail.com?subject=ID%20Quota%20Upgrade%20Request%20-%20{{ current_school.name|urlencode }}&body=Hello%20System%20Admin,%20Please%20upgrade%20our%20card%20allocation%20for%20{{ current_school.name|urlencode }}." class="btn btn-outline-danger btn-sm fw-bold px-3">
-            <i class="fa-solid fa-envelope me-1"></i> dancanmbaabu1@gmail.com
           </a>
         </div>
       </div>
@@ -61,7 +61,27 @@
         <div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <h3 class="fw-bold mb-0 text-white">{{ current_school.name }}</h3>
-            <span class="badge bg-warning text-dark fw-bold">AY {{ current_school.academic_year }}</span>
+            <span class="badge bg-warning text-dark fw-bold font-monospace">{{ current_school.code or ('ID-' ~ current_school.id) }}</span>
+            <span class="badge bg-white bg-opacity-25 text-white fw-bold">{{ current_school.get_institution_type_display() }}</span>
+            <span class="badge bg-light text-dark fw-bold">AY {{ current_school.academic_year }}</span>
+            {% if current_school.allow_self_onboarding %}
+              <span class="badge bg-success bg-opacity-75 text-white fw-bold">
+                <i class="fa-solid fa-circle-check me-1"></i> Public Intake Open
+              </span>
+            {% else %}
+              <span class="badge bg-secondary text-white fw-bold">
+                <i class="fa-solid fa-lock me-1"></i> Public Intake Closed
+              </span>
+            {% endif %}
+            <form method="POST" action="{{ url_for('schools.toggle_onboarding') }}" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size: 0.72rem;" title="Toggle public self-onboarding access">
+                {% if current_school.allow_self_onboarding %}
+                  <i class="fa-solid fa-link-slash me-1"></i>Pause Intake
+                {% else %}
+                  <i class="fa-solid fa-link me-1"></i>Open Intake
+                {% endif %}
+              </button>
+            </form>
             {% if current_school.subscription_tier == 'free_trial' %}
               <span class="badge bg-info text-dark fw-bold">
                 <i class="fa-solid fa-gift me-1"></i> Free Trial ({{ cards_generated }}/{{ current_school.max_cards_quota or 2 }} Cards Used)
@@ -71,18 +91,21 @@
             {% endif %}
           </div>
           <p class="mb-0 text-white-50 small mt-1">
-            <i class="fa-solid fa-location-dot me-1"></i> {{ current_school.town }}, {{ current_school.county }} County &bull; 
+            <i class="fa-solid fa-location-dot me-1"></i> {{ current_school.town }}, {{ current_school.county }} County &bull;
             <i class="fa-solid fa-phone me-1"></i> {{ current_school.phone }} &bull;
             <em>"{{ current_school.motto }}"</em>
           </p>
         </div>
       </div>
       <div class="d-flex gap-2 flex-wrap">
-        <button type="button" class="btn btn-warning btn-sm px-3 fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#dashShareModal">
-          <i class="fa-solid fa-share-nodes me-1"></i> Share Onboarding Link & QR
+        <button type="button" class="btn btn-warning btn-sm px-3 fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#quotaUpgradeModal">
+          <i class="fa-solid fa-arrow-up-right-dots me-1"></i> Upgrade Quota
+        </button>
+        <button type="button" class="btn btn-outline-light btn-sm px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#dashShareModal">
+          <i class="fa-solid fa-share-nodes me-1"></i> Share Onboarding
         </button>
         <a href="{{ url_for('schools.settings') }}" class="btn btn-outline-light btn-sm px-3 shadow-sm">
-          <i class="fa-solid fa-sliders me-1"></i> School Settings
+          <i class="fa-solid fa-sliders me-1"></i> Settings
         </a>
         <a href="{{ url_for('single_id.index') }}" class="btn btn-light btn-sm px-3 fw-bold text-dark shadow-sm">
           <i class="fa-solid fa-plus-circle me-1"></i> Generate ID
@@ -94,14 +117,20 @@
   <!-- Operational Stat Counters -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-2">
-      <a href="{{ url_for('students.index') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View all registered student records">
+      <a href="{{ url_for('students.index') }}" class="card stat-card stat-link-card h-100 p-3 text-decoration-none text-reset" aria-label="View all registered {{ current_school.get_member_label_plural().lower() }} records">
         <div class="d-flex align-items-center justify-content-between">
           <div>
-            <div class="text-muted small fw-semibold">REGISTERED</div>
+            <div class="text-muted small fw-semibold">REGISTERED {{ current_school.get_member_label_plural().upper() }}</div>
             <div class="fs-3 fw-bold text-dark mt-1">{{ total_students }}</div>
           </div>
           <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-            <i class="fa-solid fa-user-graduate"></i>
+            {% if current_school.is_corporate() or current_school.is_government() %}
+              <i class="fa-solid fa-users-gear"></i>
+            {% elif current_school.is_ngo() %}
+              <i class="fa-solid fa-people-group"></i>
+            {% else %}
+              <i class="fa-solid fa-user-graduate"></i>
+            {% endif %}
           </div>
         </div>
       </a>
@@ -413,7 +442,308 @@
   </div>
 </div>
 
+  <!-- In-App Quota Upgrade & Instant M-Pesa Top-Up Modal -->
+  <div class="modal fade" id="quotaUpgradeModal" tabindex="-1" aria-labelledby="quotaUpgradeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+        <div class="modal-header bg-dark text-white border-0 py-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-2 bg-warning bg-opacity-25 rounded-circle text-warning">
+              <i class="fa-solid fa-bolt-lightning fa-lg"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold mb-0" id="quotaUpgradeModalLabel">ID Card Quota & Automated Top-Up</h5>
+              <div class="small text-white-50">Instant self-service activation via M-Pesa Daraja or institutional invoicing</div>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <!-- Mode Navigation Tabs -->
+        <ul class="nav nav-tabs nav-fill bg-light px-3 pt-2 border-bottom" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold text-success py-3" id="mpesa-tab" data-bs-toggle="tab" data-bs-target="#mpesa-pane" type="button" role="tab">
+              <i class="fa-solid fa-mobile-screen-button me-2"></i> Instant M-Pesa Express (STK Push)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold text-muted py-3" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-pane" type="button" role="tab">
+              <i class="fa-solid fa-file-invoice me-2"></i> Institutional Invoice / Request
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold text-muted py-3" id="receipts-tab" data-bs-toggle="tab" data-bs-target="#receipts-pane" type="button" role="tab">
+              <i class="fa-solid fa-receipt me-2"></i> Receipts &amp; Invoices
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- ── TAB 1: Instant M-Pesa STK Push ────────────────────────── -->
+          <div class="tab-pane fade show active p-4" id="mpesa-pane" role="tabpanel">
+            <div class="alert alert-light border d-flex justify-content-between align-items-center rounded-3 p-3 mb-4">
+              <div>
+                <span class="text-muted small d-block">Active Tenant Balance</span>
+                <strong class="text-dark">{{ current_school.name }}</strong>
+              </div>
+              <div class="text-end">
+                <span class="badge bg-primary px-3 py-2 font-monospace fs-6">
+                  {{ current_school.cards_generated_count }} / {{ current_school.max_cards_quota }} Cards Used
+                </span>
+              </div>
+            </div>
+
+            <h6 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-boxes-packing text-primary me-2"></i> Select Card Top-Up Allocation:</h6>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="card p-3 border rounded-3 h-100 cursor-pointer package-card shadow-sm position-relative">
+                  <input type="radio" name="mpesa_pkg" value="pack_100" class="form-check-input position-absolute top-0 end-0 m-3" checked>
+                  <div class="fw-bold fs-5 text-dark mb-1">100 ID Cards</div>
+                  <div class="text-success fw-bold fs-4 mb-1">KES 2,500</div>
+                  <div class="text-muted small">KES 25 / card &bull; Starter batch for departments & primary schools.</div>
+                </label>
+              </div>
+
+              <div class="col-md-6">
+                <label class="card p-3 border border-success border-2 rounded-3 h-100 cursor-pointer package-card shadow-sm position-relative bg-success bg-opacity-10">
+                  <span class="badge bg-success position-absolute top-0 end-0 m-2">MOST POPULAR</span>
+                  <input type="radio" name="mpesa_pkg" value="pack_500" class="form-check-input position-absolute top-0 end-0 m-3" style="top:25px !important;">
+                  <div class="fw-bold fs-5 text-dark mb-1">500 ID Cards</div>
+                  <div class="text-success fw-bold fs-4 mb-1">KES 7,500</div>
+                  <div class="text-muted small">KES 15 / card &bull; Best value for high schools, colleges & TVETs.</div>
+                </label>
+              </div>
+
+              <div class="col-md-6">
+                <label class="card p-3 border rounded-3 h-100 cursor-pointer package-card shadow-sm position-relative">
+                  <input type="radio" name="mpesa_pkg" value="pack_2000" class="form-check-input position-absolute top-0 end-0 m-3">
+                  <div class="fw-bold fs-5 text-dark mb-1">2,000 ID Cards</div>
+                  <div class="text-success fw-bold fs-4 mb-1">KES 20,000</div>
+                  <div class="text-muted small">KES 10 / card &bull; High volume for universities & enterprises.</div>
+                </label>
+              </div>
+
+              <div class="col-md-6">
+                <label class="card p-3 border rounded-3 h-100 cursor-pointer package-card shadow-sm position-relative">
+                  <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2">UNLIMITED</span>
+                  <input type="radio" name="mpesa_pkg" value="pack_unlimited" class="form-check-input position-absolute top-0 end-0 m-3" style="top:25px !important;">
+                  <div class="fw-bold fs-5 text-dark mb-1">Enterprise Unlimited</div>
+                  <div class="text-success fw-bold fs-4 mb-1">KES 45,000</div>
+                  <div class="text-muted small">Zero card restrictions &bull; 1 Full Year infinite printing.</div>
+                </label>
+              </div>
+            </div>
+
+            <!-- M-Pesa Phone Input -->
+            <div class="mb-4">
+              <label class="form-label small fw-bold text-dark">Safaricom M-Pesa Mobile Number</label>
+              <div class="input-group input-group-lg">
+                <span class="input-group-text bg-light fw-bold text-dark"><i class="fa-solid fa-mobile-screen text-success me-2"></i> +254</span>
+                <input type="tel" id="mpesa_phone_input" class="form-control" placeholder="712 345 678" value="{{ current_school.phone.replace('+254', '').replace('254', '').strip() if current_school.phone else '' }}">
+              </div>
+              <div class="form-text small">An STK prompt will appear on this handset asking for the M-Pesa PIN.</div>
+            </div>
+
+            <!-- Progress & Status Alert Box -->
+            <div id="mpesa-status-box" class="alert d-none rounded-3 mb-3"></div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+              <button type="button" id="mpesa-pay-btn" class="btn btn-success btn-lg px-4 fw-bold shadow" onclick="triggerMpesaSTK()">
+                <i class="fa-solid fa-lock me-2"></i> Pay with M-Pesa (Instant Unlock)
+              </button>
+            </div>
+          </div>
+
+          <!-- ── TAB 2: Institutional Invoicing Request ─────────────────── -->
+          <div class="tab-pane fade p-4" id="invoice-pane" role="tabpanel">
+            <form method="POST" action="{{ url_for('schools.request_quota_upgrade') }}">
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Desired Card Allocation</label>
+                <select name="requested_quota" class="form-select" required>
+                  <option value="50">50 ID Cards (Starter Package)</option>
+                  <option value="250">250 ID Cards (Term Intake)</option>
+                  <option value="500" selected>500 ID Cards (Annual Standard)</option>
+                  <option value="1000">1,000 ID Cards (Large Institution)</option>
+                  <option value="5000">5,000 ID Cards (College / Corporate)</option>
+                  <option value="0">Unlimited / Infinite Allocation (Enterprise)</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Desired Plan Tier</label>
+                <select name="requested_tier" class="form-select">
+                  <option value="standard" selected>Standard Plan</option>
+                  <option value="enterprise">Enterprise Tier</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Contact Telephone / WhatsApp</label>
+                <input type="tel" name="contact_phone" class="form-control" value="{{ current_school.phone or '' }}" placeholder="e.g. +254 746 908674" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Additional Notes / Special Instructions</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="e.g. Please send official pro-forma invoice to accounts@..."></textarea>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary fw-bold px-4">
+                  <i class="fa-solid fa-paper-plane me-1"></i> Submit Invoice Request
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ── TAB 3: Payment Receipts & Tax Invoices ────────────────── -->
+          <div class="tab-pane fade p-4" id="receipts-pane" role="tabpanel">
+            <h6 class="fw-bold mb-1"><i class="fa-solid fa-file-invoice-dollar text-success me-2"></i> Official KRA Electronic Receipts</h6>
+            <p class="text-muted small mb-3">Download bursar-ready PDF receipts for auditing and tax compliance.</p>
+            {% if recent_transactions %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light small text-uppercase" style="font-size: 0.72rem;">
+                  <tr>
+                    <th>Date (EAT)</th>
+                    <th>Package</th>
+                    <th>Cards</th>
+                    <th>Amount</th>
+                    <th>M-Pesa Ref</th>
+                    <th>Status</th>
+                    <th class="text-end">Receipt</th>
+                  </tr>
+                </thead>
+                <tbody class="small">
+                  {% for t in recent_transactions %}
+                  <tr>
+                    <td class="text-muted font-monospace">{{ t.created_at.strftime('%d %b %Y %H:%M') if t.created_at else 'N/A' }}</td>
+                    <td class="fw-bold text-dark">{{ t.package_name }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ t.cards_credited if t.cards_credited > 0 else 'Unlimited' }}</span></td>
+                    <td class="fw-bold text-dark">KES {{ "{:,.2f}".format(t.amount) }}</td>
+                    <td><code class="text-success">{{ t.mpesa_receipt_number or t.reference_id[:8] }}</code></td>
+                    <td>
+                      {% if t.status == 'completed' %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Paid</span>
+                      {% elif t.status == 'pending' %}
+                      <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">Pending</span>
+                      {% else %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ t.status }}</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      {% if t.status == 'completed' %}
+                      <a href="{{ url_for('api.download_tax_receipt', transaction_id=t.id) }}" target="_blank" class="btn btn-outline-success btn-sm py-0 px-2 fw-semibold">
+                        <i class="fa-solid fa-file-pdf me-1"></i> Receipt PDF
+                      </a>
+                      {% else %}
+                      <span class="text-muted small">&mdash;</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted small bg-light rounded-3 border">
+              No top-up payment records found yet. Complete an M-Pesa top-up to generate electronic tax receipts.
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
+let mpesaPollingInterval = null;
+
+function triggerMpesaSTK() {
+  const phone = document.getElementById('mpesa_phone_input').value.trim();
+  const pkgInput = document.querySelector('input[name="mpesa_pkg"]:checked');
+  const pkgKey = pkgInput ? pkgInput.value : 'pack_500';
+  const payBtn = document.getElementById('mpesa-pay-btn');
+  const statusBox = document.getElementById('mpesa-status-box');
+
+  if (!phone) {
+    alert('Please enter your Safaricom M-Pesa mobile number.');
+    return;
+  }
+
+  payBtn.disabled = true;
+  payBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Dispatching STK Push...';
+  statusBox.className = 'alert alert-info rounded-3 mb-3 d-block';
+  statusBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Connecting to Safaricom Daraja Gateway...';
+
+  fetch('/api/v1/billing/mpesa-stk-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phone, package_key: pkgKey })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      statusBox.className = 'alert alert-warning rounded-3 mb-3 d-block';
+      let simHtml = '';
+      if (data.is_simulation) {
+        simHtml = `<div class="mt-2"><button type="button" class="btn btn-sm btn-dark" onclick="simulateInstantApproval(${data.transaction_id})"><i class="fa-solid fa-check me-1"></i> Simulate Instant PIN Approval (Sandbox)</button></div>`;
+      }
+      statusBox.innerHTML = `<div><strong>${data.customer_message}</strong></div><div class="small text-muted mt-1"><i class="fa-solid fa-spinner fa-spin me-1"></i> Waiting for M-Pesa PIN confirmation from phone...</div>${simHtml}`;
+
+      // Start polling for payment completion
+      pollMpesaStatus(data.transaction_id);
+    } else {
+      payBtn.disabled = false;
+      payBtn.innerHTML = '<i class="fa-solid fa-lock me-2"></i> Pay with M-Pesa (Instant Unlock)';
+      statusBox.className = 'alert alert-danger rounded-3 mb-3 d-block';
+      statusBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${data.message || 'Payment initiation failed.'}`;
+    }
+  })
+  .catch(err => {
+    payBtn.disabled = false;
+    payBtn.innerHTML = '<i class="fa-solid fa-lock me-2"></i> Pay with M-Pesa (Instant Unlock)';
+    statusBox.className = 'alert alert-danger rounded-3 mb-3 d-block';
+    statusBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-2"></i> Network error initiating M-Pesa push.';
+  });
+}
+
+function pollMpesaStatus(txnId) {
+  if (mpesaPollingInterval) clearInterval(mpesaPollingInterval);
+
+  mpesaPollingInterval = setInterval(() => {
+    fetch(`/api/v1/billing/status/${txnId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'completed') {
+          clearInterval(mpesaPollingInterval);
+          const statusBox = document.getElementById('mpesa-status-box');
+          statusBox.className = 'alert alert-success rounded-3 mb-3 d-block';
+          statusBox.innerHTML = `<h6 class="fw-bold mb-1"><i class="fa-solid fa-circle-check text-success me-2"></i> Payment Confirmed!</h6><div>M-Pesa Receipt: <strong>${data.mpesa_receipt}</strong>. Credited <strong>${data.cards_credited}</strong> cards to ${data.school.name}.</div><div class="mt-2"><a href="/api/v1/billing/receipt/${data.transaction_id}.pdf" target="_blank" class="btn btn-sm btn-success fw-bold"><i class="fa-solid fa-file-pdf me-1"></i> Download Official KRA Receipt</a></div>`;
+          setTimeout(() => { window.location.reload(); }, 2500);
+        } else if (data.status === 'failed') {
+          clearInterval(mpesaPollingInterval);
+          const payBtn = document.getElementById('mpesa-pay-btn');
+          payBtn.disabled = false;
+          payBtn.innerHTML = '<i class="fa-solid fa-lock me-2"></i> Retry M-Pesa Payment';
+          const statusBox = document.getElementById('mpesa-status-box');
+          statusBox.className = 'alert alert-danger rounded-3 mb-3 d-block';
+          statusBox.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i> Transaction cancelled or timed out.';
+        }
+      });
+  }, 2000);
+}
+
+function simulateInstantApproval(txnId) {
+  fetch(`/api/v1/billing/simulate-success/${txnId}`, { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      // Polling will catch it immediately
+    });
+}
+
 function copyDashUrl() {
   var input = document.getElementById('dashShareInput');
   input.select();

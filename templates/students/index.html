@@ -35,13 +35,13 @@
         <div class="col-md-3">
           <div class="input-group input-group-sm">
             <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-            <input type="text" name="search" class="form-control" placeholder="Search Adm No or Name..." value="{{ search }}">
+            <input type="text" name="search" class="form-control" placeholder="Search {{ current_school.get_id_label() if current_school else 'ID No' }} or Name..." value="{{ search }}">
           </div>
         </div>
 
         <div class="col-md-2">
           <select name="class" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="">All Classes</option>
+            <option value="">All {{ current_school.get_class_label().title() if current_school else 'Classes' }}s</option>
             {% for c in classes %}
             <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ c }}</option>
             {% endfor %}
@@ -50,7 +50,7 @@
 
         <div class="col-md-2">
           <select name="stream" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="">All Streams</option>
+            <option value="">All {{ current_school.get_stream_label().title() if current_school else 'Streams' }}s</option>
             {% for s in streams %}
             <option value="{{ s }}" {% if stream_filter == s %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
@@ -121,19 +121,19 @@
               <td>{{ s.card_number or '-' }}</td>
               <td class="text-end">
                 {% if s.parent_phone and clean_whatsapp_phone(s.parent_phone) %}
-                <a href="{{ build_whatsapp_link(s.parent_phone, 'Hello, regarding student ' ~ s.full_name ~ ' (Adm: ' ~ s.admission_number ~ ') at ' ~ current_school.name ~ ': ') }}"
-                   target="_blank" class="btn btn-outline-success btn-sm py-1 px-2" title="Chat with Parent on WhatsApp">
+                <a href="{{ build_whatsapp_link(s.parent_phone, 'Hello, regarding ' ~ (current_school.get_member_label() if current_school else 'member') ~ ' ' ~ s.full_name ~ ' (' ~ (current_school.get_id_label() if current_school else 'ID') ~ ': ' ~ s.admission_number ~ ') at ' ~ current_school.name ~ ': ') }}"
+                   target="_blank" class="btn btn-outline-success btn-sm py-1 px-2" title="Chat on WhatsApp">
                   <i class="fa-brands fa-whatsapp"></i>
                 </a>
                 {% endif %}
                 <a href="{{ url_for('single_id.index', student_id=s.id) }}" class="btn btn-outline-primary btn-sm py-1 px-2" title="Generate or Preview Card">
                   <i class="fa-solid fa-id-card"></i>
                 </a>
-                <a href="{{ url_for('students.edit_student', student_id=s.id) }}" class="btn btn-outline-secondary btn-sm py-1 px-2" title="Edit Student">
+                <a href="{{ url_for('students.edit_student', student_id=s.id) }}" class="btn btn-outline-secondary btn-sm py-1 px-2" title="Edit Record">
                   <i class="fa-solid fa-pen"></i>
                 </a>
-                <form method="POST" action="{{ url_for('students.delete_student', student_id=s.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete student {{ s.admission_number }}?');">
-                  <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Delete Student">
+                <form method="POST" action="{{ url_for('students.delete_student', student_id=s.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete record {{ s.admission_number }}?');">
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Delete Record">
                     <i class="fa-solid fa-trash"></i>
                   </button>
                 </form>
@@ -143,8 +143,8 @@
             <tr>
               <td colspan="8" class="text-center text-muted py-5">
                 <i class="fa-solid fa-users fa-2x mb-3 text-secondary d-block"></i>
-                No students match the selected filters.<br>
-                <a href="{{ url_for('students.new_student') }}" class="btn btn-primary btn-sm mt-2">Add Student</a>
+                No records match the selected filters.<br>
+                <a href="{{ url_for('students.new_student') }}" class="btn btn-primary btn-sm mt-2">Add {{ current_school.get_member_label() if current_school else 'Member' }}</a>
               </td>
             </tr>
             {% endfor %}
@@ -162,7 +162,7 @@
           {% if pagination.has_prev %}
           <li class="page-item"><a class="page-link" href="{{ url_for('students.index', page=pagination.prev_num, search=search, class=class_filter, stream=stream_filter, status=status_filter, missing_photo=missing_photo) }}">&laquo;</a></li>
           {% endif %}
-          
+
           {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
             {% if p %}
               <li class="page-item {% if p == pagination.page %}active{% endif %}">

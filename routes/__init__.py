@@ -12,6 +12,7 @@ from routes.verification import verification_bp
 from routes.reports import reports_bp
 from routes.system import system_bp
 from routes.superadmin import superadmin_bp
+from routes.api import api_bp
 
 def register_blueprints(app):
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -28,3 +29,4 @@ def register_blueprints(app):
     app.register_blueprint(verification_bp, url_prefix="")
     app.register_blueprint(reports_bp, url_prefix="/reports")
     app.register_blueprint(system_bp, url_prefix="/system")
+    app.register_blueprint(api_bp, url_prefix="/api/v1")

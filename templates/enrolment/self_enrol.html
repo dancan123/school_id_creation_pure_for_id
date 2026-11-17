@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student ID Self-Onboarding — {{ school.name }}</title>
-  <meta name="description" content="Official self-service ID card enrolment portal for {{ school.name }}. Upload passport photo, provide CBC/8-4-4 details, and preview your student ID card.">
+  <title>{{ school.get_member_label() }} ID Self-Onboarding — {{ school.name }}</title>
+  <meta name="description" content="Official self-service ID credential portal for {{ school.name }}. Upload passport photo, verify details, and preview your official ID card.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -1029,30 +1029,30 @@
           </div>
 
           <div class="form-group">
-            <label>Full Student Name <span class="req-star">*</span></label>
+            <label>Full {{ school.get_member_label() }} Name <span class="req-star">*</span></label>
             <input type="text" name="full_name" id="inputFullName" required autofocus
-                   placeholder="e.g. Kelvin Kipkemboi Tanui (Surname first or as per birth cert)"
+                   placeholder="e.g. Kelvin Kipkemboi Tanui (Surname first or as per official documents)"
                    value="{{ form.get('full_name', '') }}"
                    oninput="updateCardPreview()">
           </div>
 
           <div class="form-grid-2">
             <div class="form-group">
-              <label>Admission Number <span class="req-star">*</span></label>
+              <label>{{ school.get_id_label() }} <span class="req-star">*</span></label>
               <input type="text" name="admission_number" id="inputAdmNo" required
-                placeholder="Enter the number from your school letter"
+                     placeholder="Enter your {{ school.get_id_label() }}"
                      class="input-monospace"
                      value="{{ form.get('admission_number', '') }}"
                      oninput="handleAdmissionInput()">
-              <small class="text-muted">Enter the admission number assigned to you by the school, then verify it before continuing.</small>
+              <small class="text-muted">Enter the {{ school.get_id_label() }} assigned to you by {{ school.name }}.</small>
               <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="verifyAdmissionBtn" onclick="verifyAdmissionNow()">
-                <i class="fa-solid fa-shield-check me-1"></i>Verify admission number
+                <i class="fa-solid fa-shield-check me-1"></i>Verify {{ school.get_id_label() }}
               </button>
               <div id="admFeedback" class="admission-feedback"></div>
             </div>
 
             <div class="form-group">
-              <label>Academic Year <span class="req-star">*</span></label>
+              <label>Academic / Issue Year <span class="req-star">*</span></label>
               <select name="academic_year" id="inputYear" onchange="updateCardPreview()">
                 {% set cur_yr = (school.academic_year or '2026')|int %}
                 {% for yr in range(cur_yr - 1, cur_yr + 3) %}
@@ -1062,7 +1062,8 @@
             </div>
           </div>
 
-          <!-- Curriculum Switcher -->
+          {% if school.is_school() %}
+          <!-- Curriculum Switcher (Primary / Secondary Schools) -->
           <div class="form-group">
             <label>Curriculum System <span class="req-star">*</span></label>
             <div class="curr-switch-box">
@@ -1078,9 +1079,9 @@
 
           <div class="form-grid-2">
             <div class="form-group">
-              <label>Class / Grade <span class="req-star">*</span></label>
+              <label>{{ school.get_class_label() }} <span class="req-star">*</span></label>
               <select name="class_name" id="classSelect" required onchange="updateCardPreview()">
-                <option value="">-- Choose Class / Grade --</option>
+                <option value="">-- Choose {{ school.get_class_label() }} --</option>
                 <optgroup label="CBC Classes" id="cbcOptGroup">
                   {% for c in cbc_classes %}
                   <option value="{{ c }}" {% if form.get('class_name') == c %}selected{% endif %}>{{ c }}</option>
@@ -1095,18 +1096,39 @@
             </div>
 
             <div class="form-group">
-              <label>Stream / Class Section</label>
+              <label>{{ school.stream_label or 'Stream / Class Section' }}</label>
               <input type="text" name="stream_name" id="inputStream"
                      placeholder="e.g. East, Blue, Simba, Alpha"
                      value="{{ form.get('stream_name', '') }}"
                      oninput="updateCardPreview()">
             </div>
           </div>
+          {% else %}
+          <!-- Non-School Institutions (Colleges, Universities, TVETs, Corporates, NGOs) -->
+          <input type="hidden" name="curriculum_type" id="curriculumInput" value="Standard">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>{{ school.get_class_label() }} <span class="req-star">*</span></label>
+              <input type="text" name="class_name" id="classSelect" required
+                     placeholder="e.g. {{ 'School of Engineering / Business' if school.is_university() else ('Operations / Human Resources' if school.is_corporate() else 'Administration') }}"
+                     value="{{ form.get('class_name', '') }}"
+                     oninput="updateCardPreview()">
+            </div>
+
+            <div class="form-group">
+              <label>{{ school.stream_label or ('Course / Degree' if school.is_university() else ('Job Title / Role' if school.is_corporate() else 'Role / Designation')) }}</label>
+              <input type="text" name="stream_name" id="inputStream"
+                     placeholder="e.g. {{ 'BSc Computer Science' if school.is_university() else ('Accountant / Officer' if school.is_corporate() else 'Member') }}"
+                     value="{{ form.get('stream_name', '') }}"
+                     oninput="updateCardPreview()">
+            </div>
+          </div>
+          {% endif %}
 
           <div class="form-group">
-            <label>National UPI / NEMIS / Assessment No <span style="color:#94A3B8; font-weight:400;">(Optional)</span></label>
+            <label>{{ school.upi_label or ('National ID / Passport No' if (school.is_corporate() or school.is_university()) else 'National UPI / NEMIS / Assessment No') }} <span style="color:#94A3B8; font-weight:400;">(Optional)</span></label>
             <input type="text" name="nemis_upi" id="inputNemis"
-                   placeholder="e.g. NEMIS UPI or Assessment Code"
+                   placeholder="e.g. {{ 'National ID / Passport Number' if (school.is_corporate() or school.is_university()) else 'NEMIS UPI or Assessment Code' }}"
                    class="input-monospace"
                    value="{{ form.get('nemis_upi', '') }}"
                    oninput="updateCardPreview()">

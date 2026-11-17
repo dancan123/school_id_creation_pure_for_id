@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Gate Traffic & Attendance Analytics - {{ current_school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold mb-1">
+        <i class="fa-solid fa-shield-halved text-primary me-2"></i> Gate Scans &amp; Campus Traffic Analytics
+      </h4>
+      <p class="text-muted small mb-0">
+        Live access control audit, peak hour analytics, and gate verification logs for <strong>{{ current_school.name }}</strong>
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('verification.guard_scanner_portal', school_code=current_school.code) }}" target="_blank" class="btn btn-outline-success btn-sm fw-bold">
+        <i class="fa-solid fa-expand me-1"></i> Launch Guard Scanner
+      </a>
+      <a href="{{ url_for('reports.export_gate_traffic_csv') }}" class="btn btn-outline-primary btn-sm fw-bold">
+        <i class="fa-solid fa-file-csv me-1"></i> Export Log (CSV)
+      </a>
+      <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fa-solid fa-chart-pie me-1"></i> General Reports
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Stat Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-bold text-uppercase">Total Scans Today</span>
+            <h3 class="fw-extrabold text-primary mb-0 mt-1">{{ total_scans_today }}</h3>
+            <span class="text-muted" style="font-size: 0.75rem;">Verified gate scans</span>
+          </div>
+          <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-4">
+            <i class="fa-solid fa-qrcode fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-bold text-uppercase">Unique Persons In</span>
+            <h3 class="fw-extrabold text-success mb-0 mt-1">{{ unique_members_today }}</h3>
+            <span class="text-muted" style="font-size: 0.75rem;">Present on campus today</span>
+          </div>
+          <div class="p-3 bg-success bg-opacity-10 text-success rounded-4">
+            <i class="fa-solid fa-user-check fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-bold text-uppercase">Denied / Flagged</span>
+            <h3 class="fw-extrabold {% if denied_scans_today > 0 %}text-danger{% else %}text-secondary{% endif %} mb-0 mt-1">{{ denied_scans_today }}</h3>
+            <span class="text-muted" style="font-size: 0.75rem;">Expired or invalid cards</span>
+          </div>
+          <div class="p-3 {% if denied_scans_today > 0 %}bg-danger bg-opacity-10 text-danger{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} rounded-4">
+            <i class="fa-solid fa-ban fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small fw-bold text-uppercase">Active Gates &amp; Devices</span>
+            <h3 class="fw-extrabold text-info mb-0 mt-1">{{ active_devices_count }}</h3>
+            <span class="text-muted" style="font-size: 0.75rem;">Turnstiles &amp; mobile tablets</span>
+          </div>
+          <div class="p-3 bg-info bg-opacity-10 text-info rounded-4">
+            <i class="fa-solid fa-fingerprint fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hourly Gate Traffic Histogram -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0">
+        <i class="fa-solid fa-chart-column text-primary me-2"></i> Peak Entry Traffic by Hour (East Africa Time)
+      </h6>
+      <span class="badge bg-light text-dark border small">Today's Inflow (06:00 – 20:00)</span>
+    </div>
+    <div class="card-body p-4 pt-1">
+      <div class="d-flex align-items-end justify-content-between gap-2 pt-4 pb-2" style="height: 180px;">
+        {% for item in hourly_distribution %}
+        <div class="d-flex flex-column align-items-center flex-grow-1" style="height: 100%;">
+          <div class="d-flex align-items-end flex-grow-1 w-100" style="padding: 0 4px;">
+            <div class="w-100 rounded-top"
+                 style="background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+                        height: {{ (item.count / max_hourly * 100) if max_hourly > 0 and item.count > 0 else 4 }}%;
+                        min-height: 4px;
+                        transition: height 0.5s ease;"
+                 title="{{ item.hour }}: {{ item.count }} entries">
+            </div>
+          </div>
+          <div class="mt-2 text-center" style="font-size: 0.7rem; font-weight: 700; color: #475569;">
+            {{ item.count }}
+          </div>
+          <div class="text-muted" style="font-size: 0.65rem;">
+            {{ item.hour }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Gate Entry Log Table -->
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0">
+        <i class="fa-solid fa-list-check text-secondary me-2"></i> Real-Time Gate Entry Feed (Recent 50 Scans)
+      </h6>
+      <span class="small text-muted">Auto-refreshed on verification</span>
+    </div>
+    <div class="card-body p-0">
+      {% if recent_scans %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light small text-uppercase" style="letter-spacing: 0.5px; font-size: 0.72rem;">
+            <tr>
+              <th class="ps-4">Timestamp (EAT)</th>
+              <th>Member</th>
+              <th>{{ id_label }}</th>
+              <th>{{ class_label }}</th>
+              <th>Gate / Device</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody class="small">
+            {% for scan in recent_scans %}
+            <tr>
+              <td class="ps-4 font-monospace text-muted">
+                {{ (scan.scanned_at | string)[:19] }}
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  {% if scan.photo_filename %}
+                  <img src="/media/photos/{{ scan.photo_filename }}" alt="" class="rounded-circle shadow-sm" style="width: 32px; height: 32px; object-fit: cover;">
+                  {% else %}
+                  <div class="rounded-circle bg-secondary bg-opacity-10 text-secondary d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                    {{ (scan.member_name[:2] if scan.member_name else 'ID').upper() }}
+                  </div>
+                  {% endif %}
+                  <div>
+                    <div class="fw-bold text-dark">{{ scan.member_name or 'Unknown Member' }}</div>
+                    {% if scan.role_title and scan.role_title != 'N/A' %}
+                    <span class="text-muted" style="font-size: 0.72rem;">{{ scan.role_title }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark font-monospace border">{{ scan.admission_number or 'N/A' }}</span>
+              </td>
+              <td>
+                <span class="text-dark fw-semibold">{{ scan.department or 'N/A' }}</span>
+              </td>
+              <td>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
+                  <i class="fa-solid fa-tablet-screen-button me-1"></i> {{ scan.gate_device or 'Scanner' }}
+                </span>
+              </td>
+              <td>
+                {% if scan.scan_status == 'granted' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                  <i class="fa-solid fa-circle-check me-1"></i> Access Granted
+                </span>
+                {% elif scan.scan_status == 'expired' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1">
+                  <i class="fa-solid fa-clock me-1"></i> Card Expired
+                </span>
+                {% else %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+                  <i class="fa-solid fa-circle-xmark me-1"></i> Access Denied
+                </span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <div class="d-inline-flex p-3 rounded-circle bg-light text-muted mb-3">
+          <i class="fa-solid fa-id-card-clip fa-3x"></i>
+        </div>
+        <h6 class="fw-bold text-dark">No Gate Scans Recorded Today</h6>
+        <p class="text-muted small mb-3">Launch the Mobile Scanner at your gate or scan a card to start viewing real-time attendance.</p>
+        <a href="{{ url_for('verification.guard_scanner_portal', school_code=current_school.code) }}" target="_blank" class="btn btn-primary btn-sm fw-bold">
+          <i class="fa-solid fa-expand me-1"></i> Open Mobile Gate Scanner
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

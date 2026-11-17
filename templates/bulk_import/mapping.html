@@ -31,7 +31,7 @@
 
         <div class="card-body p-4 pt-0">
           <form method="POST" action="{{ url_for('bulk_import.mapping') }}">
-            
+
             <div class="table-responsive mb-4">
               <table class="table table-bordered align-middle">
                 <thead class="table-light">
@@ -43,8 +43,8 @@
                 <tbody>
                   <tr>
                     <td>
-                      <div class="fw-bold">Admission Number <span class="text-danger">*</span></div>
-                      <div class="text-muted small">Unique student registration code</div>
+                      <div class="fw-bold">{{ current_school.get_id_label() if current_school else 'Admission / Staff Number' }} <span class="text-danger">*</span></div>
+                      <div class="text-muted small">Unique identification code</div>
                     </td>
                     <td>
                       <select name="map_admission_number" class="form-select form-select-sm" required>
@@ -58,7 +58,7 @@
 
                   <tr>
                     <td>
-                      <div class="fw-bold">Student Full Name <span class="text-danger">*</span></div>
+                      <div class="fw-bold">{{ current_school.get_member_label() if current_school else 'Member' }} Full Name <span class="text-danger">*</span></div>
                       <div class="text-muted small">First, middle, and surname</div>
                     </td>
                     <td>
@@ -73,8 +73,8 @@
 
                   <tr>
                     <td>
-                      <div class="fw-bold">Class / Form <span class="text-danger">*</span></div>
-                      <div class="text-muted small">e.g. Form 1, Grade 7</div>
+                      <div class="fw-bold">{{ current_school.get_class_label() if current_school else 'Class / Department' }} <span class="text-danger">*</span></div>
+                      <div class="text-muted small">e.g. Form 1, Grade 7, Operations, Finance</div>
                     </td>
                     <td>
                       <select name="map_class_name" class="form-select form-select-sm" required>
@@ -88,8 +88,8 @@
 
                   <tr>
                     <td>
-                      <div class="fw-bold">Stream / Section</div>
-                      <div class="text-muted small">e.g. East, West, Blue</div>
+                      <div class="fw-bold">{{ current_school.get_stream_label() if current_school else 'Stream / Job Title' }}</div>
+                      <div class="text-muted small">e.g. East, Senior Accountant, Officer</div>
                     </td>
                     <td>
                       <select name="map_stream_name" class="form-select form-select-sm">

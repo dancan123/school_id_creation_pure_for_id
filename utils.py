@@ -13,6 +13,70 @@ def build_public_url(path, school=None):
                 request.host_url).strip().rstrip("/")
     return f"{base_url}/{path.lstrip('/')}"
 
+def find_institution_by_code_or_id(code_or_id):
+    """Case-insensitive lookup for school/institution code, numeric ID, or fallback name."""
+    if not code_or_id:
+        return None
+    val = str(code_or_id).strip()
+    if not val:
+        return None
+
+    # 1. Numeric primary key
+    if val.isdigit():
+        sch = School.query.filter_by(id=int(val), is_active=True).first()
+        if sch:
+            return sch
+
+    # 2. Case-insensitive exact code match
+    sch = School.query.filter(
+        db.func.lower(School.code) == val.lower(),
+        School.is_active == True
+    ).first()
+    if sch:
+        return sch
+
+    # 3. Fallback: exact code or substring name match
+    sch = School.query.filter(
+        (School.code == val) | (School.name.ilike(f"%{val}%")),
+        School.is_active == True
+    ).first()
+    return sch
+
+# ─── Multi-tenant role constants ────────────────────────────────────────────
+# Roles permitted to manage institution-level admin tasks (allowlists, settings, etc.)
+# Always include the legacy "admin" value for backward compatibility.
+ORG_ADMIN_ROLES = frozenset({
+    "org_owner", "org_admin", "id_manager", "card_manager", "admin", "superadmin"
+})
+# Roles that have write/generation rights (excludes viewer/reporting only)
+ORG_WRITE_ROLES = frozenset({
+    "org_owner", "org_admin", "id_manager", "card_manager", "data_entry", "admin", "superadmin"
+})
+# Any authenticated org-level role (read access at minimum)
+ORG_ANY_ROLES = frozenset({
+    "org_owner", "org_admin", "id_manager", "card_manager", "data_entry", "viewer",
+    "reporting_officer", "admin", "superadmin"
+})
+
+
+def require_org_admin(user=None):
+    """Return True if *user* (defaults to current_user) has institution-admin rights."""
+    u = user or current_user
+    return (
+        getattr(u, "role", "") in ORG_ADMIN_ROLES
+        or getattr(u, "is_platform_admin", False)
+    )
+
+
+def require_same_institution(user, school):
+    """Return True if *user* belongs to *school* or is a platform admin.
+    Use this AFTER checking require_org_admin to enforce tenant isolation.
+    """
+    if getattr(user, "is_platform_admin", False) or getattr(user, "role", "") == "superadmin":
+        return True
+    return school is not None and getattr(user, "school_id", None) == school.id
+
+
 def get_current_school():
     """Strictly resolves the active School context based on authenticated tenant role.
     - Super Admins can switch view or inspect any school.
@@ -186,12 +250,12 @@ def save_base64_image(base64_data, target_dir, prefix="img_", default_ext=".jpg"
             ext = ".jpg"
         elif "data:image/webp" in base64_data:
             ext = ".webp"
-        
+
         if "," in base64_data:
             _, encoded = base64_data.split(",", 1)
         else:
             encoded = base64_data
-            
+
         raw_bytes = base64.b64decode(encoded)
         unique_fn = f"{prefix}{secrets.token_hex(8)}{ext}"
         target_path = Path(target_dir) / unique_fn
@@ -213,7 +277,7 @@ def clean_kenyan_phone_for_whatsapp(phone):
     digits = "".join(c for c in str(phone) if c.isdigit())
     if not digits:
         return None
-    
+
     # Standard Kenyan mobile formats
     if digits.startswith("0") and len(digits) == 10:
         return "254" + digits[1:]
@@ -221,7 +285,7 @@ def clean_kenyan_phone_for_whatsapp(phone):
         return digits
     if (digits.startswith("7") or digits.startswith("1")) and len(digits) == 9:
         return "254" + digits
-    
+
     return digits if len(digits) >= 9 else None
 
 def build_whatsapp_link(phone=None, message=""):
@@ -232,7 +296,7 @@ def build_whatsapp_link(phone=None, message=""):
     import urllib.parse
     clean_phone = clean_kenyan_phone_for_whatsapp(phone) if phone else None
     encoded = urllib.parse.quote(message) if message else ""
-    
+
     if clean_phone:
         return f"https://wa.me/{clean_phone}" + (f"?text={encoded}" if encoded else "")
     return "https://wa.me/" + (f"?text={encoded}" if encoded else "")
@@ -243,7 +307,7 @@ def get_whatsapp_onboarding_share_url(school, onboard_url):
     motto = f'"{school.motto}"' if school and school.motto else ""
     code = (school.code or school.id) if school else ""
     year = school.academic_year if school else "2026"
-    
+
     msg = (
         f"🏫 *{school_name}*\n"
         f"{motto}\n\n"
@@ -262,7 +326,7 @@ def get_whatsapp_parent_card_notice_url(student, school, card=None, tracking_url
     parent_phone = student.parent_phone or (student.emergency_phone if hasattr(student, "emergency_phone") else None)
     school_name = school.name if school else "School"
     card_no = card.card_number if card else (student.card_number or "N/A")
-    
+
     msg = (
         f"🎓 *{school_name} — Student ID Card Ready*\n"
         f"Dear Parent / Guardian of *{student.full_name}*,\n\n"
@@ -275,5 +339,3 @@ def get_whatsapp_parent_card_notice_url(student, school, card=None, tracking_url
         f"Thank you!"
     )
     return build_whatsapp_link(phone=parent_phone, message=msg)
-
-

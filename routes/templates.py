@@ -10,7 +10,8 @@ PRESET_THEMES = [
     {
         "id": "classic_royal",
         "name": "Classic Royal (Navy & Gold)",
-        "description": "Prestigious Kenyan national and county school color scheme.",
+        "category": "Education & Schools",
+        "description": "Prestigious national and county school color scheme.",
         "primary": "#1E3A8A",
         "secondary": "#F59E0B",
         "accent": "#10B981",
@@ -19,6 +20,7 @@ PRESET_THEMES = [
     {
         "id": "emerald_crest",
         "name": "Emerald Crest (Forest Green & Amber)",
+        "category": "Education & Schools",
         "description": "Rich traditional academic green with warm amber accents.",
         "primary": "#065F46",
         "secondary": "#D97706",
@@ -28,6 +30,7 @@ PRESET_THEMES = [
     {
         "id": "maroon_elite",
         "name": "Maroon Elite (Crimson Maroon & Gold)",
+        "category": "Education & Schools",
         "description": "Distinguished maroon with gold trims and crisp white background.",
         "primary": "#881337",
         "secondary": "#F59E0B",
@@ -35,20 +38,52 @@ PRESET_THEMES = [
         "text": "#0F172A"
     },
     {
-        "id": "modern_tech",
-        "name": "Modern Academy (Deep Slate & Cyan)",
-        "description": "Modern technical high school and academy appearance.",
+        "id": "corporate_slate",
+        "name": "Corporate Enterprise (Midnight Navy & Slate)",
+        "category": "Corporate & Enterprise",
+        "description": "High-trust corporate theme for banks, SACCOs, and private companies.",
         "primary": "#0F172A",
-        "secondary": "#0284C7",
+        "secondary": "#2563EB",
         "accent": "#38BDF8",
         "text": "#0F172A"
     },
     {
-        "id": "highland_purple",
-        "name": "Highland Majesty (Royal Purple & Gold)",
-        "description": "Vibrant royal purple paired with brilliant sunshine gold.",
-        "primary": "#581C87",
-        "secondary": "#F59E0B",
+        "id": "executive_gold",
+        "name": "Executive Platinum (Rich Charcoal & Warm Gold)",
+        "category": "Corporate & Enterprise",
+        "description": "Premium executive theme for law firms, consultancies, and finance.",
+        "primary": "#18181B",
+        "secondary": "#EAB308",
+        "accent": "#F59E0B",
+        "text": "#18181B"
+    },
+    {
+        "id": "healthcare_teal",
+        "name": "Medical & Clinical (Healthcare Teal & Sky Blue)",
+        "category": "Healthcare & Medical",
+        "description": "Calm, clean clinical appearance for hospitals, doctors, and pharmacies.",
+        "primary": "#0D9488",
+        "secondary": "#0284C7",
+        "accent": "#10B981",
+        "text": "#0F172A"
+    },
+    {
+        "id": "university_crimson",
+        "name": "University Chancellor (Academic Crimson & Royal Purple)",
+        "category": "Colleges & Universities",
+        "description": "Vibrant collegiate scheme for universities and TVET colleges.",
+        "primary": "#991B1B",
+        "secondary": "#7C3AED",
+        "accent": "#F59E0B",
+        "text": "#0F172A"
+    },
+    {
+        "id": "ngo_safari",
+        "name": "Development & NGO (Ochre Amber & Earth Green)",
+        "category": "NGOs & Non-Profits",
+        "description": "Warm community-oriented theme for humanitarian foundations and NGOs.",
+        "primary": "#B45309",
+        "secondary": "#047857",
         "accent": "#10B981",
         "text": "#0F172A"
     }

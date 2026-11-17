@@ -12,13 +12,17 @@ bulk_import_bp = Blueprint("bulk_import", __name__)
 @bulk_import_bp.route("/template")
 @login_required
 def download_template():
-    """Generates and serves the standard Kenyan school Excel student import template."""
-    template_path = Config.UPLOADS_DIR / "sample_student_import_template.xlsx"
-    BulkImporter.generate_sample_excel(template_path)
+    """Generates and serves the dynamic institution Excel import template."""
+    school = get_current_school()
+    safe_name = "".join(c if c.isalnum() else "_" for c in (school.name if school else "Institution")).strip("_")
+    member_label = (school.get_member_label() if school else "Member").capitalize()
+    download_filename = f"{safe_name}_{member_label}_Import_Template.xlsx"
+    template_path = Config.UPLOADS_DIR / f"sample_{safe_name}_{member_label}_template.xlsx"
+    BulkImporter.generate_sample_excel(template_path, school=school)
     return send_file(
         str(template_path),
         as_attachment=True,
-        download_name="Kenyan_School_Student_Import_Template.xlsx"
+        download_name=download_filename
     )
 
 @bulk_import_bp.route("/upload", methods=["GET", "POST"])
