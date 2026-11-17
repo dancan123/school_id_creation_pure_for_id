@@ -167,11 +167,29 @@
               <td class="text-end pe-4">
                 <div class="btn-group">
                   <a href="{{ url_for('superadmin.org_detail', school_id=s.id) }}" class="btn btn-sm btn-outline-primary" title="View Full Details">
-                    <i class="fa-solid fa-eye"></i> View
+                    <i class="fa-solid fa-eye"></i>
                   </a>
                   <a href="{{ url_for('superadmin.enter_workspace', school_id=s.id) }}" class="btn btn-sm btn-outline-dark" title="Inspect Tenant Workspace">
-                    <i class="fa-solid fa-door-open"></i> Workspace
+                    <i class="fa-solid fa-door-open"></i>
                   </a>
+                  {% if s.status == 'active' %}
+                  <form method="POST" action="{{ url_for('superadmin.suspend_org', school_id=s.id) }}" class="d-inline" onsubmit="return confirm('Deactivate / suspend {{ s.name }}?')">
+                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Deactivate Institution">
+                      <i class="fa-solid fa-ban"></i>
+                    </button>
+                  </form>
+                  {% else %}
+                  <form method="POST" action="{{ url_for('superadmin.reactivate_org', school_id=s.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-success" title="Activate Institution">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                  <form method="POST" action="{{ url_for('superadmin.delete_org', school_id=s.id) }}" class="d-inline" onsubmit="return confirm('PERMANENT DELETE: Are you sure you want to delete {{ s.name }} and all its data?')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Institution Permanently">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </form>
                 </div>
               </td>
             </tr>

@@ -202,5 +202,31 @@ class SaasPlatformTestCase(unittest.TestCase):
         self.assertEqual(CardRecord.query.filter_by(school_id=sch.id).count(), 4)
         print("PASS: Setting quota to 0 allows infinite / unlimited ID card generations.")
 
+    def test_06_superadmin_delete_org_and_onboard_privacy(self):
+        """Test Super Admin deleting an institution, and test that /onboard hides competitor institutions from public."""
+        sch = School(
+            name="Test Strathmore College",
+            code="STR-01",
+            status="active",
+            is_active=True
+        )
+        db.session.add(sch)
+        db.session.commit()
+
+        # 1. Verify public /onboard DOES NOT list schools to unauthenticated visitors
+        self.client.get("/auth/logout", follow_redirects=True)
+        hub_resp = self.client.get("/onboard", follow_redirects=True)
+        self.assertNotIn(b"Test Strathmore College", hub_resp.data)
+        print("PASS: Public /onboard hides competitor school listings from unauthorized visitors.")
+
+        # 2. Login as Super Admin and delete the institution
+        self.client.post("/auth/login", data={"username": "admin", "password": "admin123"}, follow_redirects=True)
+        del_resp = self.client.post(f"/superadmin/organizations/{sch.id}/delete", follow_redirects=True)
+        self.assertEqual(del_resp.status_code, 200)
+
+        # Confirm school is permanently deleted from database
+        self.assertIsNone(School.query.filter_by(name="Test Strathmore College").first())
+        print("PASS: Superadmin permanently deleted institution.")
+
 if __name__ == "__main__":
     unittest.main()

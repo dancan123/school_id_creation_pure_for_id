@@ -77,14 +77,47 @@ BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PUBLIC: Multi-School Onboarding Directory / Hub
+# PUBLIC: Multi-School Onboarding Directory / Hub (Strict White-Label Isolation)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @enrolment_bp.route("/onboard", methods=["GET"])
 @enrolment_bp.route("/enrol", methods=["GET"])
 def onboard_hub():
-    """Universal Public Landing Hub for students & parents to find their school."""
+    """Private White-Label Onboarding Router.
+    - Logged-in tenant users are automatically routed to their own institution portal.
+    - Public visitors with a code are routed to that exact institution.
+    - Public visitors without a code see a private portal search (no competitor listing).
+    - Only Super Admin can view all institutions across the platform."""
+    from flask_login import current_user
+    
+    # If logged in as an institution user, redirect directly to their own school's portal
+    if current_user and current_user.is_authenticated:
+        if not (getattr(current_user, "is_platform_admin", False) or current_user.role == "superadmin"):
+            school = get_current_school()
+            if school:
+                return redirect(url_for("enrolment.self_enrol", school_code=school.code or school.id))
+
     search = request.args.get("q", "").strip()
+
+    # If code/search query is provided, find that exact school and redirect directly to it
+    if search:
+        exact_school = _find_school_by_code_or_id(search)
+        if exact_school:
+            return redirect(url_for("enrolment.self_enrol", school_code=exact_school.code or exact_school.id))
+
+    is_sa = current_user and current_user.is_authenticated and (getattr(current_user, "is_platform_admin", False) or current_user.role == "superadmin")
+
+    # If not superadmin, never expose other registered institutions publicly
+    if not is_sa:
+        return render_template(
+            "enrolment/onboard_hub.html",
+            schools=[],
+            search=search,
+            total_schools=0,
+            is_superadmin=False
+        )
+
+    # Super Admin view only
     query = School.query.filter_by(is_active=True, allow_self_onboarding=True)
     if search:
         query = query.filter(
@@ -99,7 +132,8 @@ def onboard_hub():
         "enrolment/onboard_hub.html",
         schools=schools,
         search=search,
-        total_schools=School.query.filter_by(is_active=True, allow_self_onboarding=True).count()
+        total_schools=len(schools),
+        is_superadmin=True
     )
 
 

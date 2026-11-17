@@ -94,11 +94,13 @@
                   <i class="fa-solid fa-file-import me-2 text-info"></i>Bulk Import
                 </a>
               </li>
+              {% if current_user.is_platform_admin or current_user.role == 'superadmin' %}
               <li>
-                <a class="dropdown-item" href="{{ url_for('enrolment.onboard_hub') }}" target="_blank">
-                  <i class="fa-solid fa-building-columns me-2 text-secondary"></i>All Institutions Directory
+                <a class="dropdown-item" href="{{ url_for('superadmin.organizations') }}">
+                  <i class="fa-solid fa-building-columns me-2 text-warning"></i>All Institutions (Super Admin)
                 </a>
               </li>
+              {% endif %}
             </ul>
           </li>
           <li class="nav-item">

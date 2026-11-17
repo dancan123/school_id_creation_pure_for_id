@@ -219,6 +219,14 @@
               </button>
             </form>
           {% endif %}
+
+          <!-- Permanent Delete Action (Super Admin Only) -->
+          <hr class="my-3 opacity-25">
+          <form method="POST" action="{{ url_for('superadmin.delete_org', school_id=school.id) }}" onsubmit="return confirm('PERMANENT DELETION: Are you sure you want to permanently delete {{ school.name }} and all its students, staff, and card records? This action cannot be undone.')">
+            <button type="submit" class="btn btn-outline-danger btn-sm w-100 fw-bold">
+              <i class="fa-solid fa-trash me-1"></i> Delete Institution Permanently
+            </button>
+          </form>
         </div>
       </div>
 

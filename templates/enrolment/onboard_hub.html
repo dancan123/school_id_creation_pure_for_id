@@ -425,12 +425,13 @@
     </div>
   </div>
 
-  <!-- Schools List -->
+  {% if is_superadmin %}
+  <!-- Schools List (Exclusively Visible to Platform Super Administrator) -->
   <div class="section-title-wrap">
     <h3>
-      <i class="fa-solid fa-school text-warning"></i> Registered Institutions
+      <i class="fa-solid fa-crown text-warning"></i> Registered Institutions Directory (Super Admin Console)
     </h3>
-    <span class="school-count-badge">{{ schools|length }} Active Schools</span>
+    <span class="school-count-badge">{{ schools|length }} Active Institutions</span>
   </div>
 
   {% if schools %}
@@ -474,14 +475,8 @@
           <a href="{{ url_for('enrolment.self_enrol', school_code=s.code or s.id) }}"
              class="btn-onboard"
              style="background: {{ s.primary_color or '#1E3A8A' }}; flex:1;">
-            <span>Start Student Onboarding</span>
+            <span>Open Institution Portal</span>
             <i class="fa-solid fa-arrow-right"></i>
-          </a>
-          <a href="{{ get_whatsapp_onboarding_share_url(s, build_public_url(url_for('enrolment.self_enrol', school_code=s.code or s.id), s)) }}"
-             target="_blank"
-             title="Share {{ s.name }} portal on WhatsApp"
-             style="background:#25D366; color:white; width:44px; height:44px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font-size:1.2rem; text-decoration:none; flex-shrink:0; box-shadow:0 4px 10px rgba(37,211,102,0.25);">
-            <i class="fa-brands fa-whatsapp"></i>
           </a>
         </div>
       </div>
@@ -491,9 +486,28 @@
   {% else %}
   <div style="background: white; border-radius: 16px; padding: 40px; text-align: center; color: #64748B;">
     <i class="fa-solid fa-school-circle-xmark fa-3x mb-3 text-muted"></i>
-    <h4 style="color:#0F172A; font-weight:700;">No Schools Found</h4>
-    <p class="small mb-3">No active school matched your search query "{{ search }}".</p>
-    <a href="{{ url_for('enrolment.onboard_hub') }}" class="btn-search" style="display:inline-flex;">View All Schools</a>
+    <h4 style="color:#0F172A; font-weight:700;">No Institutions Found</h4>
+    <p class="small mb-3">No active institutions matched query "{{ search }}".</p>
+  </div>
+  {% endif %}
+  {% else %}
+  <!-- White-Label Private Portal Notice (Public View: Competitor Institutions Hidden) -->
+  <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 20px; padding: 36px 24px; text-align: center; color: white; margin-bottom: 36px;">
+    <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: rgba(245, 158, 11, 0.15); border-radius: 50%; color: var(--secondary); margin-bottom: 16px;">
+      <i class="fa-solid fa-building-shield fa-2x"></i>
+    </div>
+    <h3 style="font-weight: 700; margin-bottom: 8px; font-size: 1.4rem;">Dedicated Institution ID Portal</h3>
+    <p style="color: rgba(255,255,255,0.75); max-width: 580px; margin: 0 auto 24px; font-size: 0.95rem; line-height: 1.5;">
+      Each registered school and organisation operates an independent, private onboarding workspace. Please enter your <strong>School Code</strong> above or use the direct link provided by your administration.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <a href="{{ url_for('auth.login') }}" style="display: inline-flex; align-items: center; gap: 8px; background: #1E3A8A; color: white; padding: 10px 24px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+        <i class="fa-solid fa-right-to-bracket"></i> Sign In to Workspace
+      </a>
+      <a href="{{ url_for('auth.register_institution') }}" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); color: white; padding: 10px 24px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.25);">
+        <i class="fa-solid fa-plus-circle"></i> Register Your Institution
+      </a>
+    </div>
   </div>
   {% endif %}
 

@@ -199,6 +199,23 @@ def reactivate_org(school_id):
     return redirect(url_for("superadmin.org_detail", school_id=school.id))
 
 
+@superadmin_bp.route("/organizations/<int:school_id>/delete", methods=["POST"])
+def delete_org(school_id):
+    """Permanently delete an institution and all its associated data (Super Admin only)."""
+    school = db.session.get(School, school_id)
+    if not school:
+        flash("Institution not found.", "danger")
+        return redirect(url_for("superadmin.organizations"))
+
+    school_name = school.name
+    db.session.delete(school)
+    db.session.commit()
+
+    log_audit("SUPERADMIN_DELETE_INSTITUTION", f"Permanently deleted institution '{school_name}' (ID: {school_id})")
+    flash(f"Institution '{school_name}' and all associated records have been permanently deleted.", "success")
+    return redirect(url_for("superadmin.organizations"))
+
+
 @superadmin_bp.route("/organizations/<int:school_id>/update-tier", methods=["POST"])
 def update_tier(school_id):
     """Set custom ID generation limit and subscription plan tier."""
