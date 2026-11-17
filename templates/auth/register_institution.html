@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Register Your Institution - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-header bg-dark text-white p-4 border-0" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+              <div class="p-3 rounded-circle bg-white bg-opacity-10">
+                <i class="fa-solid fa-building-columns fa-2x text-warning"></i>
+              </div>
+              <div>
+                <h4 class="fw-bold mb-0">Register Your Institution</h4>
+                <p class="text-white-50 small mb-0">Join the EduID Kenya Multi-Tenant ID Generation Cloud Platform</p>
+              </div>
+            </div>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-light rounded-pill px-3">
+              <i class="fa-solid fa-arrow-left me-1"></i> Back to Login
+            </a>
+          </div>
+        </div>
+
+        <div class="card-body p-4 p-md-5 bg-white">
+          <form method="POST" action="{{ url_for('auth.register_institution') }}">
+            <!-- Section 1: Institution Details -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary text-uppercase letter-spacing-1 mb-3">
+                <i class="fa-solid fa-landmark me-2"></i> 1. Institution Identification
+              </h6>
+              <div class="row g-3">
+                <div class="col-md-8">
+                  <label class="form-label small fw-bold text-muted">Official Institution Name <span class="text-danger">*</span></label>
+                  <input type="text" name="org_name" class="form-control" placeholder="e.g. Alliance High School or Strathmore University" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted">Institution Category <span class="text-danger">*</span></label>
+                  <select name="org_type" class="form-select" required>
+                    <option value="school" selected>Primary / Secondary School</option>
+                    <option value="university">College / University</option>
+                    <option value="tvet">TVET / Polytechnic</option>
+                    <option value="company">Corporate / Enterprise</option>
+                    <option value="ngo">NGO / Organization</option>
+                    <option value="government">Government Institution</option>
+                    <option value="other">Other Institution</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Official Registration / MOE Number</label>
+                  <input type="text" name="registration_number" class="form-control" placeholder="e.g. MOE/REG/2024/0912">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Postal Address (P.O. Box)</label>
+                  <input type="text" name="po_box" class="form-control" placeholder="e.g. P.O. Box 7 - 00902">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">County <span class="text-danger">*</span></label>
+                  <input type="text" name="county" class="form-control" placeholder="e.g. Kiambu, Nairobi, Machakos" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Town / Campus Location</label>
+                  <input type="text" name="town" class="form-control" placeholder="e.g. Kikuyu, Madaraka, Westlands">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-muted">Physical Campus / Building Address</label>
+                  <input type="text" name="physical_address" class="form-control" placeholder="e.g. Off Waiyaki Way, Kikuyu">
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4 text-muted opacity-25">
+
+            <!-- Section 2: Contact Person Details -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary text-uppercase letter-spacing-1 mb-3">
+                <i class="fa-solid fa-address-book me-2"></i> 2. Official Contact Person
+              </h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Full Name <span class="text-danger">*</span></label>
+                  <input type="text" name="contact_name" class="form-control" placeholder="e.g. Dr. Jane Doe" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Official Email Address <span class="text-danger">*</span></label>
+                  <input type="email" name="contact_email" class="form-control" placeholder="e.g. principal@school.ac.ke" required>
+                  <div class="form-text small">Activation notice and credentials will be linked to this email.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Mobile / WhatsApp Telephone <span class="text-danger">*</span></label>
+                  <input type="tel" name="contact_phone" class="form-control" placeholder="e.g. +254 722 000000" required>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4 text-muted opacity-25">
+
+            <!-- Section 3: Organisation Admin Credentials -->
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary text-uppercase letter-spacing-1 mb-3">
+                <i class="fa-solid fa-user-shield me-2"></i> 3. Desired Administrator Credentials
+              </h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Administrator Username <span class="text-danger">*</span></label>
+                  <input type="text" name="username" class="form-control" placeholder="e.g. alliance_admin" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-muted">Password <span class="text-danger">*</span></label>
+                  <input type="password" name="password" class="form-control" placeholder="Minimum 6 characters" required>
+                </div>
+              </div>
+            </div>
+
+            <div class="alert alert-light border border-primary border-opacity-25 rounded-3 p-3 mb-4">
+              <div class="d-flex gap-3">
+                <i class="fa-solid fa-circle-info text-primary fa-lg mt-1"></i>
+                <div class="small text-muted">
+                  <strong>Approval Workflow:</strong> Submitting this registration creates a pending tenant workspace. Our Platform Super Administrator reviews and validates institution credentials within 24 hours. You will receive immediate access once approved.
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow" style="background-color: #1E3A8A; border-color: #1E3A8A;">
+              <i class="fa-solid fa-paper-plane me-2"></i> Submit Institution Application
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

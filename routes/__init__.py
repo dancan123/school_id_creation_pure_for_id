@@ -11,10 +11,12 @@ from routes.print_queue import print_queue_bp
 from routes.verification import verification_bp
 from routes.reports import reports_bp
 from routes.system import system_bp
+from routes.superadmin import superadmin_bp
 
 def register_blueprints(app):
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp, url_prefix="")
+    app.register_blueprint(superadmin_bp)
     app.register_blueprint(schools_bp, url_prefix="/schools")
     app.register_blueprint(students_bp, url_prefix="/students")
     app.register_blueprint(enrolment_bp, url_prefix="")

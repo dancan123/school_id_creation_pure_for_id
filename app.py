@@ -85,7 +85,24 @@ def create_app(config_class=Config):
                         "terms_clauses_json": "TEXT",
                         "header_config_json": "TEXT",
                         "header_contact_text": "TEXT",
-                        "print_settings_json": "TEXT"
+                        "print_settings_json": "TEXT",
+                        "tenant_uuid": "VARCHAR(36)",
+                        "status": "VARCHAR(20) DEFAULT 'active'",
+                        "subscription_tier": "VARCHAR(30) DEFAULT 'standard'",
+                        "max_cards_quota": "INTEGER DEFAULT 5000",
+                        "cards_generated_count": "INTEGER DEFAULT 0",
+                        "contact_person_name": "VARCHAR(120)",
+                        "contact_person_phone": "VARCHAR(50)",
+                        "rejection_reason": "TEXT",
+                        "approved_at": "TIMESTAMP",
+                        "approved_by_user_id": "INTEGER"
+                    },
+                    "users": {
+                        "user_uuid": "VARCHAR(36)",
+                        "phone_number": "VARCHAR(50)",
+                        "is_platform_admin": "BOOLEAN DEFAULT 0",
+                        "failed_login_attempts": "INTEGER DEFAULT 0",
+                        "locked_until": "TIMESTAMP"
                     },
                     "admission_allowlist": {
                         "source": "VARCHAR(20) NOT NULL DEFAULT 'manual'",

@@ -1,6 +1,7 @@
 import secrets
+from functools import wraps
 from pathlib import Path
-from flask import session, request, current_app
+from flask import session, request, current_app, redirect, url_for, flash, abort
 from flask_login import current_user
 from extensions import db
 from models import School, AuditLog
@@ -13,20 +14,45 @@ def build_public_url(path, school=None):
     return f"{base_url}/{path.lstrip('/')}"
 
 def get_current_school():
-    """Returns currently selected School in session or first available school, creating one if empty."""
+    """Strictly resolves the active School context based on authenticated tenant role.
+    - Super Admins can switch view or inspect any school.
+    - Organisation Users are strictly pinned to current_user.school_id (non-tamperable).
+    - Unauthenticated/Public requests resolve via session, code, or active fallback."""
+    if current_user and current_user.is_authenticated:
+        # Platform Super Admins can inspect any school
+        if getattr(current_user, "is_platform_admin", False) or getattr(current_user, "role", "") == "superadmin":
+            school_id = session.get("active_school_id")
+            if school_id:
+                school = db.session.get(School, school_id)
+                if school:
+                    return school
+            first_school = School.query.filter_by(is_active=True).first()
+            if first_school:
+                session["active_school_id"] = first_school.id
+                return first_school
+
+        # Organisation users are strictly restricted to their own school
+        user_school_id = getattr(current_user, "school_id", None)
+        if user_school_id:
+            session["active_school_id"] = user_school_id
+            school = db.session.get(School, user_school_id)
+            if school:
+                return school
+        return None
+
+    # Unauthenticated / Public fallbacks
     school_id = session.get("active_school_id")
     if school_id:
         school = db.session.get(School, school_id)
         if school:
             return school
 
-    # Fallback to first school
-    school = School.query.filter_by(is_active=True).first()
-    if school:
-        session["active_school_id"] = school.id
-        return school
+    first_school = School.query.filter_by(is_active=True).first()
+    if first_school:
+        session["active_school_id"] = first_school.id
+        return first_school
 
-    # If no school exists in the system at all, create a standard default school
+    # Seed initial default school if completely empty
     default_school = School(
         name="Alliance High School",
         code="AHS-001",
@@ -37,20 +63,80 @@ def get_current_school():
         phone="+254 722 000111",
         email="info@alliancehigh.ac.ke",
         website="https://alliancehigh.ac.ke",
-        primary_color="#1E3A8A",   # Royal Navy Blue
-        secondary_color="#F59E0B", # Gold
-        accent_color="#10B981",    # Emerald
+        primary_color="#1E3A8A",
+        secondary_color="#F59E0B",
+        accent_color="#10B981",
         card_bg_color="#FFFFFF",
         text_color="#0F172A",
         principal_name="Principal / Chief Principal",
         academic_year="2026",
         card_prefix="AHS-",
-        validity_years=4
+        validity_years=4,
+        status="active"
     )
     db.session.add(default_school)
     db.session.commit()
     session["active_school_id"] = default_school.id
     return default_school
+
+def superadmin_required(f):
+    """Restricts route access strictly to Platform Super Administrators."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.login", next=request.url))
+        is_sa = getattr(current_user, "is_platform_admin", False) or getattr(current_user, "role", "") == "superadmin"
+        if not is_sa:
+            flash("Access denied. Platform Super Administrator privileges required.", "danger")
+            log_audit("UNAUTHORIZED_SUPERADMIN_ACCESS_ATTEMPT", f"Attempted path: {request.path}")
+            return redirect(url_for("dashboard.index"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def tenant_active_required(f):
+    """Enforces that the user's institution is active and not suspended or pending."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.login", next=request.url))
+        if getattr(current_user, "is_platform_admin", False) or getattr(current_user, "role", "") == "superadmin":
+            return f(*args, **kwargs)
+
+        school = get_current_school()
+        if not school:
+            flash("No organisation associated with your account.", "danger")
+            return redirect(url_for("auth.login"))
+
+        school_status = getattr(school, "status", "active")
+        if school_status == "pending":
+            flash("Your institution account is pending approval by the Platform Administrator.", "warning")
+            return redirect(url_for("auth.registration_status", school_id=school.id))
+        elif school_status == "suspended":
+            flash("Your institution account is currently suspended. Please contact platform support.", "danger")
+            return redirect(url_for("auth.tenant_suspended"))
+        elif school_status == "inactive" or not getattr(school, "is_active", True):
+            flash("Your institution account is deactivated.", "danger")
+            return redirect(url_for("auth.tenant_suspended"))
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+def role_required(*allowed_roles):
+    """Enforces that the current authenticated user has one of the allowed roles."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for("auth.login", next=request.url))
+            if getattr(current_user, "is_platform_admin", False) or getattr(current_user, "role", "") == "superadmin":
+                return f(*args, **kwargs)
+            user_role = getattr(current_user, "role", "")
+            if user_role not in allowed_roles:
+                flash(f"Access restricted. Required roles: {', '.join(allowed_roles)}", "danger")
+                return redirect(url_for("dashboard.index"))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 def log_audit(action, details=None, school_id=None):
     """Records an audit log entry for system actions."""

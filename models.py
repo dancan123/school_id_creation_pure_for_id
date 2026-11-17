@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from extensions import db
@@ -77,6 +78,18 @@ class School(db.Model):
     admission_number_prefix = db.Column(db.String(20), nullable=True)
     admission_number_length = db.Column(db.Integer, nullable=True)
     
+    # Multi-Tenant SaaS Lifecycle & Quota Management
+    tenant_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
+    status = db.Column(db.String(20), nullable=False, default="active")  # 'pending', 'active', 'suspended', 'inactive'
+    subscription_tier = db.Column(db.String(30), nullable=False, default="standard")  # 'free_trial', 'starter', 'standard', 'enterprise'
+    max_cards_quota = db.Column(db.Integer, default=5000)  # 0 means Unlimited / Infinite
+    cards_generated_count = db.Column(db.Integer, default=0)
+    contact_person_name = db.Column(db.String(120), nullable=True)
+    contact_person_phone = db.Column(db.String(50), nullable=True)
+    rejection_reason = db.Column(db.Text, nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approved_by_user_id = db.Column(db.Integer, nullable=True)
+
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
@@ -90,6 +103,34 @@ class School(db.Model):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    # ── SaaS Quota & Allowance Helpers ──────────────────────────────────────────
+    def is_quota_unlimited(self):
+        """Returns True if the school has infinite / unlimited card allowance."""
+        return self.max_cards_quota == 0 or (self.subscription_tier or "").lower() == "enterprise"
+
+    def get_remaining_quota(self):
+        """Returns the number of remaining cards, or None if unlimited."""
+        if self.is_quota_unlimited():
+            return None
+        used = self.cards_generated_count or 0
+        return max(0, (self.max_cards_quota or 0) - used)
+
+    def is_quota_depleted(self):
+        """Returns True if card allowance has run out."""
+        if self.is_quota_unlimited():
+            return False
+        rem = self.get_remaining_quota()
+        return rem is not None and rem <= 0
+
+    @staticmethod
+    def get_support_contacts():
+        return {
+            "phone": "+254 746 908674",
+            "phone_raw": "254746908674",
+            "email": "dancanmbaabu1@gmail.com",
+            "whatsapp_url": "https://wa.me/254746908674?text=Hello%20EduID%20Kenya%20Management,%20we%20have%20reached%20our%20ID%20card%20limit.%20Please%20upgrade%20our%20allocation."
+        }
 
     # ── Institution Classification Helpers ──────────────────────────────────────
     def is_school(self):
@@ -379,6 +420,13 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(30), nullable=False, default="admin") # superadmin, admin, operator, auditor
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="SET NULL"), nullable=True)
+    # Multi-Tenant User & Security Controls
+    user_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
+    phone_number = db.Column(db.String(50), nullable=True)
+    is_platform_admin = db.Column(db.Boolean, default=False)
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
@@ -716,6 +764,38 @@ class SystemSetting(db.Model):
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.Text, nullable=True)
     description = db.Column(db.String(255), nullable=True)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class TenantInvitation(db.Model):
+    __tablename__ = "tenant_invitations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = db.Column(db.String(120), nullable=False)
+    role = db.Column(db.String(30), nullable=False, default="card_manager")
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    accepted_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class PlatformAnnouncement(db.Model):
+    __tablename__ = "platform_announcements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), default="info")  # 'info', 'warning', 'critical'
+    target_tier = db.Column(db.String(30), default="all")  # 'all', 'starter', 'standard', 'enterprise'
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

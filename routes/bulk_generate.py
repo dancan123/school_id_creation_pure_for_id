@@ -1,5 +1,5 @@
 import uuid
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from flask_login import login_required
 from extensions import db
 from models import School, Student, GenerationJob
@@ -75,6 +75,14 @@ def start_generation():
         return redirect(url_for("bulk_generate.index"))
 
     student_ids = [s.id for s in student_records]
+
+    # Enforce plan quota (0 = Unlimited)
+    total_generated = CardRecord.query.filter_by(school_id=school.id).count()
+    if school.max_cards_quota and school.max_cards_quota > 0 and (total_generated + len(student_ids)) > school.max_cards_quota:
+        remaining = max(0, school.max_cards_quota - total_generated)
+        tier_label = (school.subscription_tier or "Free Trial").replace("_", " ").title()
+        flash(f"Batch generation exceeds your {tier_label} quota ({remaining} cards remaining of {school.max_cards_quota}). To increase allocation, contact System Operations: Call/WhatsApp +254 746 908674 or email dancanmbaabu1@gmail.com.", "danger")
+        return redirect(url_for("bulk_generate.index"))
 
     job_id = str(uuid.uuid4())
     desc_scope = f"{scope.capitalize()}"
@@ -157,3 +165,21 @@ def download_batch_zip(job_id):
         as_attachment=True,
         download_name=f"{clean_school}_Batch_{job.id[:8]}_Cards_300DPI.zip"
     )
+
+@bulk_generate_bp.route("/api/progress/<job_id>")
+@login_required
+def progress_api(job_id):
+    """Real-time progress polling endpoint for frontend batch generation telemetry."""
+    school = get_current_school()
+    job = GenerationJob.query.filter_by(id=job_id, school_id=school.id).first()
+    if not job:
+        return jsonify({"status": "not_found"}), 404
+    return jsonify({
+        "status": job.status,
+        "total": job.total_count,
+        "processed": job.processed_count,
+        "success": job.success_count,
+        "failed": job.failed_count,
+        "pdf_ready": bool(job.pdf_filename)
+    })
+

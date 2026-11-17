@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Platform Super Admin - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <!-- Super Admin Header Banner -->
+  <div class="card border-0 rounded-4 shadow-sm mb-4 text-white overflow-hidden" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #1E3A8A 100%);">
+    <div class="card-body p-4 p-md-5">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold text-uppercase mb-2">
+            <i class="fa-solid fa-crown me-1"></i> Central Control Panel
+          </span>
+          <h2 class="fw-bold mb-1">Platform Super Administrator</h2>
+          <p class="text-white-50 mb-0">System-wide visibility, multi-tenant lifecycle management, and platform analytics.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('superadmin.organizations', status='pending') }}" class="btn btn-warning fw-bold shadow-sm">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> Pending Applications ({{ pending_schools }})
+          </a>
+          <a href="{{ url_for('superadmin.organizations') }}" class="btn btn-light fw-bold shadow-sm">
+            <i class="fa-solid fa-building-columns me-1"></i> Manage All Institutions
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Primary Metric Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="p-3 rounded-3 bg-primary bg-opacity-10 text-primary">
+              <i class="fa-solid fa-building-columns fa-2x"></i>
+            </div>
+            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold">Institutions</span>
+          </div>
+          <h3 class="fw-bold mb-1">{{ total_schools }}</h3>
+          <div class="text-muted small">
+            <span class="text-success fw-bold"><i class="fa-solid fa-circle-check"></i> {{ active_schools }} Active</span>
+            <span class="mx-1">•</span>
+            <span class="text-warning fw-bold"><i class="fa-solid fa-clock"></i> {{ pending_schools }} Pending</span>
+            {% if suspended_schools > 0 %}
+            <span class="mx-1">•</span>
+            <span class="text-danger fw-bold"><i class="fa-solid fa-ban"></i> {{ suspended_schools }} Suspended</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="p-3 rounded-3 bg-success bg-opacity-10 text-success">
+              <i class="fa-solid fa-users fa-2x"></i>
+            </div>
+            <span class="badge bg-success bg-opacity-10 text-success fw-bold">Members</span>
+          </div>
+          <h3 class="fw-bold mb-1">{{ total_students }}</h3>
+          <div class="text-muted small">Students & staff enrolled platform-wide</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="p-3 rounded-3 bg-info bg-opacity-10 text-info">
+              <i class="fa-solid fa-id-card fa-2x"></i>
+            </div>
+            <span class="badge bg-info bg-opacity-10 text-info fw-bold">ID Credentials</span>
+          </div>
+          <h3 class="fw-bold mb-1">{{ total_cards }}</h3>
+          <div class="text-muted small"><span class="text-primary fw-bold">{{ total_printed_cards }}</span> sent to print queue</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="p-3 rounded-3 bg-purple bg-opacity-10 text-purple" style="color: #8B5CF6; background: rgba(139, 92, 246, 0.1);">
+              <i class="fa-solid fa-user-shield fa-2x"></i>
+            </div>
+            <span class="badge bg-purple bg-opacity-10 text-purple fw-bold" style="color: #8B5CF6; background: rgba(139, 92, 246, 0.1);">System Users</span>
+          </div>
+          <h3 class="fw-bold mb-1">{{ total_users }}</h3>
+          <div class="text-muted small">Platform & tenant administrators</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid: Pending Approvals & Quick Actions -->
+  <div class="row g-4 mb-4">
+    <!-- Left Column: Pending Onboarding Applications -->
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+        <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+          <h5 class="fw-bold text-dark mb-0">
+            <i class="fa-solid fa-bell text-warning me-2"></i> Pending Institution Registrations
+          </h5>
+          <a href="{{ url_for('superadmin.organizations', status='pending') }}" class="btn btn-sm btn-outline-primary rounded-pill">
+            View All ({{ pending_schools }})
+          </a>
+        </div>
+        <div class="card-body p-0">
+          {% if pending_list %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light small text-uppercase text-muted">
+                <tr>
+                  <th class="ps-4">Institution Name</th>
+                  <th>Type</th>
+                  <th>Contact Person</th>
+                  <th>County</th>
+                  <th>Submitted</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sch in pending_list %}
+                <tr>
+                  <td class="ps-4">
+                    <div class="fw-bold text-dark">{{ sch.name }}</div>
+                    <div class="font-monospace small text-muted">{{ sch.code }}</div>
+                  </td>
+                  <td>
+                    <span class="badge bg-secondary">{{ sch.get_institution_type_display() }}</span>
+                  </td>
+                  <td>
+                    <div class="small fw-semibold">{{ sch.contact_person_name or 'N/A' }}</div>
+                    <div class="small text-muted">{{ sch.contact_person_phone or sch.email or 'N/A' }}</div>
+                  </td>
+                  <td><span class="small">{{ sch.county or 'N/A' }}</span></td>
+                  <td><span class="small text-muted">{{ sch.created_at.strftime('%d %b %Y') if sch.created_at else 'N/A' }}</span></td>
+                  <td class="text-end pe-4">
+                    <a href="{{ url_for('superadmin.org_detail', school_id=sch.id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                      Review & Approve
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="fa-solid fa-check-double fa-3x text-success mb-3"></i>
+            <h6 class="fw-bold">No Pending Registrations</h6>
+            <p class="small mb-0">All institution applications have been reviewed and processed.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Institutional Demographics & Super Admin Navigation -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+        <div class="card-header bg-white border-0 py-3 px-4">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="fa-solid fa-chart-pie text-primary me-2"></i> Institution Categories
+          </h6>
+        </div>
+        <div class="card-body px-4 py-2">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+              <span><i class="fa-solid fa-school text-primary me-2"></i> Primary / Secondary</span>
+              <span class="badge bg-primary rounded-pill">{{ type_counts.schools }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+              <span><i class="fa-solid fa-graduation-cap text-success me-2"></i> Colleges / Universities</span>
+              <span class="badge bg-success rounded-pill">{{ type_counts.universities }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+              <span><i class="fa-solid fa-wrench text-warning me-2"></i> TVET / Polytechnics</span>
+              <span class="badge bg-warning text-dark rounded-pill">{{ type_counts.tvets }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+              <span><i class="fa-solid fa-building text-info me-2"></i> Corporates / Companies</span>
+              <span class="badge bg-info rounded-pill">{{ type_counts.corporates }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+              <span><i class="fa-solid fa-hand-holding-heart text-danger me-2"></i> NGOs / Organizations</span>
+              <span class="badge bg-danger rounded-pill">{{ type_counts.ngos }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Quick Super Admin Tools -->
+      <div class="card border-0 shadow-sm rounded-4 bg-white">
+        <div class="card-header bg-white border-0 py-3 px-4">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="fa-solid fa-toolbox text-secondary me-2"></i> Management Modules
+          </h6>
+        </div>
+        <div class="card-body p-3">
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('superadmin.organizations') }}" class="btn btn-outline-dark text-start py-2">
+              <i class="fa-solid fa-building-columns me-2 text-primary"></i> Institutions Directory
+            </a>
+            <a href="{{ url_for('superadmin.users') }}" class="btn btn-outline-dark text-start py-2">
+              <i class="fa-solid fa-users-gear me-2 text-success"></i> Platform Users & Roles
+            </a>
+            <a href="{{ url_for('superadmin.audit') }}" class="btn btn-outline-dark text-start py-2">
+              <i class="fa-solid fa-shield-halved me-2 text-danger"></i> System Audit Trail
+            </a>
+            <a href="{{ url_for('superadmin.announcements') }}" class="btn btn-outline-dark text-start py-2">
+              <i class="fa-solid fa-bullhorn me-2 text-warning"></i> Platform Announcements
+            </a>
+            <a href="{{ url_for('system.backup') }}" class="btn btn-outline-dark text-start py-2">
+              <i class="fa-solid fa-database me-2 text-info"></i> Full Database Backup
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: Recent Platform Activity Logs -->
+  <div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold text-dark mb-0">
+        <i class="fa-solid fa-clock-rotate-left text-muted me-2"></i> Recent Platform Activity Logs
+      </h6>
+      <a href="{{ url_for('superadmin.audit') }}" class="btn btn-sm btn-outline-secondary rounded-pill">View Full Audit Trail</a>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light text-uppercase text-muted">
+            <tr>
+              <th class="ps-4">Timestamp</th>
+              <th>Action</th>
+              <th>User</th>
+              <th>Institution</th>
+              <th>Details</th>
+              <th class="pe-4">IP Address</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_audits %}
+            <tr>
+              <td class="ps-4 text-muted">{{ log.created_at.strftime('%d %b %Y, %H:%M') if log.created_at else 'N/A' }}</td>
+              <td><span class="badge bg-light text-dark border font-monospace">{{ log.action }}</span></td>
+              <td class="fw-semibold">{{ log.username or 'System' }}</td>
+              <td>
+                {% if log.school_id %}
+                  <span class="badge bg-secondary bg-opacity-25 text-dark">Tenant #{{ log.school_id }}</span>
+                {% else %}
+                  <span class="text-muted">Platform</span>
+                {% endif %}
+              </td>
+              <td class="text-truncate" style="max-width: 350px;">{{ log.details or '-' }}</td>
+              <td class="pe-4 text-muted font-monospace">{{ log.ip_address or '127.0.0.1' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -121,32 +121,49 @@
           </li>
         </ul>
 
-        <!-- Active Institution Switcher (Multi-Institution Platform) -->
-        <div class="d-flex align-items-center gap-3">
+        <!-- Multi-Tenant SaaS Workspace & Super Admin Controls -->
+        <div class="d-flex align-items-center gap-2">
+          <!-- Super Admin Console Quick Access (Super Admins Only) -->
+          {% if current_user.is_authenticated and (current_user.is_platform_admin or current_user.role == 'superadmin') %}
+          <a href="{{ url_for('superadmin.index') }}" class="btn btn-warning btn-sm fw-bold d-flex align-items-center gap-1 shadow-sm">
+            <i class="fa-solid fa-crown"></i>
+            <span>Super Admin</span>
+          </a>
+          {% endif %}
+
+          <!-- Active Institution Display / Switcher -->
           {% if current_user.is_authenticated and current_school %}
-          <div class="dropdown">
-            <button class="btn btn-dark btn-sm dropdown-toggle d-flex align-items-center gap-2 border border-secondary" type="button" data-bs-toggle="dropdown">
+            {% if current_user.is_platform_admin or current_user.role == 'superadmin' %}
+            <!-- Super Admin Dropdown Switcher -->
+            <div class="dropdown">
+              <button class="btn btn-dark btn-sm dropdown-toggle d-flex align-items-center gap-2 border border-secondary" type="button" data-bs-toggle="dropdown">
+                <span class="school-badge-indicator"></span>
+                <span class="fw-semibold text-truncate" style="max-width: 170px;">{{ current_school.name }}</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end shadow">
+                <li class="dropdown-header text-uppercase fs-7 text-muted">Platform Switcher (Super Admin)</li>
+                {% for sch in all_schools %}
+                <li>
+                  <a class="dropdown-item d-flex align-items-center justify-content-between {% if sch.id == current_school.id %}active{% endif %}" href="{{ url_for('schools.switch_school', school_id=sch.id) }}">
+                    <span class="text-truncate" style="max-width: 220px;">
+                      <i class="fa-solid {% if sch.is_corporate() %}fa-building{% elif sch.is_university() %}fa-graduation-cap{% elif sch.is_ngo() %}fa-hand-holding-heart{% elif sch.is_government() %}fa-landmark{% else %}fa-school{% endif %} me-2 text-primary"></i>
+                      {{ sch.name }}
+                    </span>
+                    <span class="badge rounded-pill" data-dot-color="{{ sch.primary_color }}" style="width: 10px; height: 10px; display: inline-block; background-color: #64748B;"> </span>
+                  </a>
+                </li>
+                {% endfor %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-primary fw-semibold" href="{{ url_for('superadmin.organizations') }}"><i class="fa-solid fa-list-check me-2"></i> All Institutions Manager</a></li>
+              </ul>
+            </div>
+            {% else %}
+            <!-- Tenant Member Pinned Badge (Non-tamperable) -->
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 bg-dark bg-opacity-50 border border-secondary border-opacity-50 rounded-pill text-white small">
               <span class="school-badge-indicator"></span>
               <span class="fw-semibold text-truncate" style="max-width: 180px;">{{ current_school.name }}</span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li class="dropdown-header text-uppercase fs-7 text-muted">Switch Active Institution</li>
-              {% for sch in all_schools %}
-              <li>
-                <a class="dropdown-item d-flex align-items-center justify-content-between {% if sch.id == current_school.id %}active{% endif %}" href="{{ url_for('schools.switch_school', school_id=sch.id) }}">
-                  <span>
-                    <i class="fa-solid {% if sch.is_corporate() %}fa-building{% elif sch.is_university() %}fa-graduation-cap{% elif sch.is_ngo() %}fa-hand-holding-heart{% elif sch.is_government() %}fa-landmark{% else %}fa-school{% endif %} me-2 text-primary"></i>
-                    {{ sch.name }}
-                  </span>
-                  <span class="badge rounded-pill" data-dot-color="{{ sch.primary_color }}" style="width: 12px; height: 12px; display: inline-block; background-color: #64748B;"> </span>
-                </a>
-              </li>
-              {% endfor %}
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-success" href="{{ url_for('schools.create_school') }}"><i class="fa-solid fa-plus-circle me-2"></i> Register New Institution</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-sliders me-2"></i> Institution Settings & Colors</a></li>
-            </ul>
-          </div>
+            </div>
+            {% endif %}
           {% endif %}
 
           <!-- User / Settings Dropdown -->
@@ -157,9 +174,16 @@
               <span>{{ current_user.username }}</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li class="dropdown-header text-muted">{{ current_user.full_name }} ({{ current_user.role }})</li>
-              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-gear me-2"></i> Institution Settings</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('system.backup') }}"><i class="fa-solid fa-database me-2"></i> System Backup</a></li>
+              <li class="dropdown-header text-muted">
+                {{ current_user.full_name }}
+                <div class="small fw-semibold text-primary">Role: {{ current_user.role }}</div>
+              </li>
+              {% if current_user.is_platform_admin or current_user.role == 'superadmin' %}
+              <li><a class="dropdown-item fw-bold text-warning" href="{{ url_for('superadmin.index') }}"><i class="fa-solid fa-crown me-2"></i> Super Admin Console</a></li>
+              <li><hr class="dropdown-divider"></li>
+              {% endif %}
+              <li><a class="dropdown-item" href="{{ url_for('schools.settings') }}"><i class="fa-solid fa-gear me-2"></i> Institution Branding</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('schools.users') }}"><i class="fa-solid fa-users-gear me-2"></i> Staff & Access Control</a></li>
               <li><a class="dropdown-item" href="{{ url_for('system.audit') }}"><i class="fa-solid fa-clock-rotate-left me-2"></i> Audit Logs</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket me-2"></i> Logout</a></li>

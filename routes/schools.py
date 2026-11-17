@@ -1,12 +1,12 @@
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
-from flask_login import login_required
+from flask_login import login_required, current_user
 from urllib.parse import urlsplit
 import re
 from extensions import db
-from models import School, Student, CardRecord
+from models import School, Student, CardRecord, User
 from config import Config
-from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url
+from utils import get_current_school, log_audit, save_uploaded_file, save_base64_image, build_public_url, tenant_active_required
 from services.card_renderer import CardRenderer
 
 schools_bp = Blueprint("schools", __name__)
@@ -72,12 +72,95 @@ def preview_card(side):
 @schools_bp.route("/switch/<int:school_id>")
 @login_required
 def switch_school(school_id):
+    if not (getattr(current_user, "is_platform_admin", False) or current_user.role == "superadmin"):
+        flash("Unauthorized. Cross-institution switching is restricted to Platform Super Administrators.", "danger")
+        log_audit("UNAUTHORIZED_SWITCH_ATTEMPT", f"User {current_user.username} tried switching to school ID {school_id}")
+        return redirect(url_for("dashboard.index"))
     school = School.query.get_or_404(school_id)
     session["active_school_id"] = school.id
-    flash(f"Switched active school to: {school.name}", "success")
-    log_audit("SWITCH_SCHOOL", f"Switched to school ID {school.id} ({school.name})")
-    # Redirect back to referring page or dashboard
+    flash(f"Switched active institution to: {school.name}", "success")
+    log_audit("SUPERADMIN_SWITCH_INSTITUTION", f"Switched to institution ID {school.id} ({school.name})", school_id=school.id)
     return redirect(request.referrer or url_for("dashboard.index"))
+
+
+@schools_bp.route("/users")
+@login_required
+@tenant_active_required
+def users():
+    """Organisation user management for current tenant workspace."""
+    school = get_current_school()
+    if not school:
+        flash("No active institution found.", "danger")
+        return redirect(url_for("auth.login"))
+    org_users = User.query.filter_by(school_id=school.id).order_by(User.created_at.desc()).all()
+    return render_template("schools/users.html", current_school=school, org_users=org_users)
+
+
+@schools_bp.route("/users/add", methods=["POST"])
+@login_required
+@tenant_active_required
+def add_user():
+    """Add a staff member to the current organisation workspace."""
+    school = get_current_school()
+    if current_user.role not in ["org_owner", "org_admin", "superadmin"] and not getattr(current_user, "is_platform_admin", False):
+        flash("Only Organisation Administrators can add staff members.", "danger")
+        return redirect(url_for("schools.users"))
+    
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    full_name = request.form.get("full_name", "").strip()
+    role = request.form.get("role", "card_manager").strip()
+    password = request.form.get("password", "")
+
+    if role not in ["org_admin", "card_manager", "data_entry", "viewer"]:
+        role = "card_manager"
+
+    if not username or not email or not full_name or not password:
+        flash("All fields are required.", "danger")
+        return redirect(url_for("schools.users"))
+
+    if User.query.filter((User.username == username) | (User.email == email)).first():
+        flash("A user with that username or email already exists.", "danger")
+        return redirect(url_for("schools.users"))
+
+    new_user = User(
+        username=username,
+        email=email,
+        full_name=full_name,
+        role=role,
+        school_id=school.id,
+        is_platform_admin=False,
+        is_active=True
+    )
+    new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    log_audit("ORG_USER_CREATED", f"Added user {username} ({role}) to {school.name}", school_id=school.id)
+    flash(f"Staff member '{full_name}' added successfully.", "success")
+    return redirect(url_for("schools.users"))
+
+
+@schools_bp.route("/users/<int:user_id>/toggle", methods=["POST"])
+@login_required
+@tenant_active_required
+def toggle_user(user_id):
+    school = get_current_school()
+    if current_user.role not in ["org_owner", "org_admin", "superadmin"] and not getattr(current_user, "is_platform_admin", False):
+        flash("Permission denied.", "danger")
+        return redirect(url_for("schools.users"))
+
+    user = User.query.filter_by(id=user_id, school_id=school.id).first_or_404()
+    if user.id == current_user.id:
+        flash("You cannot deactivate your own account.", "danger")
+        return redirect(url_for("schools.users"))
+
+    user.is_active = not user.is_active
+    db.session.commit()
+    status_str = "activated" if user.is_active else "deactivated"
+    log_audit("ORG_USER_STATUS_TOGGLED", f"User {user.username} {status_str} by {current_user.username}", school_id=school.id)
+    flash(f"User account {status_str} successfully.", "success")
+    return redirect(url_for("schools.users"))
 
 
 @schools_bp.route("/new", methods=["GET", "POST"])

@@ -14,6 +14,58 @@
     </div>
   </div>
 
+  <!-- Quota Allowance Telemetry Banner -->
+  {% if current_school.max_cards_quota and not current_school.is_quota_unlimited() %}
+    {% set generated_count = current_school.cards_generated_count or active_cards_count or 0 %}
+    {% set remaining_cards = [current_school.max_cards_quota - generated_count, 0]|max %}
+    {% if remaining_cards == 0 %}
+      <div class="card border-0 bg-danger bg-opacity-10 border-start border-4 border-danger rounded-4 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-start gap-3">
+            <div class="p-3 bg-danger text-white rounded-circle">
+              <i class="fa-solid fa-triangle-exclamation fa-2x"></i>
+            </div>
+            <div class="flex-grow-1">
+              <h5 class="fw-bold text-danger mb-1">Batch Generation Paused: Card Allocation Depleted</h5>
+              <p class="text-dark mb-3 small">
+                <strong>{{ current_school.name }}</strong> has used all {{ current_school.max_cards_quota }} allocated ID credentials. To purchase an additional batch or unlock infinite generation, contact System Operations:
+              </p>
+              <div class="d-flex flex-wrap gap-2">
+                <a href="https://wa.me/254746908674?text=Hello%20EduID%20Kenya%20Management,%20we%20have%20reached%20our%20ID%20limit%20for%20{{ current_school.name|urlencode }}.%20Please%20upgrade%20our%20batch%20allocation." target="_blank" class="btn btn-success btn-sm fw-bold px-3 shadow-sm">
+                  <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp Support (+254 746 908674)
+                </a>
+                <a href="tel:+254746908674" class="btn btn-dark btn-sm fw-bold px-3 shadow-sm">
+                  <i class="fa-solid fa-phone me-1"></i> Call +254 746 908674
+                </a>
+                <a href="mailto:dancanmbaabu1@gmail.com?subject=Batch%20Quota%20Upgrade%20Request%20-%20{{ current_school.name|urlencode }}&body=Hello%20System%20Admin,%20Please%20upgrade%20our%20batch%20allocation%20for%20{{ current_school.name|urlencode }}." class="btn btn-outline-danger btn-sm fw-bold px-3">
+                  <i class="fa-solid fa-envelope me-1"></i> dancanmbaabu1@gmail.com
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-light border border-primary border-opacity-25 d-flex align-items-center justify-content-between rounded-4 shadow-sm mb-4 p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-circle">
+            <i class="fa-solid fa-sliders fa-lg"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark">ID Card Allowance: {{ generated_count }} / {{ current_school.max_cards_quota }} Cards Used</div>
+            <div class="small text-muted">{{ remaining_cards }} card(s) available on current {{ (current_school.subscription_tier or 'Free Trial').replace('_', ' ').title() }} plan.</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <a href="https://wa.me/254746908674?text=Hello%20EduID%20Kenya,%20we%20would%20like%20to%20upgrade%20card%20quota%20for%20{{ current_school.name|urlencode }}." target="_blank" class="btn btn-sm btn-outline-success">
+            <i class="fa-brands fa-whatsapp me-1"></i> Top Up Allowance
+          </a>
+          <span class="badge bg-primary px-3 py-2 text-uppercase">{{ current_school.subscription_tier or 'Free Trial' }}</span>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+
   <!-- Real-Time Operational Telemetry Metrics -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">

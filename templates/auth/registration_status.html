@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Application Status - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-header bg-dark text-white p-4 border-0 text-center" style="background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);">
+          {% if school.status == 'active' %}
+            <div class="d-inline-flex p-3 rounded-circle bg-success bg-opacity-25 mb-3">
+              <i class="fa-solid fa-circle-check fa-3x text-success"></i>
+            </div>
+            <h4 class="fw-bold mb-1">Institution Approved!</h4>
+            <p class="text-white-50 small mb-0">Your institution workspace is active and ready</p>
+          {% elif school.status == 'rejected' %}
+            <div class="d-inline-flex p-3 rounded-circle bg-danger bg-opacity-25 mb-3">
+              <i class="fa-solid fa-circle-xmark fa-3x text-danger"></i>
+            </div>
+            <h4 class="fw-bold mb-1">Registration Not Approved</h4>
+            <p class="text-white-50 small mb-0">Your application could not be verified</p>
+          {% else %}
+            <div class="d-inline-flex p-3 rounded-circle bg-warning bg-opacity-25 mb-3">
+              <i class="fa-solid fa-clock-rotate-left fa-3x text-warning"></i>
+            </div>
+            <h4 class="fw-bold mb-1">Application Pending Verification</h4>
+            <p class="text-white-50 small mb-0">Reference ID: <span class="badge bg-white text-dark font-monospace">{{ school.code }}</span></p>
+          {% endif %}
+        </div>
+
+        <div class="card-body p-4 p-md-5 bg-white">
+          <div class="border rounded-3 p-3 bg-light mb-4">
+            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-building me-2 text-primary"></i> Institution Summary</h6>
+            <div class="row g-2 small">
+              <div class="col-sm-5 text-muted">Institution Name:</div>
+              <div class="col-sm-7 fw-bold text-dark">{{ school.name }}</div>
+
+              <div class="col-sm-5 text-muted">Institution Category:</div>
+              <div class="col-sm-7 fw-semibold">{{ school.get_institution_type_display() }}</div>
+
+              <div class="col-sm-5 text-muted">Contact Person:</div>
+              <div class="col-sm-7">{{ school.contact_person_name or 'N/A' }}</div>
+
+              <div class="col-sm-5 text-muted">Contact Email:</div>
+              <div class="col-sm-7 font-monospace">{{ school.email or 'N/A' }}</div>
+
+              <div class="col-sm-5 text-muted">County / Town:</div>
+              <div class="col-sm-7">{{ school.county }}, {{ school.town }}</div>
+
+              <div class="col-sm-5 text-muted">Submitted On:</div>
+              <div class="col-sm-7 text-muted">{{ school.created_at.strftime('%d %b %Y, %H:%M') if school.created_at else 'Just now' }}</div>
+
+              <div class="col-sm-5 text-muted">Current Status:</div>
+              <div class="col-sm-7">
+                {% if school.status == 'active' %}
+                  <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Active / Approved</span>
+                {% elif school.status == 'rejected' %}
+                  <span class="badge bg-danger"><i class="fa-solid fa-xmark me-1"></i> Rejected</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark"><i class="fa-solid fa-spinner fa-spin me-1"></i> Pending Platform Review</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {% if school.status == 'rejected' and school.rejection_reason %}
+            <div class="alert alert-danger border-0 rounded-3 mb-4">
+              <h6 class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Reason for Rejection:</h6>
+              <p class="small mb-0">{{ school.rejection_reason }}</p>
+            </div>
+          {% endif %}
+
+          {% if school.status == 'active' %}
+            <div class="alert alert-success border-0 rounded-3 mb-4">
+              <i class="fa-solid fa-circle-check me-1"></i> Your administrator account is now active. You may log in to start designing cards, adding students, and configuring your institution branding.
+            </div>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow">
+              <i class="fa-solid fa-right-to-bracket me-2"></i> Log In to Your Institution Workspace
+            </a>
+          {% else %}
+            <div class="text-center text-muted small mb-4">
+              <p class="mb-2"><i class="fa-solid fa-shield-halved text-primary me-1"></i> Our team will verify your school registration details and activate your workspace shortly.</p>
+              <p class="mb-0">Need urgent onboarding? Contact platform operations at <a href="mailto:support@eduid.co.ke" class="fw-semibold">support@eduid.co.ke</a> or call <strong>+254 700 000 000</strong>.</p>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('auth.registration_status', school_id=school.id) }}" class="btn btn-outline-secondary flex-fill py-2">
+                <i class="fa-solid fa-rotate-right me-1"></i> Refresh Status
+              </a>
+              <a href="{{ url_for('auth.login') }}" class="btn btn-primary flex-fill py-2" style="background-color: #1E3A8A; border-color: #1E3A8A;">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to Login
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

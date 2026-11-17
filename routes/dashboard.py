@@ -1,16 +1,18 @@
 from flask import Blueprint, render_template, url_for
 from flask_login import login_required
 from extensions import db
-from models import School, Student, CardRecord, GenerationJob, SelfEnrolment
-from utils import get_current_school
+from models import School, Student, CardRecord, GenerationJob, SelfEnrolment, PlatformAnnouncement
+from utils import get_current_school, tenant_active_required
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 @dashboard_bp.route("/")
 @login_required
+@tenant_active_required
 def index():
     school = get_current_school()
     all_schools = School.query.filter_by(is_active=True).all()
+    announcements = PlatformAnnouncement.query.filter_by(is_active=True).order_by(PlatformAnnouncement.created_at.desc()).limit(3).all()
 
     # Calculate statistics for the active school
     total_students = Student.query.filter_by(school_id=school.id, is_archived=False).count()
@@ -48,6 +50,7 @@ def index():
         classes=classes,
         recent_jobs=recent_jobs,
         recent_students=recent_students,
-        onboard_url=onboard_url
+        onboard_url=onboard_url,
+        announcements=announcements
     )
 

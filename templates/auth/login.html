@@ -37,8 +37,15 @@
             </button>
           </form>
 
-          <div class="alert alert-light border mt-4 mb-0 py-2 text-center text-muted small">
-            <i class="fa-solid fa-shield-halved text-success me-1"></i> Standalone Offline System (SQLite)
+          <div class="mt-4 pt-3 border-top text-center">
+            <p class="text-muted small mb-2">Want to manage ID cards for your organisation?</p>
+            <a href="{{ url_for('auth.register_institution') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
+              <i class="fa-solid fa-building-columns me-1"></i> Register Your Institution
+            </a>
+          </div>
+
+          <div class="alert alert-light border mt-3 mb-0 py-2 text-center text-muted small">
+            <i class="fa-solid fa-shield-halved text-success me-1"></i> Multi-Tenant SaaS Platform (EduID Kenya)
           </div>
         </div>
       </div>

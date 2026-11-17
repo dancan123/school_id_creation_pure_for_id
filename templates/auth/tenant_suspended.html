@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Account Suspended - EduID Kenya{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-lg rounded-4 overflow-hidden text-center">
+        <div class="card-header bg-danger text-white py-5 border-0">
+          <div class="d-inline-flex p-3 rounded-circle bg-white bg-opacity-20 mb-3">
+            <i class="fa-solid fa-lock fa-3x text-white"></i>
+          </div>
+          <h4 class="fw-bold mb-1">Institution Workspace Suspended</h4>
+          <p class="text-white-50 small mb-0">Platform Security & Subscription Notice</p>
+        </div>
+        <div class="card-body p-4 p-md-5 bg-white">
+          <p class="text-muted mb-4">
+            Access to this institution's ID Generation workspace has been suspended or deactivated by the Platform Super Administrator.
+          </p>
+          <div class="alert alert-light border text-start small mb-4">
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-circle-question text-danger me-1"></i> Common Reasons:</h6>
+            <ul class="mb-0 ps-3 text-muted">
+              <li>Pending subscription renewal or usage licence verification.</li>
+              <li>Administrative review of institution credentials or registration.</li>
+              <li>Requested suspension by institution authority.</li>
+            </ul>
+          </div>
+          <p class="small text-muted mb-4">
+            To restore access or inquire about account reactivation, please contact EduID Kenya Platform Support:
+            <br>
+            <span class="fw-bold text-dark">Email: support@eduid.co.ke | Phone: +254 700 000 000</span>
+          </p>
+          <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger w-100 py-2 fw-semibold">
+            <i class="fa-solid fa-right-from-bracket me-2"></i> Log Out
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

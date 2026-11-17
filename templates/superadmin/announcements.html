@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Platform Announcements - Super Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small">
+          <li class="breadcrumb-item"><a href="{{ url_for('superadmin.index') }}">Super Admin</a></li>
+          <li class="breadcrumb-item active">Announcements</li>
+        </ol>
+      </nav>
+      <h3 class="fw-bold text-dark mb-0">Platform-Wide Announcements</h3>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Create Announcement Form -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 bg-white">
+        <div class="card-header bg-white border-0 py-3 px-4">
+          <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-bullhorn text-warning me-2"></i> Broadcast Announcement</h5>
+        </div>
+        <div class="card-body p-4 pt-0">
+          <form method="POST" action="{{ url_for('superadmin.announcements') }}">
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted">Announcement Title <span class="text-danger">*</span></label>
+              <input type="text" name="title" class="form-control" placeholder="e.g. Scheduled System Maintenance / Important Update" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted">Notice Severity</label>
+              <select name="severity" class="form-select">
+                <option value="info" selected>Informational (Blue)</option>
+                <option value="warning">Important Warning (Yellow)</option>
+                <option value="critical">Critical / Maintenance (Red)</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted">Message Content <span class="text-danger">*</span></label>
+              <textarea name="message" rows="4" class="form-control" placeholder="Enter message displayed to all logged-in institution administrators..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm" style="background-color: #1E3A8A; border-color: #1E3A8A;">
+              <i class="fa-solid fa-paper-plane me-1"></i> Broadcast Announcement
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Current Announcements List -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 bg-white">
+        <div class="card-header bg-white border-0 py-3 px-4">
+          <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Broadcasted Notices</h5>
+        </div>
+        <div class="card-body p-4 pt-0">
+          {% for a in announcements %}
+          <div class="border rounded-3 p-3 mb-3 bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold mb-0">
+                {% if a.severity == 'critical' %}
+                  <span class="badge bg-danger me-2">Critical</span>
+                {% elif a.severity == 'warning' %}
+                  <span class="badge bg-warning text-dark me-2">Warning</span>
+                {% else %}
+                  <span class="badge bg-info me-2">Info</span>
+                {% endif %}
+                {{ a.title }}
+              </h6>
+              <span class="small text-muted">{{ a.created_at.strftime('%d %b %Y, %H:%M') if a.created_at else '-' }}</span>
+            </div>
+            <p class="small text-muted mb-0">{{ a.message }}</p>
+          </div>
+          {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="fa-solid fa-bullhorn fa-3x mb-3 text-secondary"></i>
+            <h6>No active announcements broadcasted.</h6>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

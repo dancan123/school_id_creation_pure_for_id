@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}System Audit Trail - Super Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small">
+          <li class="breadcrumb-item"><a href="{{ url_for('superadmin.index') }}">Super Admin</a></li>
+          <li class="breadcrumb-item active">Audit Trail</li>
+        </ol>
+      </nav>
+      <h3 class="fw-bold text-dark mb-0">Platform Security & Audit Trail</h3>
+    </div>
+  </div>
+
+  <!-- Search Filter -->
+  <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-body p-3">
+      <form method="GET" action="{{ url_for('superadmin.audit') }}" class="row g-2 align-items-center">
+        <div class="col-md-10">
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+            <input type="text" name="q" class="form-control border-start-0" placeholder="Filter by action keyword (e.g. LOGIN, APPROVE, SUSPEND), username, or details..." value="{{ search_q }}">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-secondary w-100">Filter Logs</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Audit Table -->
+  <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light text-uppercase text-muted">
+            <tr>
+              <th class="ps-4">Timestamp</th>
+              <th>Action Code</th>
+              <th>User</th>
+              <th>Institution Context</th>
+              <th>Event Details</th>
+              <th class="pe-4">IP Address</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <td class="ps-4 text-muted">{{ log.created_at.strftime('%d %b %Y, %H:%M:%S') if log.created_at else '-' }}</td>
+              <td>
+                <span class="badge {% if 'FAIL' in log.action or 'LOCK' in log.action or 'SUSPEND' in log.action or 'REJECT' in log.action or 'UNAUTHORIZED' in log.action %}bg-danger bg-opacity-10 text-danger{% elif 'APPROVE' in log.action or 'LOGIN' in log.action %}bg-success bg-opacity-10 text-success{% else %}bg-light text-dark border{% endif %} font-monospace">
+                  {{ log.action }}
+                </span>
+              </td>
+              <td class="fw-semibold">{{ log.username or 'System' }}</td>
+              <td>
+                {% if log.school_id %}
+                  <span class="badge bg-secondary bg-opacity-25 text-dark">Tenant #{{ log.school_id }}</span>
+                {% else %}
+                  <span class="text-muted">Platform</span>
+                {% endif %}
+              </td>
+              <td>{{ log.details or '-' }}</td>
+              <td class="pe-4 font-monospace text-muted">{{ log.ip_address or '127.0.0.1' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">No audit logs found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <div class="small text-muted">
+        Showing Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} records)
+      </div>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('superadmin.audit', page=pagination.prev_num, q=search_q) }}">Previous</a></li>
+          {% endif %}
+          <li class="page-item active"><span class="page-link">{{ pagination.page }}</span></li>
+          {% if pagination.has_next %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('superadmin.audit', page=pagination.next_num, q=search_q) }}">Next</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

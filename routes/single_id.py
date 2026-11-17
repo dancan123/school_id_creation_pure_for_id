@@ -104,6 +104,13 @@ def generate_card():
     # Look for existing active card
     existing_card = CardRecord.query.filter_by(student_id=student.id, status="active").first()
 
+    # Enforce subscription tier quota (0 = Unlimited)
+    total_generated = CardRecord.query.filter_by(school_id=school.id).count()
+    if school.max_cards_quota and school.max_cards_quota > 0 and total_generated >= school.max_cards_quota and not (existing_card and is_reprint):
+        tier_label = (school.subscription_tier or "Free Trial").replace("_", " ").title()
+        flash(f"ID Card quota reached ({total_generated}/{school.max_cards_quota} cards). To upgrade your allowance, contact System Management: Call/WhatsApp +254 746 908674 or email dancanmbaabu1@gmail.com.", "danger")
+        return redirect(url_for("single_id.index", student_id=student.id))
+
     if existing_card and is_reprint:
         existing_card.status = "replaced"
         existing_card.reprint_reason = reprint_reason or "Card Replacement"
@@ -111,6 +118,10 @@ def generate_card():
 
     base_url = build_public_url("", school).rstrip("/")
     card = CardRenderer.generate_card_for_student(school, student, base_url, template_id=template_id)
+
+    # Synchronize tenant cards generated counter
+    school.cards_generated_count = CardRecord.query.filter_by(school_id=school.id).count()
+    db.session.commit()
 
     flash(f"ID Card for {student.full_name} ({student.admission_number}) generated successfully!", "success")
     log_audit("GENERATE_SINGLE_ID", f"Generated ID for student {student.admission_number} ({card.card_number})")

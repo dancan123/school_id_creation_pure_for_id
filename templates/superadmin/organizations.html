@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Institutions - Super Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small">
+          <li class="breadcrumb-item"><a href="{{ url_for('superadmin.index') }}">Super Admin</a></li>
+          <li class="breadcrumb-item active">Institutions</li>
+        </ol>
+      </nav>
+      <h3 class="fw-bold text-dark mb-0">Registered Institutions & Tenants</h3>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('schools.create_school') }}" class="btn btn-primary fw-semibold shadow-sm">
+        <i class="fa-solid fa-plus me-1"></i> Register New Institution
+      </a>
+    </div>
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-body p-3">
+      <form method="GET" action="{{ url_for('superadmin.organizations') }}" class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+            <input type="text" name="q" class="form-control border-start-0" placeholder="Search by name, code, contact person, county..." value="{{ search_q }}">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Review Only</option>
+            <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended Only</option>
+            <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected Only</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select name="type" class="form-select" onchange="this.form.submit()">
+            <option value="all" {% if type_filter == 'all' %}selected{% endif %}>All Categories</option>
+            <option value="school" {% if type_filter == 'school' %}selected{% endif %}>Primary / Secondary</option>
+            <option value="university" {% if type_filter == 'university' %}selected{% endif %}>Colleges & Universities</option>
+            <option value="tvet" {% if type_filter == 'tvet' %}selected{% endif %}>TVET / Polytechnics</option>
+            <option value="company" {% if type_filter == 'company' %}selected{% endif %}>Corporates / Companies</option>
+            <option value="ngo" {% if type_filter == 'ngo' %}selected{% endif %}>NGOs / Organizations</option>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <button type="submit" class="btn btn-secondary w-100">Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Institutions List Table -->
+  <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light small text-uppercase text-muted">
+            <tr>
+              <th class="ps-4">Institution</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Plan / Tier</th>
+              <th>Contact Details</th>
+              <th>County</th>
+              <th>Registered</th>
+              <th class="text-end pe-4">Manage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in schools %}
+            <tr>
+              <td class="ps-4">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="rounded-circle" style="width: 10px; height: 10px; background-color: {{ s.primary_color or '#1E3A8A' }}; display: inline-block;"></span>
+                  <div>
+                    <a href="{{ url_for('superadmin.org_detail', school_id=s.id) }}" class="fw-bold text-dark text-decoration-none">
+                      {{ s.name }}
+                    </a>
+                    <div class="font-monospace small text-muted">{{ s.code or ('ID: ' ~ s.id) }}</div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ s.get_institution_type_display() }}</span></td>
+              <td>
+                {% if s.status == 'active' %}
+                  <span class="badge bg-success bg-opacity-10 text-success fw-bold"><i class="fa-solid fa-circle-check me-1"></i> Active</span>
+                {% elif s.status == 'pending' %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning fw-bold"><i class="fa-solid fa-clock me-1"></i> Pending</span>
+                {% elif s.status == 'suspended' %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger fw-bold"><i class="fa-solid fa-ban me-1"></i> Suspended</span>
+                {% elif s.status == 'rejected' %}
+                  <span class="badge bg-secondary bg-opacity-25 text-dark"><i class="fa-solid fa-xmark me-1"></i> Rejected</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ s.status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge bg-primary bg-opacity-10 text-primary text-uppercase">{{ s.subscription_tier or 'Free Trial' }}</span>
+                {% if s.is_quota_unlimited() %}
+                  <div class="small text-success fw-bold font-monospace"><i class="fa-solid fa-infinity me-1"></i> Unlimited ({{ s.cards_generated_count }} IDs)</div>
+                {% else %}
+                  <div class="small text-muted font-monospace">{{ s.cards_generated_count }} / {{ s.max_cards_quota }} IDs</div>
+                {% endif %}
+                <button type="button" class="btn btn-xs btn-link p-0 text-decoration-none small fw-semibold text-primary" data-bs-toggle="modal" data-bs-target="#quotaModal{{ s.id }}" style="font-size: 11px;">
+                  <i class="fa-solid fa-pen-to-square me-1"></i> Set ID Limit
+                </button>
+
+                <!-- Quick Quota Modal for this School -->
+                <div class="modal fade" id="quotaModal{{ s.id }}" tabindex="-1">
+                  <div class="modal-dialog modal-sm">
+                    <div class="modal-content border-0 rounded-4 shadow">
+                      <form method="POST" action="{{ url_for('superadmin.update_tier', school_id=s.id) }}">
+                        <div class="modal-header bg-dark text-white border-0 py-2 px-3">
+                          <h6 class="modal-title fw-bold small"><i class="fa-solid fa-sliders text-warning me-1"></i> Set ID Limit for {{ s.name }}</h6>
+                          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-3 text-start">
+                          <div class="mb-2">
+                            <label class="form-label small fw-bold text-muted">Subscription Tier</label>
+                            <select name="subscription_tier" class="form-select form-select-sm">
+                              <option value="free_trial" {% if s.subscription_tier == 'free_trial' %}selected{% endif %}>Free Trial</option>
+                              <option value="starter" {% if s.subscription_tier == 'starter' %}selected{% endif %}>Starter Plan</option>
+                              <option value="standard" {% if s.subscription_tier == 'standard' %}selected{% endif %}>Standard Plan</option>
+                              <option value="enterprise" {% if s.subscription_tier == 'enterprise' %}selected{% endif %}>Enterprise / Infinite</option>
+                            </select>
+                          </div>
+                          <div class="mb-2">
+                            <label class="form-label small fw-bold text-muted">Allowed ID Cards Limit</label>
+                            <div class="input-group input-group-sm mb-1">
+                              <input type="number" name="max_cards_quota" id="quickQuota{{ s.id }}" class="form-control" value="{{ s.max_cards_quota if s.max_cards_quota is not none else 2 }}" min="0" required>
+                              <span class="input-group-text">IDs (0 = ∞)</span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-1 mb-1">
+                              <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 10px;" onclick="document.getElementById('quickQuota{{ s.id }}').value = 1">1</button>
+                              <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 10px;" onclick="document.getElementById('quickQuota{{ s.id }}').value = 2">2</button>
+                              <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 10px;" onclick="document.getElementById('quickQuota{{ s.id }}').value = 3">3</button>
+                              <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 10px;" onclick="document.getElementById('quickQuota{{ s.id }}').value = 50">50</button>
+                              <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size: 10px;" onclick="document.getElementById('quickQuota{{ s.id }}').value = 500">500</button>
+                              <button type="button" class="btn btn-xs btn-success py-0 px-1 text-white fw-bold" style="font-size: 10px;" onclick="document.getElementById('quickQuota{{ s.id }}').value = 0">∞</button>
+                            </div>
+                            <div class="form-text small">Currently used: <strong>{{ s.cards_generated_count }}</strong> IDs</div>
+                          </div>
+                        </div>
+                        <div class="modal-footer border-0 p-2">
+                          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn btn-sm btn-primary fw-bold" style="background-color: #1E3A8A; border-color: #1E3A8A;">Save Limit</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="small fw-semibold">{{ s.contact_person_name or s.principal_name or 'N/A' }}</div>
+                <div class="small text-muted">{{ s.email or s.phone or 'N/A' }}</div>
+              </td>
+              <td><span class="small">{{ s.county or 'N/A' }}</span></td>
+              <td><span class="small text-muted">{{ s.created_at.strftime('%d %b %Y') if s.created_at else '-' }}</span></td>
+              <td class="text-end pe-4">
+                <div class="btn-group">
+                  <a href="{{ url_for('superadmin.org_detail', school_id=s.id) }}" class="btn btn-sm btn-outline-primary" title="View Full Details">
+                    <i class="fa-solid fa-eye"></i> View
+                  </a>
+                  <a href="{{ url_for('superadmin.enter_workspace', school_id=s.id) }}" class="btn btn-sm btn-outline-dark" title="Inspect Tenant Workspace">
+                    <i class="fa-solid fa-door-open"></i> Workspace
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-building-circle-xmark fa-3x mb-3 text-secondary"></i>
+                <h6>No institutions found matching criteria.</h6>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <div class="small text-muted">
+        Showing Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} institutions)
+      </div>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('superadmin.organizations', page=pagination.prev_num, q=search_q, status=status_filter, type=type_filter) }}">Previous</a>
+          </li>
+          {% endif %}
+          <li class="page-item active"><span class="page-link">{{ pagination.page }}</span></li>
+          {% if pagination.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('superadmin.organizations', page=pagination.next_num, q=search_q, status=status_filter, type=type_filter) }}">Next</a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
